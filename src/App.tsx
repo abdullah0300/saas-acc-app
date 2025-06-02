@@ -1,26 +1,298 @@
+// Updated App.tsx with all new routes
+
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/Auth/ProtectedRoute';
+import { Login } from './components/Auth/Login';
+import { Register } from './components/Auth/Register';
+import { Layout } from './components/Layout/Layout';
+import { Dashboard } from './components/Dashboard/Dashboard';
+import { IncomeList } from './components/Income/IncomeList';
+import { IncomeForm } from './components/Income/IncomeForm';
+import { ExpenseList } from './components/Expense/ExpenseList';
+import { ExpenseForm } from './components/Expense/ExpenseForm';
+import { InvoiceList } from './components/Invoice/InvoiceList';
+import { InvoiceForm } from './components/Invoice/InvoiceForm';
+import { InvoiceView } from './components/Invoice/InvoiceView';
+import { ReportsOverview } from './components/Reports/ReportsOverview';
+import { ProfitLossReport } from './components/Reports/ProfitLossReport';
+import { ClientList } from './components/Client/ClientList';
+import { ClientForm } from './components/Client/ClientForm';
+import { SettingsLayout } from './components/Settings/SettingsLayout';
+import { ProfileSettings } from './components/Settings/ProfileSettings';
+import { TaxSettings } from './components/Settings/TaxSettings';
+import { CurrencySettings } from './components/Settings/CurrencySettings';
+import { SubscriptionPlans } from './components/Subscription/SubscriptionPlans';
+import { PaymentSuccess } from './components/Subscription/PaymentSuccess';
+import { BudgetPlanning } from './components/Budget/BudgetPlanning';
+import { Home, TrendingUp, TrendingDown, FileText, BarChart3, Settings, CreditCard, Users, RefreshCw, PiggyBank } from 'lucide-react';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          
+          {/* Payment Success Route */}
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Navigate to="/dashboard" replace />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Income Routes */}
+          <Route
+            path="/income"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <IncomeList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/income/new"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <IncomeForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/income/edit/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <IncomeForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Client Routes */}
+          <Route
+            path="/clients"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ClientList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clients/new"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ClientForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clients/edit/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ClientForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Expense Routes */}
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ExpenseList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses/new"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ExpenseForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses/edit/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ExpenseForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Invoice Routes */}
+          <Route
+            path="/invoices"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <InvoiceList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices/new"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <InvoiceForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices/edit/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <InvoiceForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices/view/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <InvoiceView />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+
+          {/* Reports Routes */}
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReportsOverview />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/profit-loss"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProfitLossReport />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Budget Route */}
+          <Route
+            path="/budget"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <BudgetPlanning />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Subscription Route */}
+          <Route
+            path="/subscription"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SubscriptionPlans />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Settings Routes */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/settings/profile" replace />} />
+            <Route path="profile" element={<ProfileSettings />} />
+            <Route path="tax" element={<TaxSettings />} />
+            <Route path="currency" element={<CurrencySettings />} />
+            <Route
+              path="notifications"
+              element={
+                <div className="text-center py-8">
+                  <h1 className="text-2xl font-bold">Notification Settings - Coming Soon</h1>
+                </div>
+              }
+            />
+            <Route
+              path="security"
+              element={
+                <div className="text-center py-8">
+                  <h1 className="text-2xl font-bold">Security Settings - Coming Soon</h1>
+                </div>
+              }
+            />
+            <Route
+              path="billing"
+              element={
+                <div className="text-center py-8">
+                  <h1 className="text-2xl font-bold">Billing Settings - Coming Soon</h1>
+                </div>
+              }
+            />
+          </Route>
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
 export default App;
+
+
+

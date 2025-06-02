@@ -1,0 +1,609 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  FileText,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Users,
+  Activity,
+  Calendar,
+  Clock,
+  Eye,
+  Send,
+  UserPlus,
+  Receipt
+} from 'lucide-react';
+import { 
+  LineChart, 
+  Line, 
+  AreaChart,
+  Area,
+  BarChart, 
+  Bar, 
+  PieChart as RePieChart, 
+  Pie, 
+  Cell,
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer
+} from 'recharts';
+import { getDashboardStats, getIncomes, getExpenses, getInvoices, getClients } from '../../services/database';
+import { useAuth } from '../../contexts/AuthContext';
+import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { Income, Expense, Invoice, Client } from '../../types';
+
+export const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const [stats, setStats] = useState<any>(null);
+  const [monthlyData, setMonthlyData] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any>({ expense: [], income: [] });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [recentClients, setRecentClients] = useState<Client[]>([]);
+  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
+
+  const loadDashboardData = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      
+      // Get current month date range
+      const startDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+      const endDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+      
+      // Get last 6 months data for charts
+      const sixMonthsAgo = format(subMonths(new Date(), 5), 'yyyy-MM-dd');
+      
+      // Fetch all data
+      const [dashStats, allIncomes, allExpenses, invoices, clients] = await Promise.all([
+        getDashboardStats(user.id, startDate, endDate),
+        getIncomes(user.id, sixMonthsAgo, endDate),
+        getExpenses(user.id, sixMonthsAgo, endDate),
+        getInvoices(user.id),
+        getClients(user.id)
+      ]);
+      
+      // Calculate additional stats
+      const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
+      const averageInvoiceValue = invoices.length > 0 
+        ? invoices.reduce((sum, inv) => sum + inv.total, 0) / invoices.length 
+        : 0;
+      
+      setStats({
+        ...dashStats,
+        totalClients: clients.length,
+        overdueInvoices: overdueInvoices.length,
+        averageInvoiceValue: Math.round(averageInvoiceValue)
+      });
+      
+      // Process monthly data
+      processMonthlyData(allIncomes, allExpenses);
+      
+      // Process category data
+      processCategoryData(allIncomes, allExpenses);
+      
+      // Process recent activity
+      processRecentActivity(dashStats.recentTransactions);
+      
+      // Set recent clients and invoices
+      setRecentClients(clients.slice(0, 4));
+      setRecentInvoices(invoices.slice(0, 4));
+      
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processMonthlyData = (incomes: Income[], expenses: Expense[]) => {
+    const monthlyMap = new Map();
+    
+    // Initialize last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = subMonths(new Date(), i);
+      const monthKey = format(date, 'MMM');
+      monthlyMap.set(monthKey, { month: monthKey, income: 0, expenses: 0, profit: 0 });
+    }
+    
+    // Aggregate income by month
+    incomes.forEach(income => {
+      const monthKey = format(parseISO(income.date), 'MMM');
+      if (monthlyMap.has(monthKey)) {
+        monthlyMap.get(monthKey).income += income.amount;
+      }
+    });
+    
+    // Aggregate expenses by month
+    expenses.forEach(expense => {
+      const monthKey = format(parseISO(expense.date), 'MMM');
+      if (monthlyMap.has(monthKey)) {
+        monthlyMap.get(monthKey).expenses += expense.amount;
+      }
+    });
+    
+    // Calculate profit
+    const data = Array.from(monthlyMap.values());
+    data.forEach(item => {
+      item.profit = item.income - item.expenses;
+    });
+    
+    setMonthlyData(data);
+  };
+
+  const processCategoryData = (incomes: Income[], expenses: Expense[]) => {
+    // Group income by category
+    const incomeByCategory = incomes.reduce((acc, income) => {
+      const category = income.category?.name || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + income.amount;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Group expenses by category
+    const expenseByCategory = expenses.reduce((acc, expense) => {
+      const category = expense.category?.name || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + expense.amount;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Convert to array format for charts and sort by value
+    const incomeData = Object.entries(incomeByCategory)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5 categories
+    
+    const expenseData = Object.entries(expenseByCategory)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5 categories
+    
+    setCategoryData({ income: incomeData, expense: expenseData });
+  };
+
+  const processRecentActivity = (transactions: any[]) => {
+    setRecentActivity(transactions.slice(0, 5));
+  };
+
+  // Calculate growth percentage (comparing current month to previous month)
+const calculateGrowth = () => {
+  if (monthlyData.length < 2) return 0;
+  const currentMonth = monthlyData[monthlyData.length - 1];
+  const previousMonth = monthlyData[monthlyData.length - 2];
+  if (previousMonth.income === 0) return 0;
+  const growthPercentage = ((currentMonth.income - previousMonth.income) / previousMonth.income * 100);
+  return Math.round(growthPercentage * 10) / 10; // This returns a number rounded to 1 decimal
+};
+
+  // Modern color palette
+  const COLORS = {
+    primary: '#4F46E5',
+    secondary: '#7C3AED',
+    success: '#10B981',
+    danger: '#EF4444',
+    warning: '#F59E0B',
+    info: '#3B82F6',
+    dark: '#1E293B',
+    light: '#F8FAFC'
+  };
+
+  const CHART_COLORS = ['#4F46E5', '#7C3AED', '#06B6D4', '#10B981', '#F59E0B'];
+
+  // Custom tooltip with modern design
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-4 rounded-xl shadow-xl border border-gray-100">
+          <p className="text-sm font-semibold text-gray-900 mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm flex justify-between gap-4">
+              <span style={{ color: entry.color }}>{entry.name}:</span>
+              <span className="font-medium">${entry.value.toLocaleString()}</span>
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Get status badge color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid': return 'bg-emerald-100 text-emerald-700';
+      case 'sent': return 'bg-blue-100 text-blue-700';
+      case 'draft': return 'bg-gray-100 text-gray-700';
+      case 'overdue': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  // Calculate client total revenue
+  const getClientTotalRevenue = (clientId: string) => {
+    return stats?.recentTransactions
+      ?.filter((t: any) => t.type === 'income' && t.client_id === clientId)
+      ?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="text-red-600">Error loading dashboard: {error}</div>
+      </div>
+    );
+  }
+
+  const growth = calculateGrowth();
+  const profitMargin = stats?.totalIncome > 0 
+    ? ((stats.netProfit / stats.totalIncome) * 100).toFixed(1) 
+    : '0';
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header with Quick Actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            <p className="text-gray-600 mt-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+          </div>
+          
+          <div className="flex gap-3">
+            <Link
+              to="/income/new"
+              className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Income
+            </Link>
+            <Link
+              to="/expenses/new"
+              className="inline-flex items-center px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all transform hover:scale-105 shadow-md"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Expense
+            </Link>
+          </div>
+        </div>
+
+        {/* Key Metrics - Modern Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white rounded-2xl shadow-xl shadow-indigo-100 p-6 border border-indigo-100 transform hover:scale-105 transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                {growth > 0 ? '+' : ''}{growth}%
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">
+              ${stats?.totalIncome?.toLocaleString() || '0'}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">This month</p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-xl shadow-red-100 p-6 border border-red-100 transform hover:scale-105 transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-red-400 to-red-600 rounded-xl">
+                <TrendingDown className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
+                {stats?.totalExpenses > 0 ? `${((stats.totalExpenses / stats.totalIncome) * 100).toFixed(1)}%` : '0%'}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600">Total Expenses</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">
+              ${stats?.totalExpenses?.toLocaleString() || '0'}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">This month</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                <DollarSign className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs font-semibold bg-white/20 backdrop-blur px-3 py-1 rounded-full">
+                {profitMargin}% margin
+              </span>
+            </div>
+            <p className="text-sm font-medium text-indigo-100">Net Profit</p>
+            <p className="text-3xl font-bold mt-1">
+              ${stats?.netProfit?.toLocaleString() || '0'}
+            </p>
+            <p className="text-sm text-indigo-100 mt-2">
+              {stats?.netProfit >= 0 ? 'Profit' : 'Loss'} this period
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-xl shadow-amber-100 p-6 border border-amber-100 transform hover:scale-105 transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+              {stats?.overdueInvoices > 0 && (
+                <span className="text-xs font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full animate-pulse">
+                  {stats.overdueInvoices} overdue
+                </span>
+              )}
+            </div>
+            <p className="text-sm font-medium text-gray-600">Pending Invoices</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">
+              {stats?.pendingInvoices || 0}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              ${stats?.totalPending?.toLocaleString() || '0'} outstanding
+            </p>
+          </div>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue Trend - Modern Area Chart */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Revenue Overview</h2>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="month" stroke="#6B7280" fontSize={12} tickLine={false} />
+                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area 
+                    type="monotone" 
+                    dataKey="income" 
+                    stroke="#4F46E5" 
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                    strokeWidth={3}
+                    name="Revenue"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="expenses" 
+                    stroke="#EF4444" 
+                    fillOpacity={1}
+                    fill="url(#colorExpense)"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    name="Expenses"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Expense Categories - Modern Donut Chart */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Expense Breakdown</h2>
+            <div className="h-72">
+              {categoryData.expense.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height="70%">
+                    <RePieChart>
+                      <Pie
+                        data={categoryData.expense}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {categoryData.expense.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {categoryData.expense.map((cat: any, index: number) => (
+                      <div key={cat.name} className="flex items-center gap-3">
+                        <div 
+                          className="w-4 h-4 rounded-lg" 
+                          style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{cat.name}</p>
+                          <p className="text-xs text-gray-500">${cat.value.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500">
+                  No expense data available
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Clients and Invoices Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Clients */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Recent Clients</h2>
+              <Link
+                to="/clients"
+                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+              >
+                View all
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="space-y-4">
+              {recentClients.length > 0 ? (
+                recentClients.map((client: Client) => (
+                  <div key={client.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl hover:from-indigo-50 hover:to-purple-50 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center text-white font-bold">
+                        {client.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{client.name}</p>
+                        <p className="text-sm text-gray-500">{client.email || 'No email'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-900">
+                        ${getClientTotalRevenue(client.id).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-500">Total revenue</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 py-8">No clients yet</p>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Invoices */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Recent Invoices</h2>
+              <Link
+                to="/invoices"
+                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+              >
+                View all
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="space-y-4">
+              {recentInvoices.length > 0 ? (
+                recentInvoices.map((invoice: Invoice) => (
+                  <div key={invoice.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl hover:from-indigo-50 hover:to-purple-50 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-400 rounded-xl flex items-center justify-center">
+                        <Receipt className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{invoice.invoice_number}</p>
+                        <p className="text-sm text-gray-500">{invoice.client?.name || 'No client'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-900">${invoice.total.toLocaleString()}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
+                        {invoice.status}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 py-8">No invoices yet</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Monthly Performance and Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Monthly Performance Bar Chart */}
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Monthly Performance</h2>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="month" stroke="#6B7280" fontSize={12} tickLine={false} />
+                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar 
+                    dataKey="profit" 
+                    fill="#4F46E5"
+                    radius={[8, 8, 0, 0]}
+                    name="Net Profit"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Activity Feed</h2>
+              <Activity className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="space-y-4">
+              {recentActivity.length > 0 ? (
+                recentActivity.map((transaction: any) => (
+                  <div key={transaction.id} className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${
+                      transaction.type === 'income' 
+                        ? 'bg-gradient-to-br from-emerald-100 to-emerald-200' 
+                        : 'bg-gradient-to-br from-red-100 to-red-200'
+                    }`}>
+                      {transaction.type === 'income' ? (
+                        <ArrowUpRight className="h-4 w-4 text-emerald-700" />
+                      ) : (
+                        <ArrowDownRight className="h-4 w-4 text-red-700" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{transaction.description}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-xs text-gray-500">
+                          {format(parseISO(transaction.date), 'MMM dd, yyyy')}
+                        </p>
+                        <span className={`text-sm font-semibold ${
+                          transaction.type === 'income' ? 'text-emerald-600' : 'text-red-600'
+                        }`}>
+                          {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 py-8">No recent activity</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
