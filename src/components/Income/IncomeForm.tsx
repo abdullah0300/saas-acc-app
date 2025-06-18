@@ -8,10 +8,12 @@ import {
   getCategories 
 } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { Category } from '../../types';
 
 export const IncomeForm: React.FC = () => {
   const { user } = useAuth();
+  const { taxRates, defaultTaxRate } = useSettings(); // Added taxRates and defaultTaxRate
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -21,7 +23,9 @@ export const IncomeForm: React.FC = () => {
     description: '',
     category_id: '',
     date: new Date().toISOString().split('T')[0],
-    reference_number: ''
+    reference_number: '',
+    tax_rate: defaultTaxRate.toString(), // Added tax_rate
+    tax_amount: '0' // Added tax_amount
   });
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,7 +62,9 @@ export const IncomeForm: React.FC = () => {
           description: income.description,
           category_id: income.category_id || '',
           date: income.date,
-          reference_number: income.reference_number || ''
+          reference_number: income.reference_number || '',
+          tax_rate: defaultTaxRate.toString(), // Set default tax rate
+          tax_amount: '0' // Initialize tax amount
         });
       }
     } catch (err: any) {
@@ -182,6 +188,39 @@ export const IncomeForm: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Tax Rate - Added this section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tax Rate
+              </label>
+              <select
+                value={formData.tax_rate}
+                onChange={(e) => {
+                  const rate = parseFloat(e.target.value) || 0;
+                  const amount = parseFloat(formData.amount) || 0;
+                  const taxAmount = (amount * rate / 100).toFixed(2);
+                  setFormData({ 
+                    ...formData, 
+                    tax_rate: e.target.value,
+                    tax_amount: taxAmount
+                  });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="0">No Tax</option>
+                {taxRates.map((tax) => (
+                  <option key={tax.id} value={tax.rate}>
+                    {tax.name} ({tax.rate}%)
+                  </option>
+                ))}
+              </select>
+              {parseFloat(formData.tax_rate) > 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Tax Amount: {formData.tax_amount}
+                </p>
+              )}
             </div>
 
             <div>

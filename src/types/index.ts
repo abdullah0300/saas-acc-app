@@ -1,12 +1,11 @@
-export type SubscriptionPlan = 'free' | 'basic' | 'professional' | 'enterprise';
-export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled';
-export type TransactionType = 'income' | 'expense';
+// src/types/index.ts
 
 export interface User {
   id: string;
   email: string;
   full_name?: string;
+  first_name?: string;
+  last_name?: string;
   company_name?: string;
   company_logo?: string;
   company_address?: string;
@@ -18,8 +17,8 @@ export interface User {
 export interface Subscription {
   id: string;
   user_id: string;
-  plan: SubscriptionPlan;
-  status: SubscriptionStatus;
+  plan: 'free' | 'basic' | 'professional' | 'enterprise';
+  status: 'active' | 'canceled' | 'past_due' | 'trialing';
   current_period_start: string;
   current_period_end?: string;
   stripe_customer_id?: string;
@@ -88,6 +87,9 @@ export interface Invoice {
   tax_amount: number;
   total: number;
   notes?: string;
+  currency?: string;
+  paid_date?: string;
+  sent_date?: string;
   items?: InvoiceItem[];
   created_at: string;
   updated_at: string;
@@ -100,5 +102,54 @@ export interface InvoiceItem {
   quantity: number;
   rate: number;
   amount: number;
+  created_at: string;
+}
+
+export interface TaxRate {
+  id: string;
+  user_id: string;
+  name: string;
+  rate: number;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface UserSettings {
+  id: string;
+  user_id: string;
+  base_currency: string;
+  enabled_currencies: string[];
+  date_format: string;
+  fiscal_year_start: number;
+  country?: string;
+  state?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceSettings {
+  id: string;
+  user_id: string;
+  invoice_prefix: string;
+  next_number: number;
+  due_days: number;
+  payment_terms: number;
+  email_notifications: boolean;
+  whatsapp_notifications: boolean;
+  reminder_days: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TransactionType = 'income' | 'expense';
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled';
+
+// Country configuration type
+export interface CountryConfig {
+  country_code: string;
+  country_name: string;
+  default_currency: string;
+  default_tax_rate: number;
+  default_tax_name: string;
   created_at: string;
 }

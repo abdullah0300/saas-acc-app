@@ -1,7 +1,7 @@
-// src/components/Settings/CurrencySettings.tsx
 import React, { useState, useEffect } from 'react';
 import { Save, Globe, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { supabase } from '../../services/supabaseClient';
 
 interface Currency {
@@ -24,6 +24,7 @@ const POPULAR_CURRENCIES: Currency[] = [
 
 export const CurrencySettings: React.FC = () => {
   const { user } = useAuth();
+  const { refreshSettings } = useSettings(); // Added refreshSettings
   const [baseCurrency, setBaseCurrency] = useState('USD');
   const [enabledCurrencies, setEnabledCurrencies] = useState<string[]>(['USD']);
   const [loading, setLoading] = useState(false);
@@ -56,32 +57,40 @@ export const CurrencySettings: React.FC = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (!user) return;
+ const handleSave = async () => {
+  if (!user) return;
+  
+  setLoading(true);
+  setSuccess(false);
+  
+  try {
+    // Change from insert to upsert
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: user.id,
+        base_currency: baseCurrency,
+        enabled_currencies: enabledCurrencies,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id' // Specify the conflict column
+      });
     
-    setLoading(true);
-    setSuccess(false);
+    if (error) throw error;
     
-    try {
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          base_currency: baseCurrency,
-          enabled_currencies: enabledCurrencies,
-          updated_at: new Date().toISOString()
-        });
-      
-      if (error) throw error;
-      
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      console.error('Error saving settings:', err);
-    } finally {
-      setLoading(false);
+    // Refresh settings after save
+    if (refreshSettings) {
+      await refreshSettings();
     }
-  };
+    
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 3000);
+  } catch (err: any) {
+    console.error('Error saving settings:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const toggleCurrency = (code: string) => {
     if (code === baseCurrency) return; // Can't disable base currency

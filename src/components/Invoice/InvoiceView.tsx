@@ -157,12 +157,30 @@ export const InvoiceView: React.FC = () => {
         (actionsElement as HTMLElement).style.display = 'none';
       }
       
-      // Create canvas from invoice element
+      // Create canvas from invoice element with better options
       const canvas = await html2canvas(invoiceRef.current, {
         scale: 2,
         logging: false,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        windowWidth: invoiceRef.current.scrollWidth,
+        windowHeight: invoiceRef.current.scrollHeight,
+        onclone: (clonedDoc) => {
+          // Fix any color issues in cloned document
+          const elements = clonedDoc.getElementsByTagName('*');
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i] as HTMLElement;
+            const style = window.getComputedStyle(el);
+            
+            // Replace any problematic color values
+            if (style.color && style.color.includes('oklch')) {
+              el.style.color = '#000000';
+            }
+            if (style.backgroundColor && style.backgroundColor.includes('oklch')) {
+              el.style.backgroundColor = '#ffffff';
+            }
+          }
+        }
       });
       
       // Restore action buttons
@@ -170,29 +188,27 @@ export const InvoiceView: React.FC = () => {
         (actionsElement as HTMLElement).style.display = '';
       }
       
-      // Calculate PDF dimensions
+      // Rest of the PDF generation code...
       const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      // Create PDF
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgData = canvas.toDataURL('image/png');
       
-      // Add image to PDF, handling multiple pages if needed
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Handle multiple pages if needed
       let heightLeft = imgHeight;
       let position = 0;
       
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= 297; // A4 height in mm
-      
-      while (heightLeft > 0) {
+      while (heightLeft > pageHeight) {
         position = heightLeft - imgHeight;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= 297;
+        heightLeft -= pageHeight;
       }
       
-      // Save PDF
       pdf.save(`invoice-${invoice?.invoice_number || 'document'}.pdf`);
       
       await trackActivity('downloaded_pdf');
@@ -574,6 +590,13 @@ export const InvoiceView: React.FC = () => {
                       {differenceInDays(parseISO(invoice.due_date), parseISO(invoice.date))} days
                     </span>
                   </div>
+                  {invoice.status === 'paid' && invoice.paid_date && (
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">Paid Date:</span>
+        <span className="font-medium">{format(parseISO(invoice.paid_date), 'MMM dd, yyyy')}</span>
+      </div>
+    )}
+
                 </div>
               </div>
 
@@ -762,60 +785,98 @@ export const InvoiceView: React.FC = () => {
         @media print {
           @page {
             size: A4;
-            margin: 0;
+            margin: 0.5in;
+          }
+          
+          * {
+            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important;
           }
           
           body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-            background: white;
+            margin: 0;
+            padding: 0;
+            background: white !important;
           }
           
           .no-print {
             display: none !important;
           }
           
-          .print\\:shadow-none {
-            box-shadow: none !important;
+          .invoice-actions {
+            display: none !important;
           }
           
-          .print\\:rounded-none {
-            border-radius: 0 !important;
-          }
-          
-          /* Ensure content fits on page */
+          /* Reset max-width for print */
           .max-w-4xl {
             max-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
           }
           
-          /* Adjust invoice padding for print */
+          /* Ensure invoice fills the page */
           .bg-white.rounded-lg {
             margin: 0 !important;
             box-shadow: none !important;
+            border-radius: 0 !important;
+            page-break-inside: avoid;
           }
           
-          /* Ensure background colors print */
-          * {
-            print-color-adjust: exact !important;
-            -webkit-print-color-adjust: exact !important;
+          /* Adjust spacing */
+          .p-8, .px-8, .py-8 {
+            padding: 1.5rem !important;
           }
           
-          /* Hide interactive elements */
-          button {
+          .p-6, .px-6, .py-6 {
+            padding: 1rem !important;
+          }
+          
+          /* Ensure tables don't break */
+          table {
+            page-break-inside: avoid;
+          }
+          
+          /* Fix text sizes */
+          .text-4xl {
+            font-size: 2rem !important;
+          }
+          
+          .text-2xl {
+            font-size: 1.5rem !important;
+          }
+          
+          .text-xl {
+            font-size: 1.25rem !important;
+          }
+          
+          /* Ensure backgrounds print */
+          .bg-gray-50 {
+            background-color: #f9fafb !important;
+          }
+          
+          .bg-gray-100 {
+            background-color: #f3f4f6 !important;
+          }
+          
+          /* Hide QR code section if you don't want it in print */
+          /* .flex.flex-col.items-center.md\\:items-end {
             display: none !important;
+          } */
+          
+          /* Ensure proper page breaks */
+          .page-break-avoid {
+            page-break-inside: avoid !important;
           }
           
-          /* Adjust spacing for print */
-          .px-8 {
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
+          /* Fix button/link visibility */
+          button, a {
+            text-decoration: none !important;
           }
           
-          .py-6 {
-            padding-top: 1.5rem !important;
-            padding-bottom: 1.5rem !important;
+          /* Ensure invoice number is prominent */
+          h2 {
+            color: #1a202c !important;
+            font-weight: bold !important;
           }
         }
       `}</style>

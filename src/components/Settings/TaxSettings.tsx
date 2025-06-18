@@ -1,7 +1,7 @@
-// src/components/Settings/TaxSettings.tsx
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, X, Percent, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { supabase } from '../../services/supabaseClient';
 
 interface TaxRate {
@@ -14,6 +14,7 @@ interface TaxRate {
 
 export const TaxSettings: React.FC = () => {
   const { user } = useAuth();
+  const { refreshSettings } = useSettings(); // Added refreshSettings
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -60,6 +61,7 @@ export const TaxSettings: React.FC = () => {
       if (error) throw error;
       
       await loadTaxRates();
+      await refreshSettings(); // Added refreshSettings
       setNewTax({ name: '', rate: '' });
       setShowAddForm(false);
     } catch (err: any) {
@@ -86,6 +88,7 @@ export const TaxSettings: React.FC = () => {
         .eq('id', id);
       
       await loadTaxRates();
+      await refreshSettings(); // Added refreshSettings
     } catch (err: any) {
       setError(err.message);
     }

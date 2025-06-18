@@ -1,4 +1,4 @@
-// Updated Sidebar.tsx - remove recurring menu item and update with new design
+// src/components/Layout/Sidebar.tsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -8,7 +8,6 @@ import {
   FileText, 
   BarChart3, 
   Settings, 
-  CreditCard,
   LogOut,
   Menu,
   X,
@@ -24,72 +23,135 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   const menuItems = [
     { path: '/dashboard', icon: Home, label: 'Dashboard' },
     { path: '/income', icon: TrendingUp, label: 'Income' },
     { path: '/expenses', icon: TrendingDown, label: 'Expenses' },
     { path: '/clients', icon: Users, label: 'Clients' },
-    { path: '/invoices', icon: FileText, label: 'Invoices' }, // Now includes recurring
+    { path: '/invoices', icon: FileText, label: 'Invoices' },
     { path: '/budget', icon: PiggyBank, label: 'Budget' },
     { path: '/reports', icon: BarChart3, label: 'Reports' },
-    { path: '/subscription', icon: CreditCard, label: 'Subscription' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname.startsWith(path);
+
+  const handleSignOut = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
       {/* Mobile backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
           onClick={onToggle}
         />
       )}
       
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full bg-gray-900 text-white w-64 transform transition-transform duration-300 z-50 ${
+      <div className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white w-72 transform transition-all duration-300 ease-in-out z-50 shadow-2xl ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0`}>
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-2xl font-bold">AccuBooks</h1>
-            <button
-              onClick={onToggle}
-              className="lg:hidden text-gray-400 hover:text-white"
-            >
-              <X className="h-6 w-6" />
-            </button>
+      } lg:translate-x-0 lg:w-64`}>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-700/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-xl">A</span>
+                </div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  AccuBooks
+                </h1>
+              </div>
+              <button
+                onClick={onToggle}
+                className="lg:hidden text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
           </div>
           
-          <nav className="space-y-2">
-            {menuItems.map(({ path, icon: Icon, label }) => (
-              <Link
-                key={path}
-                to={path}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive(path)
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{label}</span>
-              </Link>
-            ))}
+          {/* User info */}
+          <div className="px-6 py-4 border-b border-gray-700/50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-gray-300">
+                  {user?.email?.[0]?.toUpperCase() || 'U'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-200 truncate">
+                  {user?.email || 'User'}
+                </p>
+                <p className="text-xs text-gray-400">Account</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+            {menuItems.map(({ path, icon: Icon, label }) => {
+              const active = isActive(path);
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    active
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
+                      : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
+                  }`}
+                  onClick={() => {
+                    if (window.innerWidth < 1024) {
+                      onToggle();
+                    }
+                  }}
+                >
+                  <Icon className={`h-5 w-5 transition-transform duration-200 ${
+                    active ? 'scale-110' : 'group-hover:scale-110'
+                  }`} />
+                  <span className="font-medium">{label}</span>
+                  {active && (
+                    <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                  )}
+                </Link>
+              );
+            })}
           </nav>
           
-          <div className="absolute bottom-4 left-4 right-4">
+          {/* Sign out button */}
+          <div className="p-4 border-t border-gray-700/50">
             <button
-              onClick={() => signOut()}
-              className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors w-full"
+              onClick={handleSignOut}
+              disabled={isLoggingOut}
+              className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-300 hover:bg-red-600/10 hover:text-red-400 rounded-xl transition-all duration-200 group"
             >
-              <LogOut className="h-5 w-5" />
-              <span>Logout</span>
+              <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+              <span className="font-medium">
+                {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+              </span>
             </button>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-700/50">
+            <p className="text-xs text-center text-gray-500">
+              © 2024 AccuBooks
+            </p>
           </div>
         </div>
       </div>

@@ -24,14 +24,12 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             <Bell className="h-6 w-6" />
           </button>
           
-          <div className="flex items-center space-x-2">
+          {/* <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
               <User className="h-5 w-5 text-white" />
             </div>
-            <span className="text-sm font-medium text-gray-700">
-              {user?.email}
-            </span>
-          </div>
+           
+          </div> */}
         </div>
       </div>
     </header>

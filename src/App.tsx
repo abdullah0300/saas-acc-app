@@ -1,8 +1,8 @@
-// Updated App.tsx with all new routes
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { DataProvider } from './contexts/DataContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { Login } from './components/Auth/Login';
 import { Register } from './components/Auth/Register';
@@ -23,276 +23,248 @@ import { SettingsLayout } from './components/Settings/SettingsLayout';
 import { ProfileSettings } from './components/Settings/ProfileSettings';
 import { TaxSettings } from './components/Settings/TaxSettings';
 import { CurrencySettings } from './components/Settings/CurrencySettings';
+import { InvoiceSettings } from './components/Invoice/InvoiceSettings';
+import { TeamManagement } from './components/Settings/TeamManagement';
 import { SubscriptionPlans } from './components/Subscription/SubscriptionPlans';
 import { PaymentSuccess } from './components/Subscription/PaymentSuccess';
 import { BudgetPlanning } from './components/Budget/BudgetPlanning';
-import { Home, TrendingUp, TrendingDown, FileText, BarChart3, Settings, CreditCard, Users, RefreshCw, PiggyBank } from 'lucide-react';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          {/* Payment Success Route */}
-          <Route path="/payment/success" element={<PaymentSuccess />} />
+      <DataProvider>
+        <SettingsProvider>
+          <Router>
+            <Routes>
+              {/* Auth Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-          {/* Protected Routes */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Navigate to="/dashboard" replace />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* Dashboard */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Dashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Income Routes */}
-          <Route
-            path="/income"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <IncomeList />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/income/new"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <IncomeForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/income/edit/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <IncomeForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* Income Routes */}
+              <Route
+                path="/incomes"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <IncomeList />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/incomes/new"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <IncomeForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/incomes/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <IncomeForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Client Routes */}
-          <Route
-            path="/clients"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClientList />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/clients/new"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClientForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/clients/edit/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClientForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* Expense Routes */}
+              <Route
+                path="/expenses"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ExpenseList />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/expenses/new"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ExpenseForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/expenses/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ExpenseForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Expense Routes */}
-          <Route
-            path="/expenses"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ExpenseList />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/expenses/new"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ExpenseForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/expenses/edit/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ExpenseForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* Client Routes */}
+              <Route
+                path="/clients"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ClientList />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/clients/new"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ClientForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/clients/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ClientForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Invoice Routes */}
-          <Route
-            path="/invoices"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <InvoiceList />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/invoices/new"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <InvoiceForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/invoices/edit/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <InvoiceForm />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/invoices/view/:id"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <InvoiceView />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          
+              {/* Invoice Routes */}
+              <Route
+                path="/invoices"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <InvoiceList />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices/new"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <InvoiceForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <InvoiceForm />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices/:id/view"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <InvoiceView />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Reports Routes */}
-          <Route
-            path="/reports"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ReportsOverview />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/reports/profit-loss"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ProfitLossReport />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* Budget Route */}
+              <Route
+                path="/budget"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <BudgetPlanning />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Budget Route */}
-          <Route
-            path="/budget"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <BudgetPlanning />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* Reports Routes */}
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ReportsOverview />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports/profit-loss"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ProfitLossReport />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Subscription Route */}
-          <Route
-            path="/subscription"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SubscriptionPlans />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+              {/* Settings Routes */}
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <SettingsLayout />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="/settings/profile" replace />} />
+                <Route path="profile" element={<ProfileSettings />} />
+                <Route path="team" element={<TeamManagement />} />
+                <Route path="subscription" element={<SubscriptionPlans />} />
+                <Route path="tax" element={<TaxSettings />} />
+                <Route path="currency" element={<CurrencySettings />} />
+                {/* Invoice settings removed from here - it's a modal, not a page */}
+              </Route>
 
-          {/* Settings Routes */}
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <SettingsLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/settings/profile" replace />} />
-            <Route path="profile" element={<ProfileSettings />} />
-            <Route path="tax" element={<TaxSettings />} />
-            <Route path="currency" element={<CurrencySettings />} />
-            <Route
-              path="notifications"
-              element={
-                <div className="text-center py-8">
-                  <h1 className="text-2xl font-bold">Notification Settings - Coming Soon</h1>
-                </div>
-              }
-            />
-            <Route
-              path="security"
-              element={
-                <div className="text-center py-8">
-                  <h1 className="text-2xl font-bold">Security Settings - Coming Soon</h1>
-                </div>
-              }
-            />
-            <Route
-              path="billing"
-              element={
-                <div className="text-center py-8">
-                  <h1 className="text-2xl font-bold">Billing Settings - Coming Soon</h1>
-                </div>
-              }
-            />
-          </Route>
-        </Routes>
-      </Router>
+              {/* Payment Success Route */}
+              <Route
+                path="/payment/success"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <PaymentSuccess />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Catch all */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Router>
+        </SettingsProvider>
+      </DataProvider>
     </AuthProvider>
   );
 }
 
 export default App;
-
-
-

@@ -18,11 +18,13 @@ import {
 } from 'lucide-react';
 import { getExpenses, deleteExpense, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { Expense, Category } from '../../types';
 
 export const ExpenseList: React.FC = () => {
   const { user } = useAuth();
+  const { formatCurrency } = useSettings(); // Added formatCurrency
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -210,7 +212,7 @@ export const ExpenseList: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            ${totalExpenses.toLocaleString()}
+            {formatCurrency(totalExpenses)}
           </p>
           <p className="text-sm text-gray-500 mt-1">
             {filteredExpenses.length} transactions
@@ -225,7 +227,7 @@ export const ExpenseList: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            ${Math.round(averageExpense).toLocaleString()}
+            {formatCurrency(Math.round(averageExpense))}
           </p>
           <p className="text-sm text-gray-500 mt-1">Per transaction</p>
         </div>
@@ -396,7 +398,7 @@ export const ExpenseList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right">
                       <span className="text-red-600">
-                        ${expense.amount.toLocaleString()}
+                        {formatCurrency(expense.amount)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">

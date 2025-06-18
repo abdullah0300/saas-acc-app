@@ -1,7 +1,6 @@
-
 // src/components/Settings/ProfileSettings.tsx
 import React, { useState, useEffect } from 'react';
-import { Save, User, Building, Mail, Phone, MapPin, Camera } from 'lucide-react';
+import { Save, User, Building, Mail, Phone, MapPin, Camera, Upload } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getProfile, updateProfile } from '../../services/database';
 import { supabase } from '../../services/supabaseClient';
@@ -14,6 +13,8 @@ export const ProfileSettings: React.FC = () => {
   const [error, setError] = useState('');
   
   const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
     full_name: '',
     email: '',
     phone: '',
@@ -34,7 +35,9 @@ export const ProfileSettings: React.FC = () => {
     try {
       const profile = await getProfile(user.id);
       setFormData({
-        full_name: profile.full_name || '',
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        full_name: profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
         email: profile.email || '',
         phone: profile.phone || '',
         company_name: profile.company_name || '',
@@ -55,20 +58,23 @@ export const ProfileSettings: React.FC = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/logo.${fileExt}`;
-      
+      const filePath = `logos/${fileName}`;
+
+      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('logos')
-        .upload(fileName, file, { upsert: true });
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('logos')
-        .getPublicUrl(fileName);
+      // Get public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
 
-      setFormData({ ...formData, company_logo: publicUrl });
+      setFormData({ ...formData, company_logo: data.publicUrl });
     } catch (err: any) {
-      setError('Error uploading logo: ' + err.message);
+      alert('Error uploading logo: ' + err.message);
     } finally {
       setUploadingLogo(false);
     }
@@ -77,13 +83,20 @@ export const ProfileSettings: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    
+
     setLoading(true);
     setError('');
     setSuccess(false);
 
     try {
-      await updateProfile(user.id, formData);
+      // Update full_name based on first_name and last_name
+      const fullName = `${formData.first_name} ${formData.last_name}`.trim();
+      
+      await updateProfile(user.id, {
+        ...formData,
+        full_name: fullName || formData.full_name
+      });
+      
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
@@ -91,6 +104,13 @@ export const ProfileSettings: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
   return (
@@ -112,21 +132,38 @@ export const ProfileSettings: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Personal Information */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <User className="h-5 w-5 mr-2" />
+            Personal Information
+          </h3>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <User className="inline h-4 w-4 mr-1" />
-                Full Name
+                First Name
               </label>
               <input
                 type="text"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                name="first_name"
+                value={formData.first_name}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name
+              </label>
+              <input
+                type="text"
+                name="last_name"
+                value={formData.last_name}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail className="inline h-4 w-4 mr-1" />
@@ -136,10 +173,11 @@ export const ProfileSettings: React.FC = () => {
                 type="email"
                 value={formData.email}
                 disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
               />
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Phone className="inline h-4 w-4 mr-1" />
@@ -147,9 +185,11 @@ export const ProfileSettings: React.FC = () => {
               </label>
               <input
                 type="tel"
+                name="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={handleChange}
+                placeholder="+1 (555) 123-4567"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -157,50 +197,30 @@ export const ProfileSettings: React.FC = () => {
 
         {/* Company Information */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Company Information</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Building className="h-5 w-5 mr-2" />
+            Company Information
+          </h3>
+          
           <div className="space-y-6">
+            {/* Company Logo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Building className="inline h-4 w-4 mr-1" />
-                Company Name
-              </label>
-              <input
-                type="text"
-                value={formData.company_name}
-                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="inline h-4 w-4 mr-1" />
-                Company Address
-              </label>
-              <textarea
-                value={formData.company_address}
-                onChange={(e) => setFormData({ ...formData, company_address: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Camera className="inline h-4 w-4 mr-1" />
                 Company Logo
               </label>
               <div className="flex items-center space-x-4">
-                {formData.company_logo && (
+                {formData.company_logo ? (
                   <img
                     src={formData.company_logo}
-                    alt="Company logo"
-                    className="h-20 w-20 object-contain border rounded"
+                    alt="Company Logo"
+                    className="h-20 w-20 object-contain rounded-lg border border-gray-200"
                   />
+                ) : (
+                  <div className="h-20 w-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <Camera className="h-8 w-8 text-gray-400" />
+                  </div>
                 )}
-                <label className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer">
-                  <Camera className="h-4 w-4 mr-2" />
-                  {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                <label className="cursor-pointer">
                   <input
                     type="file"
                     accept="image/*"
@@ -208,20 +228,72 @@ export const ProfileSettings: React.FC = () => {
                     className="hidden"
                     disabled={uploadingLogo}
                   />
+                  <span className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 inline-flex items-center">
+                    {uploadingLogo ? (
+                      <span className="text-gray-500">Uploading...</span>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Logo
+                      </>
+                    )}
+                  </span>
                 </label>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Company Name
+              </label>
+              <input
+                type="text"
+                name="company_name"
+                value={formData.company_name}
+                onChange={handleChange}
+                placeholder="Your Company Name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <MapPin className="inline h-4 w-4 mr-1" />
+                Company Address
+              </label>
+              <input
+                type="text"
+                name="company_address"
+                value={formData.company_address}
+                onChange={handleChange}
+                placeholder="123 Main St, City, State 12345"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
         </div>
 
+        {/* Save Button */}
         <div className="flex justify-end">
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center"
           >
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Saving...' : 'Save Changes'}
+            {loading ? (
+              <span className="inline-flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </span>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </>
+            )}
           </button>
         </div>
       </form>

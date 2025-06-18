@@ -23,6 +23,7 @@ import {
   Cell
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { supabase } from '../../services/supabaseClient';
 import { getCategories, getIncomes, getExpenses } from '../../services/database';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -68,6 +69,7 @@ const calculatePercentage = (actual: number, budgeted: number): number => {
 
 export const BudgetPlanning: React.FC = () => {
   const { user } = useAuth();
+  const { formatCurrency, baseCurrency } = useSettings(); // Added useSettings hook
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
@@ -305,10 +307,10 @@ export const BudgetPlanning: React.FC = () => {
         <div className="bg-white p-3 rounded shadow-lg border">
           <p className="text-sm font-semibold">{label}</p>
           <p className="text-sm text-gray-600">
-            Budget: ${data.budgeted?.toLocaleString() || 0}
+            Budget: {formatCurrency(data.budgeted || 0)}
           </p>
           <p className="text-sm text-gray-600">
-            Actual: ${data.actual?.toLocaleString() || 0}
+            Actual: {formatCurrency(data.actual || 0)}
           </p>
           <p className="text-sm font-medium">
             Used: {data.percentage || 0}%
@@ -363,7 +365,7 @@ export const BudgetPlanning: React.FC = () => {
             <Target className="h-5 w-5 text-blue-600" />
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            ${totalBudgeted.toLocaleString()}
+            {formatCurrency(totalBudgeted)}
           </p>
           <p className="text-sm text-gray-500 mt-1">
             {budgetProgress.length} categories
@@ -376,7 +378,7 @@ export const BudgetPlanning: React.FC = () => {
             <TrendingUp className="h-5 w-5 text-green-600" />
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            ${totalActual.toLocaleString()}
+            {formatCurrency(totalActual)}
           </p>
           <p className="text-sm text-gray-500">
             {overallPercentage}% of budget
@@ -389,7 +391,7 @@ export const BudgetPlanning: React.FC = () => {
             <PiggyBank className="h-5 w-5 text-purple-600" />
           </div>
           <p className={`text-2xl font-bold ${totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            ${Math.abs(totalRemaining).toLocaleString()}
+            {formatCurrency(Math.abs(totalRemaining))}
           </p>
           <p className="text-sm text-gray-500">
             {totalRemaining >= 0 ? 'Under budget' : 'Over budget'}
@@ -422,7 +424,7 @@ export const BudgetPlanning: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-700">{item.category}</span>
                   <span className="text-sm text-gray-500">
-                    ${item.actual.toLocaleString()} / ${item.budgeted.toLocaleString()}
+                    {formatCurrency(item.actual)} / {formatCurrency(item.budgeted)}
                   </span>
                 </div>
                 <div className="relative w-full bg-gray-200 rounded-full h-8">
@@ -493,16 +495,16 @@ export const BudgetPlanning: React.FC = () => {
                     <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
                       <div>
                         <p className="text-gray-600">Budgeted</p>
-                        <p className="font-semibold">${budget.budgeted.toLocaleString()}</p>
+                        <p className="font-semibold">{formatCurrency(budget.budgeted)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Spent</p>
-                        <p className="font-semibold">${budget.actual.toLocaleString()}</p>
+                        <p className="font-semibold">{formatCurrency(budget.actual)}</p>
                       </div>
                       <div>
                         <p className="text-gray-600">Remaining</p>
                         <p className={`font-semibold ${budget.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ${Math.abs(budget.remaining).toLocaleString()}
+                          {formatCurrency(Math.abs(budget.remaining))}
                         </p>
                       </div>
                     </div>
@@ -566,18 +568,23 @@ export const BudgetPlanning: React.FC = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Budget Amount *
+                  Budget Amount ({baseCurrency}) *
                 </label>
-                <input
-                  type="number"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  required
-                  min="0.01"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                    {baseCurrency === 'USD' ? '$' : baseCurrency === 'EUR' ? '€' : baseCurrency}
+                  </span>
+                  <input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    required
+                    min="0.01"
+                    step="0.01"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
               
               <div>

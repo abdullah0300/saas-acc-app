@@ -15,7 +15,9 @@ import {
   Eye,
   Send,
   UserPlus,
-  Receipt
+  Receipt,
+  Crown,
+  AlertCircle
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -35,25 +37,48 @@ import {
 } from 'recharts';
 import { getDashboardStats, getIncomes, getExpenses, getInvoices, getClients } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
+import { useSubscriptionLimits } from '../Subscription/SubscriptionGuard';
+import { supabase } from '../../services/supabaseClient';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { Income, Expense, Invoice, Client } from '../../types';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { formatCurrency, loading: settingsLoading } = useSettings();
+  const { limits, usage } = useSubscriptionLimits();
   const [stats, setStats] = useState<any>(null);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any>({ expense: [], income: [] });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [recentClients, setRecentClients] = useState<Client[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (user) {
       loadDashboardData();
+      loadSubscription();
     }
   }, [user]);
+
+  const loadSubscription = async () => {
+    if (!user) return;
+    
+    try {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+        
+      setSubscription(data);
+    } catch (err: any) {
+      console.error('Error loading subscription:', err.message);
+    }
+  };
 
   const loadDashboardData = async () => {
     if (!user) return;
@@ -61,14 +86,10 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Get current month date range
       const startDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
       const endDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-      
-      // Get last 6 months data for charts
       const sixMonthsAgo = format(subMonths(new Date(), 5), 'yyyy-MM-dd');
       
-      // Fetch all data
       const [dashStats, allIncomes, allExpenses, invoices, clients] = await Promise.all([
         getDashboardStats(user.id, startDate, endDate),
         getIncomes(user.id, sixMonthsAgo, endDate),
@@ -77,7 +98,6 @@ export const Dashboard: React.FC = () => {
         getClients(user.id)
       ]);
       
-      // Calculate additional stats
       const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
       const averageInvoiceValue = invoices.length > 0 
         ? invoices.reduce((sum, inv) => sum + inv.total, 0) / invoices.length 
@@ -90,16 +110,9 @@ export const Dashboard: React.FC = () => {
         averageInvoiceValue: Math.round(averageInvoiceValue)
       });
       
-      // Process monthly data
       processMonthlyData(allIncomes, allExpenses);
-      
-      // Process category data
       processCategoryData(allIncomes, allExpenses);
-      
-      // Process recent activity
       processRecentActivity(dashStats.recentTransactions);
-      
-      // Set recent clients and invoices
       setRecentClients(clients.slice(0, 4));
       setRecentInvoices(invoices.slice(0, 4));
       
@@ -113,14 +126,12 @@ export const Dashboard: React.FC = () => {
   const processMonthlyData = (incomes: Income[], expenses: Expense[]) => {
     const monthlyMap = new Map();
     
-    // Initialize last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = subMonths(new Date(), i);
       const monthKey = format(date, 'MMM');
       monthlyMap.set(monthKey, { month: monthKey, income: 0, expenses: 0, profit: 0 });
     }
     
-    // Aggregate income by month
     incomes.forEach(income => {
       const monthKey = format(parseISO(income.date), 'MMM');
       if (monthlyMap.has(monthKey)) {
@@ -128,7 +139,6 @@ export const Dashboard: React.FC = () => {
       }
     });
     
-    // Aggregate expenses by month
     expenses.forEach(expense => {
       const monthKey = format(parseISO(expense.date), 'MMM');
       if (monthlyMap.has(monthKey)) {
@@ -136,7 +146,6 @@ export const Dashboard: React.FC = () => {
       }
     });
     
-    // Calculate profit
     const data = Array.from(monthlyMap.values());
     data.forEach(item => {
       item.profit = item.income - item.expenses;
@@ -146,30 +155,27 @@ export const Dashboard: React.FC = () => {
   };
 
   const processCategoryData = (incomes: Income[], expenses: Expense[]) => {
-    // Group income by category
     const incomeByCategory = incomes.reduce((acc, income) => {
       const category = income.category?.name || 'Uncategorized';
       acc[category] = (acc[category] || 0) + income.amount;
       return acc;
     }, {} as Record<string, number>);
     
-    // Group expenses by category
     const expenseByCategory = expenses.reduce((acc, expense) => {
       const category = expense.category?.name || 'Uncategorized';
       acc[category] = (acc[category] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
     
-    // Convert to array format for charts and sort by value
     const incomeData = Object.entries(incomeByCategory)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 categories
+      .slice(0, 5);
     
     const expenseData = Object.entries(expenseByCategory)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 categories
+      .slice(0, 5);
     
     setCategoryData({ income: incomeData, expense: expenseData });
   };
@@ -178,17 +184,24 @@ export const Dashboard: React.FC = () => {
     setRecentActivity(transactions.slice(0, 5));
   };
 
-  // Calculate growth percentage (comparing current month to previous month)
-const calculateGrowth = () => {
-  if (monthlyData.length < 2) return 0;
-  const currentMonth = monthlyData[monthlyData.length - 1];
-  const previousMonth = monthlyData[monthlyData.length - 2];
-  if (previousMonth.income === 0) return 0;
-  const growthPercentage = ((currentMonth.income - previousMonth.income) / previousMonth.income * 100);
-  return Math.round(growthPercentage * 10) / 10; // This returns a number rounded to 1 decimal
-};
+  const calculateGrowth = () => {
+    if (monthlyData.length < 2) return 0;
+    const currentMonth = monthlyData[monthlyData.length - 1];
+    const previousMonth = monthlyData[monthlyData.length - 2];
+    if (previousMonth.income === 0) return 0;
+    const growthPercentage = ((currentMonth.income - previousMonth.income) / previousMonth.income * 100);
+    return Math.round(growthPercentage * 10) / 10;
+  };
 
-  // Modern color palette
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case 'free': return 'bg-gray-100 text-gray-800';
+      case 'basic': return 'bg-blue-100 text-blue-800';
+      case 'professional': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const COLORS = {
     primary: '#4F46E5',
     secondary: '#7C3AED',
@@ -202,7 +215,6 @@ const calculateGrowth = () => {
 
   const CHART_COLORS = ['#4F46E5', '#7C3AED', '#06B6D4', '#10B981', '#F59E0B'];
 
-  // Custom tooltip with modern design
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -211,7 +223,7 @@ const calculateGrowth = () => {
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm flex justify-between gap-4">
               <span style={{ color: entry.color }}>{entry.name}:</span>
-              <span className="font-medium">${entry.value.toLocaleString()}</span>
+              <span className="font-medium">{formatCurrency(entry.value)}</span>
             </p>
           ))}
         </div>
@@ -220,7 +232,6 @@ const calculateGrowth = () => {
     return null;
   };
 
-  // Get status badge color
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid': return 'bg-emerald-100 text-emerald-700';
@@ -231,14 +242,13 @@ const calculateGrowth = () => {
     }
   };
 
-  // Calculate client total revenue
   const getClientTotalRevenue = (clientId: string) => {
     return stats?.recentTransactions
       ?.filter((t: any) => t.type === 'income' && t.client_id === clientId)
       ?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
   };
 
-  if (loading) {
+  if (loading || settingsLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -262,6 +272,52 @@ const calculateGrowth = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Subscription Status Bar */}
+        {subscription && (
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Crown className="h-6 w-6 text-yellow-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Current Plan</p>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPlanColor(subscription.plan)}`}>
+                    {subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}
+                  </span>
+                </div>
+              </div>
+              
+              {limits && subscription.plan !== 'professional' && (
+                <div className="flex space-x-6">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Invoices</p>
+                    <p className="text-lg font-semibold">
+                      {usage?.invoices || 0}/{limits.invoices === -1 ? '∞' : limits.invoices}
+                    </p>
+                    {limits.invoices > 0 && usage?.invoices >= limits.invoices * 0.8 && (
+                      <p className="text-xs text-yellow-600">Almost at limit</p>
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Clients</p>
+                    <p className="text-lg font-semibold">
+                      {usage?.clients || 0}/{limits.clients === -1 ? '∞' : limits.clients}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {subscription.plan !== 'professional' && (
+                <Link
+                  to="/settings/subscription"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-md text-sm hover:from-purple-700 hover:to-blue-700"
+                >
+                  Upgrade Plan
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Header with Quick Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
@@ -302,7 +358,7 @@ const calculateGrowth = () => {
             </div>
             <p className="text-sm font-medium text-gray-600">Total Revenue</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">
-              ${stats?.totalIncome?.toLocaleString() || '0'}
+              {formatCurrency(stats?.totalIncome || 0)}
             </p>
             <p className="text-sm text-gray-500 mt-2">This month</p>
           </div>
@@ -318,7 +374,7 @@ const calculateGrowth = () => {
             </div>
             <p className="text-sm font-medium text-gray-600">Total Expenses</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">
-              ${stats?.totalExpenses?.toLocaleString() || '0'}
+              {formatCurrency(stats?.totalExpenses || 0)}
             </p>
             <p className="text-sm text-gray-500 mt-2">This month</p>
           </div>
@@ -334,7 +390,7 @@ const calculateGrowth = () => {
             </div>
             <p className="text-sm font-medium text-indigo-100">Net Profit</p>
             <p className="text-3xl font-bold mt-1">
-              ${stats?.netProfit?.toLocaleString() || '0'}
+              {formatCurrency(stats?.netProfit || 0)}
             </p>
             <p className="text-sm text-indigo-100 mt-2">
               {stats?.netProfit >= 0 ? 'Profit' : 'Loss'} this period
@@ -357,14 +413,13 @@ const calculateGrowth = () => {
               {stats?.pendingInvoices || 0}
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              ${stats?.totalPending?.toLocaleString() || '0'} outstanding
+              {formatCurrency(stats?.totalPending || 0)} outstanding
             </p>
           </div>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Trend - Modern Area Chart */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Revenue Overview</h2>
             <div className="h-72">
@@ -382,7 +437,7 @@ const calculateGrowth = () => {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                   <XAxis dataKey="month" stroke="#6B7280" fontSize={12} tickLine={false} />
-                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `${formatCurrency(value/1000)}k`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area 
                     type="monotone" 
@@ -408,7 +463,6 @@ const calculateGrowth = () => {
             </div>
           </div>
 
-          {/* Expense Categories - Modern Donut Chart */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Expense Breakdown</h2>
             <div className="h-72">
@@ -429,7 +483,7 @@ const calculateGrowth = () => {
                           <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
+                      <Tooltip formatter={(value: any) => formatCurrency(value)} />
                     </RePieChart>
                   </ResponsiveContainer>
                   <div className="mt-4 grid grid-cols-2 gap-3">
@@ -441,7 +495,7 @@ const calculateGrowth = () => {
                         />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">{cat.name}</p>
-                          <p className="text-xs text-gray-500">${cat.value.toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">{formatCurrency(cat.value)}</p>
                         </div>
                       </div>
                     ))}
@@ -458,7 +512,6 @@ const calculateGrowth = () => {
 
         {/* Recent Clients and Invoices Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Clients */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Recent Clients</h2>
@@ -485,7 +538,7 @@ const calculateGrowth = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-gray-900">
-                        ${getClientTotalRevenue(client.id).toLocaleString()}
+                        {formatCurrency(getClientTotalRevenue(client.id))}
                       </p>
                       <p className="text-xs text-gray-500">Total revenue</p>
                     </div>
@@ -497,7 +550,6 @@ const calculateGrowth = () => {
             </div>
           </div>
 
-          {/* Recent Invoices */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Recent Invoices</h2>
@@ -523,7 +575,7 @@ const calculateGrowth = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">${invoice.total.toLocaleString()}</p>
+                      <p className="text-sm font-semibold text-gray-900">{formatCurrency(invoice.total)}</p>
                       <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
                         {invoice.status}
                       </span>
@@ -539,7 +591,6 @@ const calculateGrowth = () => {
 
         {/* Monthly Performance and Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Monthly Performance Bar Chart */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Monthly Performance</h2>
             <div className="h-72">
@@ -547,7 +598,7 @@ const calculateGrowth = () => {
                 <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                   <XAxis dataKey="month" stroke="#6B7280" fontSize={12} tickLine={false} />
-                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `${formatCurrency(value/1000)}k`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar 
                     dataKey="profit" 
@@ -560,7 +611,6 @@ const calculateGrowth = () => {
             </div>
           </div>
 
-          {/* Recent Activity */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900">Activity Feed</h2>
@@ -590,7 +640,7 @@ const calculateGrowth = () => {
                         <span className={`text-sm font-semibold ${
                           transaction.type === 'income' ? 'text-emerald-600' : 'text-red-600'
                         }`}>
-                          {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                         </span>
                       </div>
                     </div>
@@ -602,7 +652,6 @@ const calculateGrowth = () => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

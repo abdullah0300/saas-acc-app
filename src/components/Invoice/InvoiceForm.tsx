@@ -1,6 +1,6 @@
-// src/components/Invoice/InvoiceForm.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { InvoiceSettings } from './InvoiceSettings';
 import { 
   ArrowLeft, 
   Save, 
@@ -19,15 +19,18 @@ import {
   createClient 
 } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { supabase } from '../../services/supabaseClient';
 import { Client, InvoiceItem } from '../../types';
 import { addDays, addWeeks, addMonths } from 'date-fns';
 
 export const InvoiceForm: React.FC = () => {
   const { user } = useAuth();
+  const { taxRates, defaultTaxRate, formatCurrency, userSettings } = useSettings(); // Added settings
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+const [showSettings, setShowSettings] = useState(false);
 
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -62,22 +65,29 @@ export const InvoiceForm: React.FC = () => {
     
     try {
       // Load invoice settings
-      const { data: settings } = await supabase
-        .from('invoice_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (settings) {
-        setInvoiceSettings(settings);
-        if (!isEdit) {
-          setFormData(prev => ({
-            ...prev,
-            tax_rate: settings.default_tax_rate || '0',
-            notes: settings.invoice_notes || ''
-          }));
-        }
-      }
+   // First try to get existing settings
+const { data: existingSettings } = await supabase
+  .from('invoice_settings')
+  .select('*')
+  .eq('user_id', user.id)
+  .single();
+
+// If no settings exist, create them
+if (!existingSettings) {
+  const { data: settings } = await supabase
+    .from('invoice_settings')
+    .insert([{
+      user_id: user.id,
+      invoice_prefix: 'INV-',
+      payment_terms: 30
+    }])
+    .select()
+    .single();
+    
+  setInvoiceSettings(settings);
+} else {
+  setInvoiceSettings(existingSettings);
+}
 
       // Load clients
       await loadClients();
@@ -317,12 +327,13 @@ export const InvoiceForm: React.FC = () => {
         </button>
         
         <button
-          onClick={() => navigate('/invoices/settings')}
-          className="inline-flex items-center text-gray-600 hover:text-gray-900"
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Invoice Settings
-        </button>
+  type="button"
+  onClick={() => setShowSettings(true)}
+  className="inline-flex items-center text-gray-600 hover:text-gray-900"
+>
+  <Settings className="h-4 w-4 mr-2" />
+  Invoice Settings
+</button>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
@@ -503,7 +514,7 @@ export const InvoiceForm: React.FC = () => {
                     step="0.01"
                   />
                   <div className="col-span-2 px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                    ${item.amount.toFixed(2)}
+                    {formatCurrency(item.amount)}
                   </div>
                   <button
                     type="button"
@@ -531,27 +542,29 @@ export const InvoiceForm: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <div className="flex items-center space-x-2">
                   <span>Tax</span>
-                  <input
-                    type="number"
+                  <select
                     value={formData.tax_rate}
                     onChange={(e) => setFormData({ ...formData, tax_rate: e.target.value })}
-                    className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
-                  <span>%</span>
+                    className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                  >
+                    <option value="0">No Tax (0%)</option>
+                    {taxRates.map((tax) => (
+                      <option key={tax.id} value={tax.rate}>
+                        {tax.name} ({tax.rate}%)
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <span>${taxAmount.toFixed(2)}</span>
+                <span>{formatCurrency(taxAmount)}</span>
               </div>
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatCurrency(total)}</span>
               </div>
             </div>
           </div>
@@ -641,7 +654,11 @@ export const InvoiceForm: React.FC = () => {
             </div>
           </div>
         </div>
+        
       )}
+      {showSettings && (
+  <InvoiceSettings onClose={() => setShowSettings(false)} />
+)}
     </div>
   );
 };
