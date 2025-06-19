@@ -54,7 +54,7 @@ function App() {
 
               {/* Income Routes */}
               <Route
-                path="/incomes"
+                path="/income"
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -64,7 +64,7 @@ function App() {
                 }
               />
               <Route
-                path="/incomes/new"
+                path="/income/new"
                 element={
                   <ProtectedRoute>
                     <Layout>
@@ -74,7 +74,7 @@ function App() {
                 }
               />
               <Route
-                path="/incomes/:id/edit"
+                path="/income/:id/edit"
                 element={
                   <ProtectedRoute>
                     <Layout>

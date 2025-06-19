@@ -200,36 +200,137 @@ export const InvoiceList: React.FC = () => {
   };
 
   const sendInvoice = async (invoice: Invoice, method: 'email' | 'whatsapp') => {
-    try {
-      if (method === 'email') {
-        const { error } = await supabase.functions.invoke('send-invoice-email', {
-          body: {
-            invoiceId: invoice.id,
-            recipientEmail: invoice.client?.email,
-            invoiceUrl: `${window.location.origin}/invoices/view/${invoice.id}`
+  try {
+    // First, fetch the complete invoice data
+    const { data: fullInvoiceData, error: fetchError } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        client:clients(*),
+        items:invoice_items(*)
+      `)
+      .eq('id', invoice.id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Fetch profile and invoice settings separately using the invoice's user_id
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', fullInvoiceData.user_id)
+      .single();
+
+    const { data: settingsData } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .eq('user_id', fullInvoiceData.user_id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Get company info from either profile or invoice settings
+    const companyName = profileData?.company_name || 
+                       settingsData?.company_name || 
+                       'Your Company';
+    const companyAddress = profileData?.company_address || 
+                          settingsData?.company_address || '';
+    const companyPhone = profileData?.phone || 
+                        settingsData?.company_phone || '';
+
+    if (method === 'email') {
+      const { error } = await supabase.functions.invoke('send-invoice-email', {
+        body: {
+          invoiceId: invoice.id,
+          recipientEmail: invoice.client?.email,
+          invoiceUrl: `${window.location.origin}/invoices/${invoice.id}/view`
+        }
+      });
+      
+      if (error) throw error;
+      alert('Invoice sent via email successfully!');
+    } else if (method === 'whatsapp') {
+      // Check if client has phone number
+      if (!invoice.client?.phone) {
+        alert('Client phone number is required to send via WhatsApp');
+        return;
+      }
+
+      // Format phone number (remove special characters, ensure country code)
+      let phoneNumber = invoice.client.phone.replace(/[\s\-\(\)]/g, '');
+      
+      // Add country code if not present
+      if (!phoneNumber.startsWith('+')) {
+        // Get country code from user settings if available
+        const countryCode = settingsData?.country_code || '+1';
+        phoneNumber = countryCode + phoneNumber;
+      }
+
+      // Build line items summary if available
+      let itemsSummary = '';
+      if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
+        itemsSummary = '\n📋 *ITEMS:*\n';
+        fullInvoiceData.items.forEach((item: any) => {
+          itemsSummary += `• ${item.description} - ${formatCurrency(item.amount)}\n`;
+        });
+      }
+
+      // Professional invoice message format with company info
+      const message = encodeURIComponent(
+        `🏢 *${companyName}*\n` +
+        (companyAddress ? `📍 ${companyAddress}\n` : '') +
+        (companyPhone ? `☎️ ${companyPhone}\n` : '') +
+        `━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📄 *INVOICE*\n\n` +
+        `*To:* ${invoice.client?.name}\n` +
+        (invoice.client?.address ? `${invoice.client.address}\n` : '') +
+        `\n*Invoice #:* ${invoice.invoice_number}\n` +
+        `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
+        `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
+        itemsSummary +
+        `\n━━━━━━━━━━━━━━━━━━━━\n` +
+        `*Subtotal:* ${formatCurrency(invoice.subtotal)}\n` +
+        (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount)}\n` : '') +
+        `💰 *TOTAL DUE:* ${formatCurrency(invoice.total)}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📱 *View Full Invoice:*\n` +
+        `${window.location.origin}/invoices/${invoice.id}/view\n\n` +
+        `💳 *Payment Options:*\n` +
+        `• Bank Transfer\n` +
+        `• Credit/Debit Card\n` +
+        `• PayPal\n` +
+        (settingsData?.payment_instructions ? 
+          `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
+        `Thank you for your business! 🙏\n\n` +
+        `_Please save this number to receive future updates._`
+      );
+      
+      window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+    }
+    
+    // Update invoice status to 'sent' if it was draft
+    if (invoice.status === 'draft') {
+      await handleStatusChange(invoice.id, 'sent');
+      
+      // Track activity
+      if (user?.id) {
+        await supabase.from('invoice_activities').insert({
+          invoice_id: invoice.id,
+          user_id: user.id,
+          action: 'sent',
+          details: { 
+            method, 
+            timestamp: new Date().toISOString(),
+            sent_to: method === 'email' ? invoice.client?.email : invoice.client?.phone
           }
         });
-        
-        if (error) throw error;
-        alert('Invoice sent via email successfully!');
-      } else if (method === 'whatsapp') {
-        const message = encodeURIComponent(
-          `*Invoice ${invoice.invoice_number}*\n\n` +
-          `Amount: *${formatCurrency(invoice.total)}*\n` +
-          `Due Date: ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n\n` +
-          `View Invoice: ${window.location.origin}/invoices/view/${invoice.id}`
-        );
-        
-        window.open(`https://wa.me/${invoice.client?.phone}?text=${message}`, '_blank');
       }
-      
-      if (invoice.status === 'draft') {
-        await handleStatusChange(invoice.id, 'sent');
-      }
-    } catch (err: any) {
-      alert('Error sending invoice: ' + err.message);
     }
-  };
+  } catch (err: any) {
+    console.error('Error sending invoice:', err);
+    alert('Error sending invoice: ' + (err.message || 'Unknown error'));
+  }
+};
 
   const copyInvoiceLink = async (invoice: Invoice) => {
     const url = `${window.location.origin}/invoices/view/${invoice.id}`;
@@ -550,7 +651,7 @@ export const InvoiceList: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center justify-center space-x-2">
                             <Link
-                              to={`/invoices/view/${invoice.id}`}
+                              to={`/invoices/${invoice.id}/view`}
                               className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                               title="View"
                             >

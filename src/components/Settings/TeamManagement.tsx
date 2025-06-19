@@ -1,6 +1,6 @@
 // src/components/Settings/TeamManagement.tsx
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Mail, Shield, Trash2, Crown, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Users, UserPlus, Mail, Shield, Trash2, Crown, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { supabase } from '../../services/supabaseClient';
@@ -63,16 +63,13 @@ export const TeamManagement: React.FC = () => {
       setLoading(true);
       setError('');
       
-      // Load team members - they already have email and full_name
+      // Load team members
       const { data: membersData, error: membersError } = await supabase
         .from('team_members')
         .select('*')
         .eq('team_id', teamId)
         .eq('status', 'active')
         .order('created_at');
-
-      if (membersError) throw membersError;
-      setMembers(membersData || []);
 
       if (membersError) throw membersError;
       setMembers(membersData || []);
@@ -133,12 +130,19 @@ export const TeamManagement: React.FC = () => {
         throw new Error('An invitation is already pending for this email');
       }
 
+      // Get inviter profile for the email
+      const { data: inviterProfile } = await supabase
+        .from('profiles')
+        .select('full_name, company_name')
+        .eq('id', user.id)
+        .single();
+
       // Create invitation with invite code
       const inviteCode = crypto.randomUUID();
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-      const { error: inviteError } = await supabase
+      const { data: newInvite, error: inviteError } = await supabase
         .from('pending_invites')
         .insert([{
           team_id: teamId,
@@ -148,13 +152,36 @@ export const TeamManagement: React.FC = () => {
           invite_code: inviteCode,
           expires_at: expiresAt.toISOString(),
           accepted: false
-        }]);
+        }])
+        .select()
+        .single();
 
       if (inviteError) throw inviteError;
 
-      // TODO: Send invitation email here
+      // Send invitation email via Edge Function
+      try {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-team-invite', {
+          body: {
+            inviteId: newInvite.id,
+            teamName: inviterProfile?.company_name || 'Our Team',
+            inviterName: inviterProfile?.full_name || user.email,
+            inviteEmail: inviteEmail,
+            inviteCode: inviteCode
+          }
+        });
 
-      setSuccess(`Invitation sent to ${inviteEmail}`);
+        if (emailError) {
+          console.error('Failed to send invite email:', emailError);
+          // Don't throw - invitation is created, just show warning
+          setSuccess(`Invitation created for ${inviteEmail}, but email delivery failed. They can still join using the invite code: ${inviteCode}`);
+        } else {
+          setSuccess(`Invitation sent to ${inviteEmail}`);
+        }
+      } catch (emailErr: any) {
+        console.error('Email service error:', emailErr);
+        setSuccess(`Invitation created for ${inviteEmail}, but email delivery failed. Share this code: ${inviteCode}`);
+      }
+
       setInviteEmail('');
       setShowInviteForm(false);
       await loadTeamData();
@@ -181,8 +208,8 @@ export const TeamManagement: React.FC = () => {
 
         if (error) throw error;
 
-        await loadTeamData();
         setSuccess('Team member removed successfully');
+        await loadTeamData();
       } catch (err: any) {
         setError('Failed to remove team member');
       }
@@ -200,8 +227,8 @@ export const TeamManagement: React.FC = () => {
 
       if (error) throw error;
 
-      await loadTeamData();
       setSuccess('Role updated successfully');
+      await loadTeamData();
     } catch (err: any) {
       setError('Failed to update role');
     }
@@ -210,50 +237,45 @@ export const TeamManagement: React.FC = () => {
   const handleCancelInvitation = async (inviteId: string) => {
     if (!canManageTeam) return;
 
-    try {
-      const { error } = await supabase
-        .from('pending_invites')
-        .delete()
-        .eq('id', inviteId);
+    if (window.confirm('Are you sure you want to cancel this invitation?')) {
+      try {
+        const { error } = await supabase
+          .from('pending_invites')
+          .delete()
+          .eq('id', inviteId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await loadTeamData();
-      setSuccess('Invitation cancelled');
-    } catch (err: any) {
-      setError('Failed to cancel invitation');
+        setSuccess('Invitation cancelled');
+        await loadTeamData();
+      } catch (err: any) {
+        setError('Failed to cancel invitation');
+      }
     }
   };
 
   const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'owner':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-            <Crown className="h-3 w-3 mr-1" />
-            Owner
-          </span>
-        );
-      case 'admin':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <Shield className="h-3 w-3 mr-1" />
-            Admin
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-            Member
-          </span>
-        );
-    }
+    const badges = {
+      owner: { icon: Crown, color: 'bg-yellow-100 text-yellow-800' },
+      admin: { icon: Shield, color: 'bg-purple-100 text-purple-800' },
+      member: { icon: Mail, color: 'bg-gray-100 text-gray-800' }
+    };
+
+    const Badge = badges[role as keyof typeof badges] || badges.member;
+    const Icon = Badge.icon;
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${Badge.color}`}>
+        <Icon className="h-3 w-3 mr-1" />
+        {role.charAt(0).toUpperCase() + role.slice(1)}
+      </span>
+    );
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -274,14 +296,14 @@ export const TeamManagement: React.FC = () => {
       {/* Alerts */}
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center">
-          <XCircle className="h-4 w-4 mr-2" />
+          <XCircle className="h-4 w-4 mr-2 flex-shrink-0" />
           {error}
         </div>
       )}
       
       {success && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg flex items-center">
-          <CheckCircle className="h-4 w-4 mr-2" />
+          <CheckCircle className="h-4 w-4 mr-2 flex-shrink-0" />
           {success}
         </div>
       )}
@@ -313,7 +335,7 @@ export const TeamManagement: React.FC = () => {
         )}
       </div>
 
-      {/* Team Members List */}
+      {/* Team Members Table */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -337,18 +359,11 @@ export const TeamManagement: React.FC = () => {
               <tr key={member.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-sm font-medium text-gray-600">
-                        {member.full_name?.charAt(0) || member.email.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="ml-4">
+                    <div>
                       <div className="text-sm font-medium text-gray-900">
-                        {member.full_name || 'No name'}
+                        {member.full_name || 'Unnamed User'}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {member.email}
-                      </div>
+                      <div className="text-sm text-gray-500">{member.email}</div>
                     </div>
                   </div>
                 </td>
@@ -356,7 +371,7 @@ export const TeamManagement: React.FC = () => {
                   {getRoleBadge(member.role)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(member.created_at).toLocaleDateString()}
+                  {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'Pending'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   {canManageTeam && member.role !== 'owner' && (
@@ -364,7 +379,7 @@ export const TeamManagement: React.FC = () => {
                       <select
                         value={member.role}
                         onChange={(e) => handleRoleChange(member.id, e.target.value as 'admin' | 'member')}
-                        className="text-sm border-gray-300 rounded-md"
+                        className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="member">Member</option>
                         <option value="admin">Admin</option>
@@ -399,7 +414,7 @@ export const TeamManagement: React.FC = () => {
                     Role
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sent
+                    Sent / Expires
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -456,6 +471,7 @@ export const TeamManagement: React.FC = () => {
                     onChange={(e) => setInviteEmail(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    placeholder="colleague@example.com"
                   />
                 </div>
                 
@@ -494,9 +510,16 @@ export const TeamManagement: React.FC = () => {
                 <button
                   type="submit"
                   disabled={inviting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
-                  {inviting ? 'Sending...' : 'Send Invitation'}
+                  {inviting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Invitation'
+                  )}
                 </button>
               </div>
             </form>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { registrationService } from '../../services/registrationService';
+import { supabase } from '../../services/supabaseClient';
 import { 
   Building2, 
   Mail, 
@@ -146,20 +147,32 @@ export const Register: React.FC = () => {
     if (!inviteCode) return;
     
     setCheckingInvite(true);
-    const result = await registrationService.validateInvitation(inviteCode);
+    setError(''); // Clear any previous errors
     
-    if (result.valid && result.invitation) {
-      setInviteDetails({
-        ...result.invitation,
-        teamName: result.teamName
-      });
-      setFormData(prev => ({ ...prev, email: result.invitation.email }));
-      setError('');
-    } else {
-      setError(result.error || 'Invalid invitation');
+    try {
+      // Clear any stale auth sessions first
+      await supabase.auth.signOut();
+      
+      const result = await registrationService.validateInvitation(inviteCode);
+      
+      console.log('Invitation validation result:', result);
+      
+      if (result.valid && result.invitation) {
+        setInviteDetails({
+          ...result.invitation,
+          teamName: result.teamName
+        });
+        setFormData(prev => ({ ...prev, email: result.invitation.email }));
+        setError('');
+      } else {
+        setError(result.error || 'Invalid invitation');
+      }
+    } catch (err) {
+      console.error('Error checking invitation:', err);
+      setError('Failed to validate invitation. Please try again.');
+    } finally {
+      setCheckingInvite(false);
     }
-    
-    setCheckingInvite(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

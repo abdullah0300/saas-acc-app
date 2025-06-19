@@ -32,6 +32,8 @@ interface InvitationValidation {
 export class RegistrationService {
   async validateInvitation(inviteCode: string): Promise<InvitationValidation> {
     try {
+      console.log('Validating invitation with code:', inviteCode);
+      
       // First, get the invitation from pending_invites table
       const { data: invite, error: inviteError } = await supabase
         .from('pending_invites')
@@ -39,9 +41,16 @@ export class RegistrationService {
         .eq('invite_code', inviteCode)
         .eq('accepted', false)
         .gte('expires_at', new Date().toISOString())
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid 406 error
 
-      if (inviteError || !invite) {
+      console.log('Invitation query result:', { invite, inviteError });
+
+      if (inviteError) {
+        console.error('Error fetching invitation:', inviteError);
+        return { valid: false, error: 'Failed to validate invitation' };
+      }
+
+      if (!invite) {
         return { valid: false, error: 'Invalid or expired invitation' };
       }
 
@@ -51,6 +60,8 @@ export class RegistrationService {
         .select('company_name')
         .eq('id', invite.team_id)
         .maybeSingle();
+
+      console.log('Team profile:', teamProfile);
 
       return {
         valid: true,

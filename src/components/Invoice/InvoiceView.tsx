@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+// Add this import with your other imports
+import { pdfService } from '../../services/pdfService';
 import { 
   ArrowLeft, 
   Download, 
@@ -71,28 +73,51 @@ export const InvoiceView: React.FC = () => {
     }
   }, [showActions]);
 
-  const loadInvoiceData = async () => {
-    if (!id || !user) return;
-
+ const loadInvoiceData = async () => {
+  // Check for token-based access (for PDF generation)
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  
+  if (token && !user) {
+    // Token-based access - validate and load without user auth
     try {
       setLoading(true);
-      const [invoiceData, profileData] = await Promise.all([
-        getInvoice(id),
-        getProfile(user.id)
-      ]);
       
-      // Load invoice settings
+      // Validate token
+      const { data: tokenData } = await supabase
+        .from('invoice_access_tokens')
+        .select('invoice_id')
+        .eq('token', token)
+        .eq('invoice_id', id)
+        .gte('expires_at', new Date().toISOString())
+        .single();
+      
+      if (!tokenData) throw new Error('Invalid or expired token');
+      
+      // Load invoice data directly
+      const { data: invoiceData } = await supabase
+        .from('invoices')
+        .select(`*, client:clients(*), items:invoice_items(*)`)
+        .eq('id', id)
+        .single();
+      
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', invoiceData.user_id)
+        .single();
+      
       const { data: settings } = await supabase
         .from('invoice_settings')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', invoiceData.user_id)
         .single();
       
       setInvoice(invoiceData);
       setProfile(profileData);
       setInvoiceSettings(settings);
       
-      // Generate QR code for invoice URL
+      // Generate QR code
       const invoiceUrl = `${window.location.origin}/invoices/view/${id}`;
       const qrDataUrl = await QRCode.toDataURL(invoiceUrl, {
         width: 150,
@@ -104,15 +129,57 @@ export const InvoiceView: React.FC = () => {
       });
       setQrCodeUrl(qrDataUrl);
       
-      // Track invoice view
-      await trackActivity('viewed');
-      
+      setLoading(false);
+      return; // Exit early for token-based access
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setLoading(false);
+      return;
     }
-  };
+  }
+  
+  // Normal user-based access (your existing code)
+  if (!id || !user) return;
+
+  try {
+    setLoading(true);
+    const [invoiceData, profileData] = await Promise.all([
+      getInvoice(id),
+      getProfile(user.id)
+    ]);
+    
+    // Load invoice settings
+    const { data: settings } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    setInvoice(invoiceData);
+    setProfile(profileData);
+    setInvoiceSettings(settings);
+    
+    // Generate QR code for invoice URL
+    const invoiceUrl = `${window.location.origin}/invoices/view/${id}`;
+    const qrDataUrl = await QRCode.toDataURL(invoiceUrl, {
+      width: 150,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    setQrCodeUrl(qrDataUrl);
+    
+    // Track invoice view
+    await trackActivity('viewed');
+    
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const trackActivity = async (action: string, details?: any) => {
     if (!user || !id) return;
@@ -147,6 +214,36 @@ export const InvoiceView: React.FC = () => {
   };
 
   const generatePDF = async () => {
+  if (!invoice || !invoiceRef.current) return;
+  
+  setDownloading(true);
+  try {
+    console.log('Generating PDF via edge function...');
+    
+    // Call edge function to generate PDF
+    const pdfBlob = await pdfService.generateInvoicePDF(invoice.id);
+    
+    // Download the PDF
+    pdfService.downloadBlob(pdfBlob, `invoice-${invoice.invoice_number}.pdf`);
+    
+    // Track the activity
+    await trackActivity('downloaded_pdf');
+    
+    console.log('PDF generated successfully');
+    
+  } catch (err: any) {
+    console.error('Error generating PDF:', err);
+    alert('Error generating PDF from server. Trying local generation...');
+    
+    // If edge function fails, fall back to existing client-side generation
+    console.log('Falling back to client-side PDF generation...');
+    await generatePDFClientSide();
+  } finally {
+    setDownloading(false);
+  }
+};
+
+const generatePDFClientSide = async () => {
     if (!invoiceRef.current) return;
     
     setDownloading(true);

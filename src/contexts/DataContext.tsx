@@ -2,11 +2,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
+import { subscriptionService } from '../services/subscriptionService';
+import { getEffectiveUserId } from '../services/database';
 
 interface DataContextType {
-  subscription: any | null;
-  userRole: 'owner' | 'admin' | 'member' | null;
+  subscription: any;
+  userRole: 'owner' | 'admin' | 'member';
   teamId: string | null;
+  effectiveUserId: string | null;
   isLoading: boolean;
   error: string | null;
   refreshData: () => Promise<void>;
@@ -24,142 +27,88 @@ export const useData = () => {
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [subscription, setSubscription] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member' | null>(null);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'member'>('owner');
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Prevent multiple simultaneous loads
   const loadingRef = useRef(false);
   const lastLoadTime = useRef(0);
-  const LOAD_COOLDOWN = 5000; // 5 seconds cooldown
 
   const loadUserData = async () => {
-    // Check if already loading or if cooldown hasn't passed
+    if (!user || loadingRef.current) return;
+    
     const now = Date.now();
-    if (loadingRef.current || (now - lastLoadTime.current < LOAD_COOLDOWN)) {
-      return;
-    }
-
-    if (!user) {
-      setSubscription(null);
-      setUserRole(null);
-      setTeamId(null);
-      return;
-    }
-
+    if (now - lastLoadTime.current < 1000) return;
+    
     loadingRef.current = true;
     setIsLoading(true);
     setError(null);
 
     try {
-      // First, check if user is part of a team
+      // Get effective user ID
+      const effectiveId = await getEffectiveUserId(user.id);
+      
+      // Check if user is part of a team
       const { data: teamMember, error: teamError } = await supabase
         .from('team_members')
-        .select('*')
+        .select('team_id, role')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .maybeSingle();
 
-      let actualTeamId = user.id; // Default to user's own ID
-      let role: 'owner' | 'admin' | 'member' = 'owner'; // Default role
+      let actualTeamId = user.id;
+      let role: 'owner' | 'admin' | 'member' = 'owner';
 
       if (teamMember && !teamError) {
-        // User is part of a team
         actualTeamId = teamMember.team_id;
         role = teamMember.role;
-        
-        // Get subscription for the team owner
-        const { data: subData, error: subError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', actualTeamId)
-          .maybeSingle();
-
-        if (subError) {
-          console.error('Subscription error:', subError);
-          // Create default subscription for team owner if none exists
-          if (role === 'owner') {
-            const { data: newSub } = await supabase
-              .from('subscriptions')
-              .insert([{
-                user_id: actualTeamId,
-                plan: 'simple_start',
-                status: 'active'
-              }])
-              .select()
-              .single();
-            
-            setSubscription(newSub);
-          }
-        } else {
-          setSubscription(subData);
-        }
-      } else {
-        // User is not part of a team, they own their own data
-        const { data: subData, error: subError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (subError) {
-          console.error('Subscription error:', subError);
-          // Create a default subscription if none exists
-          const { data: newSub } = await supabase
-            .from('subscriptions')
-            .insert([{
-              user_id: user.id,
-              plan: 'simple_start',
-              status: 'active'
-            }])
-            .select()
-            .single();
-          
-          setSubscription(newSub);
-        } else {
-          setSubscription(subData);
-        }
       }
+
+      // Load subscription using effective user ID
+      const subData = await subscriptionService.loadUserSubscription(effectiveId);
+      setSubscription(subData);
 
       setUserRole(role);
       setTeamId(actualTeamId);
+      setEffectiveUserId(effectiveId);
       lastLoadTime.current = Date.now();
+      
+      console.log('User data loaded:', {
+        userId: user.id,
+        role,
+        teamId: actualTeamId,
+        effectiveUserId: effectiveId
+      });
+      
     } catch (err: any) {
       console.error('Error loading user data:', err);
       setError(err.message);
-      // Set defaults on error
       setUserRole('owner');
       setTeamId(user?.id || null);
+      setEffectiveUserId(user?.id || null);
     } finally {
       setIsLoading(false);
       loadingRef.current = false;
     }
   };
 
-  // Load data when user changes
   useEffect(() => {
     if (user) {
       loadUserData();
+    } else {
+      setSubscription(null);
+      setUserRole('owner');
+      setTeamId(null);
+      setEffectiveUserId(null);
+      setIsLoading(false);
     }
   }, [user?.id]);
 
-  // Handle visibility change without reloading
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      // Don't reload on tab change - just check if session is still valid
-      if (document.visibilityState === 'visible' && user) {
-        supabase.auth.getSession().catch(console.error);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user]);
-
   const refreshData = async () => {
-    lastLoadTime.current = 0; // Reset cooldown
+    lastLoadTime.current = 0;
     await loadUserData();
   };
 
@@ -168,6 +117,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription,
       userRole,
       teamId,
+      effectiveUserId,
       isLoading,
       error,
       refreshData

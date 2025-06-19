@@ -15,6 +15,8 @@ import {
   PiggyBank
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getProfile } from '../../services/database';
+import { User } from '../../types';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,6 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [profile, setProfile] = React.useState<User | null>(null);
 
   const menuItems = [
     { path: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -38,6 +41,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   ];
 
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  React.useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+    try {
+      const profileData = await getProfile(user.id);
+      setProfile(profileData);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     setIsLoggingOut(true);
@@ -90,14 +109,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-gray-300">
-                  {user?.email?.[0]?.toUpperCase() || 'U'}
+                  {profile?.company_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-200 truncate">
-                  {user?.email || 'User'}
+                  {profile?.company_name || user?.email || 'User'}
                 </p>
-                <p className="text-xs text-gray-400">Account</p>
+                <p className="text-xs text-gray-400">
+                  {profile?.company_name ? 'Company' : 'Account'}
+                </p>
               </div>
             </div>
           </div>
