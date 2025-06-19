@@ -180,7 +180,7 @@ export const InvoiceView: React.FC = () => {
     setLoading(false);
   }
 };
-
+ 
   const trackActivity = async (action: string, details?: any) => {
     if (!user || !id) return;
     
