@@ -29,6 +29,31 @@ import { SubscriptionPlans } from './components/Subscription/SubscriptionPlans';
 import { PaymentSuccess } from './components/Subscription/PaymentSuccess';
 import { BudgetPlanning } from './components/Budget/BudgetPlanning';
 
+// Invoice View Wrapper Component
+const InvoiceViewWrapper: React.FC = () => {
+  const location = window.location;
+  const urlParams = new URLSearchParams(location.search);
+  const hasToken = urlParams.get('token');
+  
+  if (hasToken) {
+    // Token-based access - no authentication required
+    return (
+      <Layout>
+        <InvoiceView />
+      </Layout>
+    );
+  } else {
+    // Normal access - require authentication
+    return (
+      <ProtectedRoute>
+        <Layout>
+          <InvoiceView />
+        </Layout>
+      </ProtectedRoute>
+    );
+  }
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -179,15 +204,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              
-              {/* UPDATED: Invoice View - No ProtectedRoute for token access */}
               <Route
                 path="/invoices/view/:id"
-                element={
-                  <Layout>
-                    <InvoiceView />
-                  </Layout>
-                }
+                element={<InvoiceViewWrapper />}
               />
 
               {/* Budget Route */}
@@ -241,6 +260,7 @@ function App() {
                 <Route path="subscription" element={<SubscriptionPlans />} />
                 <Route path="tax" element={<TaxSettings />} />
                 <Route path="currency" element={<CurrencySettings />} />
+                {/* Invoice settings removed from here - it's a modal, not a page */}
               </Route>
 
               {/* Payment Success Route */}
