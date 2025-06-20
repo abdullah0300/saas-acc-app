@@ -74,13 +74,12 @@ export const InvoiceView: React.FC = () => {
   }, [showActions]);
 
  const loadInvoiceData = async () => {
-  // Check for token FIRST, before checking user
+  // Check for token-based access (for PDF generation)
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('token');
   
-  if (token) {
-    console.log('Token-based access detected');
-    
+  if (token && !user) {
+    // Token-based access - validate and load without user auth
     try {
       setLoading(true);
       
@@ -93,33 +92,21 @@ export const InvoiceView: React.FC = () => {
         .gte('expires_at', new Date().toISOString())
         .single();
       
-      if (!tokenData) {
-        setError('Invalid or expired token');
-        setLoading(false);
-        return;
-      }
+      if (!tokenData) throw new Error('Invalid or expired token');
       
-      // Load invoice data WITHOUT requiring auth
+      // Load invoice data directly
       const { data: invoiceData } = await supabase
         .from('invoices')
         .select(`*, client:clients(*), items:invoice_items(*)`)
         .eq('id', id)
         .single();
       
-      if (!invoiceData) {
-        setError('Invoice not found');
-        setLoading(false);
-        return;
-      }
-      
-      // Load profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', invoiceData.user_id)
         .single();
       
-      // Load settings
       const { data: settings } = await supabase
         .from('invoice_settings')
         .select('*')
@@ -135,12 +122,15 @@ export const InvoiceView: React.FC = () => {
       const qrDataUrl = await QRCode.toDataURL(invoiceUrl, {
         width: 150,
         margin: 1,
-        color: { dark: '#000000', light: '#FFFFFF' }
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
       });
       setQrCodeUrl(qrDataUrl);
       
       setLoading(false);
-      return; // Important: Exit here for token-based access
+      return; // Exit early for token-based access
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -148,12 +138,42 @@ export const InvoiceView: React.FC = () => {
     }
   }
   
-  // Normal user authentication flow (your existing code)
+  // Normal user-based access (your existing code)
   if (!id || !user) return;
 
   try {
     setLoading(true);
-    // ... rest of your existing code for authenticated users
+    const [invoiceData, profileData] = await Promise.all([
+      getInvoice(id),
+      getProfile(user.id)
+    ]);
+    
+    // Load invoice settings
+    const { data: settings } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    setInvoice(invoiceData);
+    setProfile(profileData);
+    setInvoiceSettings(settings);
+    
+    // Generate QR code for invoice URL
+    const invoiceUrl = `${window.location.origin}/invoices/view/${id}`;
+    const qrDataUrl = await QRCode.toDataURL(invoiceUrl, {
+      width: 150,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    setQrCodeUrl(qrDataUrl);
+    
+    // Track invoice view
+    await trackActivity('viewed');
+    
   } catch (err: any) {
     setError(err.message);
   } finally {

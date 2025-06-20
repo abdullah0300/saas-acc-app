@@ -29,31 +29,6 @@ import { SubscriptionPlans } from './components/Subscription/SubscriptionPlans';
 import { PaymentSuccess } from './components/Subscription/PaymentSuccess';
 import { BudgetPlanning } from './components/Budget/BudgetPlanning';
 
-// Invoice View Wrapper Component
-const InvoiceViewWrapper: React.FC = () => {
-  const location = window.location;
-  const urlParams = new URLSearchParams(location.search);
-  const hasToken = urlParams.get('token');
-  
-  if (hasToken) {
-    // Token-based access - no authentication required
-    return (
-      <Layout>
-        <InvoiceView />
-      </Layout>
-    );
-  } else {
-    // Normal access - require authentication
-    return (
-      <ProtectedRoute>
-        <Layout>
-          <InvoiceView />
-        </Layout>
-      </ProtectedRoute>
-    );
-  }
-};
-
 function App() {
   return (
     <AuthProvider>
@@ -205,8 +180,14 @@ function App() {
                 }
               />
               <Route
-                path="/invoices/view/:id"
-                element={<InvoiceViewWrapper />}
+                path="/invoices/:id/view"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <InvoiceView />
+                    </Layout>
+                  </ProtectedRoute>
+                }
               />
 
               {/* Budget Route */}
