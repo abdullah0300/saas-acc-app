@@ -179,14 +179,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              
+              {/* UPDATED: Invoice View - No ProtectedRoute for token access */}
               <Route
-                path="/invoices/:id/view"
+                path="/invoices/view/:id"
                 element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <InvoiceView />
-                    </Layout>
-                  </ProtectedRoute>
+                  <Layout>
+                    <InvoiceView />
+                  </Layout>
                 }
               />
 
@@ -241,7 +241,6 @@ function App() {
                 <Route path="subscription" element={<SubscriptionPlans />} />
                 <Route path="tax" element={<TaxSettings />} />
                 <Route path="currency" element={<CurrencySettings />} />
-                {/* Invoice settings removed from here - it's a modal, not a page */}
               </Route>
 
               {/* Payment Success Route */}
