@@ -150,10 +150,10 @@ export const PublicInvoiceView: React.FC = () => {
   const primaryColor = invoiceSettings?.invoice_color || '#4F46E5';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 print:bg-white">
       {/* Invoice Document */}
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="bg-white rounded-lg shadow-xl print:shadow-none print:rounded-none">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 print:p-0">
+        <div className="bg-white rounded-lg shadow-xl print:shadow-none print:rounded-none overflow-hidden">
           {/* Header Section */}
           <div className="relative overflow-hidden">
             {/* Background Pattern */}
@@ -173,6 +173,12 @@ export const PublicInvoiceView: React.FC = () => {
                       src={profile?.company_logo || invoiceSettings?.company_logo}
                       alt={profile?.company_name || 'Company'}
                       className="h-16 mb-4 object-contain"
+                      style={{ maxWidth: '200px' }}
+                      onError={(e) => {
+                        console.error('Logo failed to load:', e);
+                        // Hide the broken image
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   ) : (
                     <div className="flex items-center gap-3 mb-4">
@@ -370,24 +376,26 @@ export const PublicInvoiceView: React.FC = () => {
 
             {/* Totals Section */}
             <div className="mt-6 flex justify-end">
-              <div className="w-full max-w-xs space-y-2">
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-sm text-gray-600">Subtotal</span>
-                  <span className="text-sm font-medium text-gray-900">${invoice.subtotal.toFixed(2)}</span>
-                </div>
-                
-                {invoice.tax_rate > 0 && (
-                  <div className="flex justify-between items-center py-2 border-t border-gray-100">
-                    <span className="text-sm text-gray-600">Tax ({invoice.tax_rate}%)</span>
-                    <span className="text-sm font-medium text-gray-900">${invoice.tax_amount.toFixed(2)}</span>
+              <div className="w-full max-w-xs">
+                <div className="border-t border-gray-200 pt-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base text-gray-600">Subtotal</span>
+                    <span className="text-base font-medium text-gray-900">${invoice.subtotal.toFixed(2)}</span>
                   </div>
-                )}
-                
-                <div className="flex justify-between items-center py-3 border-t-2 border-gray-200">
-                  <span className="text-base font-semibold text-gray-900">Total</span>
-                  <span className="text-xl font-bold" style={{ color: primaryColor }}>
-                    ${invoice.total.toFixed(2)}
-                  </span>
+                  
+                  {invoice.tax_rate > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-base text-gray-600">Tax ({invoice.tax_rate}%)</span>
+                      <span className="text-base font-medium text-gray-900">${invoice.tax_amount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center pt-3 border-t-2 border-gray-900">
+                    <span className="text-lg font-semibold text-gray-900">Total</span>
+                    <span className="text-2xl font-bold" style={{ color: primaryColor }}>
+                      ${invoice.total.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
