@@ -47,6 +47,11 @@ export const SendEmailDialog: React.FC<SendEmailDialogProps> = ({
       return;
     }
 
+    if (!validateEmail(recipientEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setSending(true);
     setError('');
 
@@ -55,6 +60,15 @@ export const SendEmailDialog: React.FC<SendEmailDialogProps> = ({
         .split(',')
         .map(email => email.trim())
         .filter(email => email.length > 0);
+
+      console.log('Sending email with params:', {
+        invoiceId: invoice.id,
+        recipientEmail,
+        ccEmails: ccEmailArray,
+        subject,
+        message,
+        attachPdf
+      });
 
       const result = await emailService.sendInvoiceEmail({
         invoiceId: invoice.id,
@@ -71,6 +85,7 @@ export const SendEmailDialog: React.FC<SendEmailDialogProps> = ({
         onClose();
       }, 2000);
     } catch (err: any) {
+      console.error('Error sending email:', err);
       setError(err.message || 'Failed to send email');
     } finally {
       setSending(false);

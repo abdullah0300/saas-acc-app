@@ -30,6 +30,8 @@ export const emailService = {
         throw new Error('No authentication session');
       }
 
+      console.log('Sending invoice email with params:', params);
+
       const response = await fetch(
         `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/send-invoice-email`,
         {

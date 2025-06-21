@@ -27,7 +27,7 @@ export const SettingsLayout: React.FC = () => {
     { path: 'tax', label: 'Tax Settings', icon: Percent },
     { path: 'currency', label: 'Currency', icon: Globe },
     // Invoice settings removed - it's accessed from Invoice Form
-    { path: 'notifications', label: 'Notifications', icon: Bell },
+    { path: '/settings/notifications', label: 'Notifications', icon: Bell }, // Add this
     { path: 'security', label: 'Security', icon: Shield },
   ];
 

@@ -1,6 +1,8 @@
+// src/components/Layout/Header.tsx
 import React from 'react';
-import { Menu, Bell, User } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { NotificationBell } from '../Notifications/NotificationBell'; // ADD THIS
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -20,16 +22,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </button>
         
         <div className="flex items-center space-x-4 ml-auto">
-          <button className="text-gray-600 hover:text-gray-900">
-            <Bell className="h-6 w-6" />
-          </button>
-          
-          {/* <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <User className="h-5 w-5 text-white" />
-            </div>
-           
-          </div> */}
+          {/* Replace the static Bell with NotificationBell component */}
+          <NotificationBell />
         </div>
       </div>
     </header>
