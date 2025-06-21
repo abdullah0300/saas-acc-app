@@ -658,7 +658,7 @@ export const InvoiceList: React.FC = () => {
                               <Eye className="h-4 w-4" />
                             </Link>
                             <Link
-                              to={`/invoices/edit/${invoice.id}`}
+                              to={`/invoices/${invoice.id}/edit`}
                               className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                               title="Edit"
                             >

@@ -1,12 +1,10 @@
+// src/components/Layout/Layout.tsx
 import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -17,7 +15,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
         <main className="p-4 md:p-6">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

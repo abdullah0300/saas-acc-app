@@ -395,7 +395,7 @@ export const InvoiceView: React.FC = () => {
 
               {/* Edit */}
               <button
-                onClick={() => navigate(`/invoices/edit/${id}`)}
+                onClick={() => navigate(`/invoices/${id}/edit`)}
                 className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors"
                 title="Edit"
               >

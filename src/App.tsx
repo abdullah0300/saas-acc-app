@@ -1,9 +1,10 @@
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { SettingsProvider } from './contexts/SettingsContext';
-import { NotificationProvider } from './contexts/NotificationContext'; // ADD THIS IMPORT
+import { NotificationProvider } from './contexts/NotificationContext';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { Login } from './components/Auth/Login';
 import { Register } from './components/Auth/Register';
@@ -30,269 +31,81 @@ import { TeamManagement } from './components/Settings/TeamManagement';
 import { SubscriptionPlans } from './components/Subscription/SubscriptionPlans';
 import { PaymentSuccess } from './components/Subscription/PaymentSuccess';
 import { BudgetPlanning } from './components/Budget/BudgetPlanning';
-import { NotificationCenter } from './components/Notifications/NotificationCenter'; // ADD THIS IMPORT
-import { NotificationPreferences } from './components/Settings/NotificationPreferences'; // ADD THIS IMPORT
+import { NotificationCenter } from './components/Notifications/NotificationCenter';
+import { NotificationPreferences } from './components/Settings/NotificationPreferences';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* ADD THIS PUBLIC ROUTE */}
-        <Route path="/invoices/:id/public" element={<PublicInvoiceView />} />
-        
-        {/* ALL YOUR EXISTING ROUTES REMAIN EXACTLY THE SAME */}
-        <Route
-          path="/*"
-          element={
-            <AuthProvider>
+      <AuthProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/invoices/:id/public" element={<PublicInvoiceView />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          
+          {/* Protected routes */}
+          <Route element={
+            <ProtectedRoute>
               <DataProvider>
                 <SettingsProvider>
-                  <NotificationProvider> {/* ADD THIS WRAPPER */}
-                    <Routes>
-                      {/* Auth Routes */}
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/register" element={<Register />} />
-
-                      {/* Protected Routes */}
-                      <Route
-                        path="/dashboard"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <Dashboard />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Income Routes */}
-                      <Route
-                        path="/income"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <IncomeList />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/income/new"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <IncomeForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/income/:id/edit"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <IncomeForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Expense Routes */}
-                      <Route
-                        path="/expenses"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ExpenseList />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/expenses/new"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ExpenseForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/expenses/:id/edit"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ExpenseForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Client Routes */}
-                      <Route
-                        path="/clients"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ClientList />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/clients/new"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ClientForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/clients/:id/edit"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ClientForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Invoice Routes */}
-                      <Route
-                        path="/invoices"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <InvoiceList />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/invoices/new"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <InvoiceForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/invoices/:id/edit"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <InvoiceForm />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/invoices/:id/view"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <InvoiceView />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* ADD THIS NOTIFICATION ROUTE */}
-                      <Route
-                        path="/notifications"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <NotificationCenter />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Budget Route */}
-                      <Route
-                        path="/budget"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <BudgetPlanning />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Reports Routes */}
-                      <Route
-                        path="/reports"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ReportsOverview />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/reports/profit-loss"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <ProfitLossReport />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Settings Routes */}
-                      <Route
-                        path="/settings"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <SettingsLayout />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      >
-                        <Route index element={<Navigate to="/settings/profile" replace />} />
-                        <Route path="profile" element={<ProfileSettings />} />
-                        <Route path="team" element={<TeamManagement />} />
-                        <Route path="subscription" element={<SubscriptionPlans />} />
-                        <Route path="tax" element={<TaxSettings />} />
-                        <Route path="currency" element={<CurrencySettings />} />
-                        <Route path="notifications" element={<NotificationPreferences />} /> {/* ADD THIS ROUTE */}
-                        {/* Invoice settings removed from here - it's a modal, not a page */}
-                      </Route>
-
-                      {/* Payment Success Route */}
-                      <Route
-                        path="/payment/success"
-                        element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <PaymentSuccess />
-                            </Layout>
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Catch all */}
-                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                    </Routes>
+                  <NotificationProvider>
+                    <Layout />
                   </NotificationProvider>
                 </SettingsProvider>
               </DataProvider>
-            </AuthProvider>
-          }
-        />
-      </Routes>
+            </ProtectedRoute>
+          }>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            
+            {/* Income */}
+            <Route path="/income" element={<IncomeList />} />
+            <Route path="/income/new" element={<IncomeForm />} />
+            <Route path="/income/:id/edit" element={<IncomeForm />} />
+            
+            {/* Expenses */}
+            <Route path="/expenses" element={<ExpenseList />} />
+            <Route path="/expenses/new" element={<ExpenseForm />} />
+            <Route path="/expenses/:id/edit" element={<ExpenseForm />} />
+            
+            {/* Invoices */}
+            <Route path="/invoices" element={<InvoiceList />} />
+            <Route path="/invoices/new" element={<InvoiceForm />} />
+            <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
+            <Route path="/invoices/:id/view" element={<InvoiceView />} />
+            
+            {/* Notifications */}
+            <Route path="/notifications" element={<NotificationCenter />} />
+            
+            {/* Clients */}
+            <Route path="/clients" element={<ClientList />} />
+            <Route path="/clients/new" element={<ClientForm />} />
+            <Route path="/clients/:id/edit" element={<ClientForm />} />
+            
+            {/* Reports */}
+            <Route path="/reports" element={<ReportsOverview />} />
+            <Route path="/reports/profit-loss" element={<ProfitLossReport />} />
+            
+            {/* Budget */}
+            <Route path="/budget" element={<BudgetPlanning />} />
+            
+            {/* Settings */}
+            <Route path="/settings" element={<SettingsLayout />}>
+              <Route index element={<Navigate to="/settings/profile" replace />} />
+              <Route path="profile" element={<ProfileSettings />} />
+              <Route path="tax" element={<TaxSettings />} />
+              <Route path="currency" element={<CurrencySettings />} />
+              <Route path="invoice" element={<InvoiceSettings onClose={() => {}} />} />
+              <Route path="notifications" element={<NotificationPreferences />} />
+              <Route path="team" element={<TeamManagement />} />
+              <Route path="subscription" element={<SubscriptionPlans />} />
+            </Route>
+            
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
