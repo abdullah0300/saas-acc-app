@@ -1,7 +1,74 @@
 // src/services/notifications.ts
 
 import { supabase } from './supabaseClient';
-import { Notification, NotificationType, NotificationPriority } from '../types';
+import { Notification, NotificationType, NotificationPriority } from '../types/notification.types';
+
+// Process email queue - call this after creating notifications or periodically
+export const processEmailQueue = async () => {
+  try {
+    // Get pending emails
+    const { data: pendingEmails, error: fetchError } = await supabase
+      .from('notification_email_queue')
+      .select('*')
+      .eq('status', 'pending')
+      .lt('attempts', 3)
+      .order('created_at', { ascending: true })
+      .limit(10);
+
+    if (fetchError) {
+      console.error('Error fetching email queue:', fetchError);
+      return;
+    }
+
+    if (!pendingEmails || pendingEmails.length === 0) {
+      return;
+    }
+
+    // Process each pending email
+    for (const emailRecord of pendingEmails) {
+      try {
+        // Update attempt count
+        await supabase
+          .from('notification_email_queue')
+          .update({ 
+            attempts: emailRecord.attempts + 1,
+            last_attempt_at: new Date().toISOString()
+          })
+          .eq('id', emailRecord.id);
+
+        // Call edge function to send email
+        const { data, error } = await supabase.functions.invoke('send-notification-email', {
+          body: { notification_id: emailRecord.notification_id }
+        });
+
+        if (error) throw error;
+
+        // Mark as sent
+        await supabase
+          .from('notification_email_queue')
+          .update({ status: 'sent' })
+          .eq('id', emailRecord.id);
+
+        console.log('Email sent successfully for notification:', emailRecord.notification_id);
+      } catch (error: any) {
+        console.error('Error sending email:', error);
+        
+        // Mark as failed if max attempts reached
+        if (emailRecord.attempts >= 2) {
+          await supabase
+            .from('notification_email_queue')
+            .update({ 
+              status: 'failed',
+              error_message: error.message || 'Unknown error'
+            })
+            .eq('id', emailRecord.id);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error processing email queue:', error);
+  }
+};
 
 // Fetch all notifications for a user
 export const getNotifications = async (userId: string, limit = 50, offset = 0) => {

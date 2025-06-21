@@ -9,7 +9,8 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
-  subscribeToNotifications
+  subscribeToNotifications,
+  processEmailQueue
 } from '../services/notifications';
 
 interface NotificationContextType {
@@ -131,6 +132,19 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  // Process email queue periodically
+  useEffect(() => {
+    // Process immediately on mount
+    processEmailQueue();
+    
+    // Then process every 30 seconds
+    const interval = setInterval(() => {
+      processEmailQueue();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Request notification permission
   useEffect(() => {
