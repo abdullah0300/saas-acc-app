@@ -1,0 +1,20 @@
+name: Process Recurring Invoices
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: # This allows manual triggering
+
+jobs:
+  process-invoices:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Process Recurring Invoices
+        run: |
+          curl -X POST https://adsbnzqorfmgnneiopcr.supabase.co/functions/v1/process-recurring-invoices \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            -w "\nHTTP Status: %{http_code}\n"

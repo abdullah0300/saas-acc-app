@@ -10,7 +10,8 @@ import {
   Bell,
   FileText,
   Palette,
-  DollarSign
+  DollarSign,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
@@ -48,6 +49,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
     notification_email: '',
     notification_phone: '',
     reminder_days: '3',
+    auto_send_recurring: false,
     
     // Payment Settings
     bank_name: '',
@@ -370,7 +372,23 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                       Enable email notifications
                     </span>
                   </label>
-                  
+                  <label className="flex items-center bg-blue-50 p-3 rounded-lg">
+                    <input
+                      type="checkbox"
+                      checked={settings.auto_send_recurring}
+                      onChange={(e) => setSettings({ ...settings, auto_send_recurring: e.target.checked })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="ml-3">
+                      <span className="text-sm font-medium text-gray-700 flex items-center">
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Auto-send recurring invoices
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Automatically email recurring invoices to clients when generated
+                      </span>
+                    </div>
+                  </label>
                   <label className="flex items-center">
                     <input
                       type="checkbox"

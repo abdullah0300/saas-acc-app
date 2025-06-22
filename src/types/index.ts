@@ -146,6 +146,7 @@ export interface InvoiceSettings {
 export type NotificationType = 
   | 'invoice_sent' 
   | 'invoice_viewed' 
+  | 'invoice_generated'
   | 'invoice_paid' 
   | 'invoice_overdue'
   | 'payment_received' 
@@ -208,6 +209,7 @@ export const notificationConfig: Record<NotificationType, {
   invoice_viewed: { icon: 'Eye', color: 'text-indigo-600', bgColor: 'bg-indigo-100' },
   invoice_paid: { icon: 'CheckCircle', color: 'text-green-600', bgColor: 'bg-green-100' },
   invoice_overdue: { icon: 'AlertCircle', color: 'text-red-600', bgColor: 'bg-red-100' },
+  invoice_generated: { icon: 'RefreshCw', color: 'text-blue-600', bgColor: 'bg-blue-100' },
   payment_received: { icon: 'DollarSign', color: 'text-green-600', bgColor: 'bg-green-100' },
   expense_added: { icon: 'Receipt', color: 'text-orange-600', bgColor: 'bg-orange-100' },
   budget_exceeded: { icon: 'TrendingUp', color: 'text-red-600', bgColor: 'bg-red-100' },
