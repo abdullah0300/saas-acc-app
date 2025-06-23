@@ -2,6 +2,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { DataProvider } from './contexts/DataContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -47,13 +48,15 @@ function App() {
           {/* Protected routes */}
           <Route element={
             <ProtectedRoute>
-              <DataProvider>
-                <SettingsProvider>
-                  <NotificationProvider>
-                    <Layout />
-                  </NotificationProvider>
-                </SettingsProvider>
-              </DataProvider>
+              <SubscriptionProvider>
+                <DataProvider>
+                  <SettingsProvider>
+                    <NotificationProvider>
+                      <Layout />
+                    </NotificationProvider>
+                  </SettingsProvider>
+                </DataProvider>
+              </SubscriptionProvider>
             </ProtectedRoute>
           }>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

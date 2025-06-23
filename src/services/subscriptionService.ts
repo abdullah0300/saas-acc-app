@@ -1,16 +1,10 @@
 // src/services/subscriptionService.ts
 import { supabase } from './supabaseClient';
 
-export interface PlanFeature {
-  feature_key: string;
-  feature_value: string;
-  feature_limit: number | null;
-}
-
 export interface Subscription {
   id: string;
   user_id: string;
-  plan: 'simple_start' | 'essentials' | 'plus' | 'advanced';
+  plan: 'simple_start' | 'essentials' | 'plus';
   interval: 'monthly' | 'yearly';
   status: string;
   trial_end: string;
@@ -21,13 +15,11 @@ export interface Subscription {
 const PLAN_USER_LIMITS = {
   simple_start: 1,
   essentials: 3,
-  plus: 5,
-  advanced: 25
+  plus: 10
 };
 
 class SubscriptionService {
   private userSubscription: Subscription | null = null;
-  private planFeatures: PlanFeature[] = [];
 
   async loadUserSubscription(userId: string) {
     try {
@@ -62,36 +54,16 @@ class SubscriptionService {
           }
           
           this.userSubscription = newSub;
-          await this.loadPlanFeatures(newSub.plan);
           return newSub;
         }
         throw error;
       }
       
       this.userSubscription = data;
-      await this.loadPlanFeatures(data.plan);
-      
       return data;
     } catch (error) {
       console.error('Error loading subscription:', error);
       return null;
-    }
-  }
-
-  async loadPlanFeatures(plan: string) {
-    try {
-      const { data, error } = await supabase
-        .from('plan_features')
-        .select('*')
-        .eq('plan', plan);
-
-      if (error) throw error;
-      
-      this.planFeatures = data || [];
-      return data;
-    } catch (error) {
-      console.error('Error loading plan features:', error);
-      return [];
     }
   }
 
@@ -163,22 +135,12 @@ class SubscriptionService {
     return Math.max(0, daysLeft);
   }
 
-  hasFeature(featureKey: string): boolean {
-    return this.planFeatures.some(f => f.feature_key === featureKey);
-  }
-
-  getFeatureLimit(featureKey: string): number | null {
-    const feature = this.planFeatures.find(f => f.feature_key === featureKey);
-    return feature?.feature_limit || null;
-  }
-
   getPlanDisplayName(plan?: string): string {
     const currentPlan = plan || this.getCurrentPlan();
     const displayNames: Record<string, string> = {
       simple_start: 'Simple Start',
       essentials: 'Essentials',
-      plus: 'Plus',
-      advanced: 'Advanced'
+      plus: 'Plus'
     };
     return displayNames[currentPlan] || 'Simple Start';
   }
