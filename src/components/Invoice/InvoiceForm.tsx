@@ -1,7 +1,10 @@
 // src/components/Invoice/InvoiceForm.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Settings } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
+import { InvoiceSettings } from './InvoiceSettings';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   createInvoice, 
@@ -266,6 +269,9 @@ export const InvoiceForm: React.FC = () => {
     }
   });
 
+  const [showSettings, setShowSettings] = useState(false);
+
+
   // Update invoice mutation
   const updateInvoiceMutation = useMutation({
     mutationFn: async ({ id, invoiceData, items }: { id: string, invoiceData: any, items: FormInvoiceItem[] }) => {
@@ -367,6 +373,7 @@ export const InvoiceForm: React.FC = () => {
       createInvoiceMutation.mutate({ invoiceData, items });
     }
   };
+  
 
   const addItem = () => {
     setItems([...items, { 
@@ -425,9 +432,24 @@ export const InvoiceForm: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        {isEdit ? 'Edit Invoice' : 'Create New Invoice'}
-      </h1>
+      <div className="mb-8">
+  <div className="mb-8">
+  <div className="flex justify-between items-center">
+    <h1 className="text-2xl font-bold text-gray-900">
+      {id ? 'Edit Invoice' : 'Create New Invoice'}
+    </h1>
+    <button
+      type="button"
+      onClick={() => setShowSettings(true)}
+      className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+    >
+      <Settings className="h-4 w-4 mr-2" />
+      Invoice Settings
+    </button>
+  </div>
+</div>
+</div>
+      
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Template Selection - Only show when creating new invoice */}
@@ -811,6 +833,15 @@ export const InvoiceForm: React.FC = () => {
                 {savingTemplate ? 'Saving...' : 'Save Template'}
               </button>
             </div>
+          </div>
+        </div>
+        
+      )}
+      {/* Invoice Settings Modal - ADD THIS HERE */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <InvoiceSettings onClose={() => setShowSettings(false)} />
           </div>
         </div>
       )}

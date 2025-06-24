@@ -1,0 +1,33 @@
+name: Process Recurring Invoices
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: # This allows manual triggering
+
+jobs:
+  process-invoices:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Process Recurring Invoices
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            https://adsbnzqorfmgnneiopcr.supabase.co/functions/v1/process-recurring-invoices \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          
+          # Extract status code
+          status_code=$(echo "$response" | tail -n 1)
+          body=$(echo "$response" | head -n -1)
+          
+          echo "Response: $body"
+          echo "Status Code: $status_code"
+          
+          # Fail if not 200
+          if [ "$status_code" != "200" ]; then
+            echo "Failed with status code: $status_code"
+            exit 1
+          fi
