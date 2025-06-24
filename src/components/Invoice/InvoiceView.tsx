@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { pdfService } from '../../services/pdfService';
 import { SendEmailDialog } from './SendEmailDialog'; // ADD THIS IMPORT
 import { emailService } from '../../services/emailService'; // ADD THIS IMPORT
+import { useSettings } from '../../contexts/SettingsContext'; // ADD THIS IMPORT
 import { 
   ArrowLeft, 
   Download, 
@@ -45,6 +46,7 @@ import QRCode from 'qrcode';
 export const InvoiceView: React.FC = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const { formatCurrency } = useSettings(); // ADD THIS
   const navigate = useNavigate();
   const invoiceRef = useRef<HTMLDivElement>(null);
   
@@ -207,7 +209,7 @@ export const InvoiceView: React.FC = () => {
     
     const message = encodeURIComponent(
       `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
-      `Amount: $${invoice?.total.toFixed(2)}\n` +
+      `Amount: ${formatCurrency(invoice?.total || 0)}\n` +
       `Due Date: ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
       `View Invoice: ${link}`
     );
@@ -597,10 +599,10 @@ export const InvoiceView: React.FC = () => {
                       {item.quantity}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 text-right">
-                      ${item.rate.toFixed(2)}
+                      {formatCurrency(item.rate)}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
-                      ${item.amount.toFixed(2)}
+                      {formatCurrency(item.amount)}
                     </td>
                   </tr>
                 ))}
@@ -613,20 +615,20 @@ export const InvoiceView: React.FC = () => {
             <div className="w-full max-w-xs space-y-2">
               <div className="flex justify-between items-center py-2">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">${invoice.subtotal.toFixed(2)}</span>
+                <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
               </div>
               
               {invoice.tax_rate > 0 && (
                 <div className="flex justify-between items-center py-2 border-t border-gray-200">
                   <span className="text-gray-600">Tax ({invoice.tax_rate}%)</span>
-                  <span className="font-medium">${invoice.tax_amount.toFixed(2)}</span>
+                  <span className="font-medium">{formatCurrency(invoice.tax_amount)}</span>
                 </div>
               )}
               
               <div className="flex justify-between items-center py-3 border-t-2 border-gray-900">
                 <span className="text-lg font-semibold">Total</span>
                 <span className="text-lg font-bold" style={{ color: primaryColor }}>
-                  ${invoice.total.toFixed(2)}
+                  {formatCurrency(invoice.total)}
                 </span>
               </div>
             </div>

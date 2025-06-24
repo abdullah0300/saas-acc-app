@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -17,7 +18,9 @@ import {
   UserPlus,
   Receipt,
   Crown,
-  AlertCircle
+  AlertCircle,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -417,6 +420,8 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
         </div>
+
+
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

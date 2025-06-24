@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -24,7 +25,9 @@ import {
   Eye,
   RefreshCw,
   Info,
-  Printer
+  Printer,
+  Calculator,
+  Lock
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -624,6 +627,21 @@ export const ReportsOverview: React.FC = () => {
                 <FileText className="h-4 w-4 mr-2" />
                 P&L Statement
               </Link>
+              <Link
+                to="/reports/cash-flow"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Cash Flow
+              </Link>
+              <Link
+                to="/reports/tax"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Tax Reports
+              </Link>
+             
             </div>
           </div>
         </div>
@@ -1045,6 +1063,8 @@ export const ReportsOverview: React.FC = () => {
             </div>
           </div>
         </div>
+
+
 
         {/* Tax Analysis */}
         <div className="bg-white rounded-2xl shadow-lg p-6">

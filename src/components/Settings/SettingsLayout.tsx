@@ -10,15 +10,18 @@ import {
   Globe,
   ChevronLeft,
   Zap,
-  Percent
+  Percent,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { useTeamPermissions } from '../../hooks/useTeamPermissions';
 
 export const SettingsLayout: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subscription } = useData();
+  const { isOwner, canManageTeam } = useTeamPermissions();
 
   const settingsNav = [
     { path: 'profile', label: 'Profile', icon: User },
@@ -29,6 +32,8 @@ export const SettingsLayout: React.FC = () => {
     // Invoice settings removed - it's accessed from Invoice Form
     { path: 'notifications', label: 'Notifications', icon: Bell },
     { path: 'security', label: 'Security', icon: Shield },
+    // Show audit logs only for owners and admins
+    ...(isOwner || canManageTeam ? [{ path: 'audit', label: 'Audit Trail', icon: Activity }] : [])
   ];
 
   // Get display name from subscription

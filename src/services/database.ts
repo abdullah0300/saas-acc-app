@@ -627,3 +627,48 @@ export const getUserTeamInfo = async (userId: string) => {
 
   return data;
 };
+
+// Add these functions to your src/services/database.ts file
+
+// Invoice Template functions
+export const getInvoiceTemplates = async (userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  const { data, error } = await supabase
+    .from('invoice_templates')
+    .select('*')
+    .eq('user_id', effectiveUserId)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data;
+};
+
+export const createInvoiceTemplate = async (template: {
+  user_id: string;
+  name: string;
+  template_data: any;
+}) => {
+  const effectiveUserId = await getEffectiveUserId(template.user_id);
+  
+  const { data, error } = await supabase
+    .from('invoice_templates')
+    .insert([{
+      ...template,
+      user_id: effectiveUserId
+    }])
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const deleteInvoiceTemplate = async (id: string) => {
+  const { error } = await supabase
+    .from('invoice_templates')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};

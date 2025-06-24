@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Plus, 
   Search, 
@@ -45,105 +46,87 @@ interface RecurringInvoice {
 export const InvoiceList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
-  const [recurringInvoices, setRecurringInvoices] = useState<Map<string, RecurringInvoice>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  // State for filters and UI
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'one-time' | 'recurring'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState<string | null>(null);
-  const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'dueDate'>('date');
 
-  // Stats
-  const [stats, setStats] = useState({
-    totalInvoices: 0,
-    totalAmount: 0,
-    paidAmount: 0,
-    pendingAmount: 0,
-    overdueAmount: 0,
-    averageInvoiceValue: 0
-  });
-
-  useEffect(() => {
-    loadInvoices();
-    checkDueInvoices();
-  }, [user]);
-
-  useEffect(() => {
-    filterInvoices();
-    calculateStats();
-  }, [searchTerm, statusFilter, typeFilter, sortBy, invoices]);
-
-  const loadInvoices = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      
-      // Load regular invoices
+  // Fetch invoices with React Query
+  const { data: invoices = [], isLoading, error } = useQuery({
+    queryKey: ['invoices', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
       const data = await getInvoices(user.id);
       
-      // Load recurring invoice data
-      const { data: recurringData, error: recurringError } = await supabase
+      // Check for overdue invoices
+      const now = new Date();
+      data.forEach(async (invoice) => {
+        if (invoice.status === 'sent' && new Date(invoice.due_date) < now) {
+          await updateInvoice(invoice.id, { status: 'overdue' });
+        }
+      });
+      
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+  });
+
+  // Fetch recurring invoices data
+  const { data: recurringData = [] } = useQuery({
+    queryKey: ['recurring-invoices', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
         .from('recurring_invoices')
         .select('*')
         .eq('user_id', user.id);
       
-      if (!recurringError && recurringData) {
-        const recurringMap = new Map();
-        recurringData.forEach(rec => {
-          recurringMap.set(rec.invoice_id, rec);
-        });
-        setRecurringInvoices(recurringMap);
-      }
-      
-      setInvoices(data);
-      setFilteredInvoices(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  // Process recurring invoices into a Map
+  const recurringInvoices = React.useMemo(() => {
+    const map = new Map<string, RecurringInvoice>();
+    recurringData.forEach(rec => {
+      map.set(rec.invoice_id, rec);
+    });
+    return map;
+  }, [recurringData]);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: deleteInvoice,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+    onError: (error: any) => {
+      alert('Error deleting invoice: ' + error.message);
     }
-  };
+  });
 
-  const calculateStats = () => {
-    const totalAmount = invoices.reduce((sum, inv) => sum + inv.total, 0);
-    const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
-    const pendingAmount = invoices.filter(inv => inv.status === 'sent').reduce((sum, inv) => sum + inv.total, 0);
-    const overdueAmount = invoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + inv.total, 0);
-    
-    setStats({
-      totalInvoices: invoices.length,
-      totalAmount,
-      paidAmount,
-      pendingAmount,
-      overdueAmount,
-      averageInvoiceValue: invoices.length > 0 ? totalAmount / invoices.length : 0
-    });
-  };
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Invoice> }) => 
+      updateInvoice(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+    onError: (error: any) => {
+      alert('Error updating invoice: ' + error.message);
+    }
+  });
 
-  const checkDueInvoices = async () => {
-    if (!user) return;
-    
-    const upcomingInvoices = invoices.filter(invoice => {
-      if (invoice.status === 'paid' || invoice.status === 'canceled') return false;
-      const daysUntilDue = differenceInDays(parseISO(invoice.due_date), new Date());
-      return daysUntilDue <= 2 && daysUntilDue >= 0;
-    });
-    
-    // Update status to overdue if needed
-    const now = new Date();
-    invoices.forEach(async (invoice) => {
-      if (invoice.status === 'sent' && new Date(invoice.due_date) < now) {
-        await updateInvoice(invoice.id, { status: 'overdue' });
-      }
-    });
-  };
-
-  const filterInvoices = () => {
+  // Filter and sort invoices
+  const filteredInvoices = React.useMemo(() => {
     let filtered = invoices;
 
     if (searchTerm) {
@@ -176,27 +159,33 @@ export const InvoiceList: React.FC = () => {
       }
     });
 
-    setFilteredInvoices(filtered);
-  };
+    return filtered;
+  }, [invoices, searchTerm, statusFilter, typeFilter, sortBy, recurringInvoices]);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this invoice?')) return;
+  // Calculate stats
+  const stats = React.useMemo(() => {
+    const totalAmount = invoices.reduce((sum, inv) => sum + inv.total, 0);
+    const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
+    const pendingAmount = invoices.filter(inv => inv.status === 'sent').reduce((sum, inv) => sum + inv.total, 0);
+    const overdueAmount = invoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + inv.total, 0);
     
-    try {
-      await deleteInvoice(id);
-      await loadInvoices();
-    } catch (err: any) {
-      alert('Error deleting invoice: ' + err.message);
-    }
+    return {
+      totalInvoices: invoices.length,
+      totalAmount,
+      paidAmount,
+      pendingAmount,
+      overdueAmount,
+      averageInvoiceValue: invoices.length > 0 ? totalAmount / invoices.length : 0
+    };
+  }, [invoices]);
+
+  const handleDelete = (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this invoice?')) return;
+    deleteMutation.mutate(id);
   };
 
-  const handleStatusChange = async (id: string, status: InvoiceStatus) => {
-    try {
-      await updateInvoice(id, { status });
-      await loadInvoices();
-    } catch (err: any) {
-      alert('Error updating status: ' + err.message);
-    }
+  const handleStatusChange = (id: string, status: InvoiceStatus) => {
+    updateMutation.mutate({ id, updates: { status } });
   };
 
   const sendInvoice = async (invoice: Invoice, method: 'email' | 'whatsapp') => {
@@ -388,12 +377,29 @@ export const InvoiceList: React.FC = () => {
     return differenceInDays(parseISO(dueDate), new Date());
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading invoices...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600">Error loading invoices</p>
+          <button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['invoices'] })}
+            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );

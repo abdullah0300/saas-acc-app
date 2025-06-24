@@ -111,7 +111,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
     trialDays: 30,
     limits: {
       users: 3,
-      monthlyInvoices: 200,
+      monthlyInvoices: -1,  // CHANGED FROM 200 TO UNLIMITED
       totalClients: -1,
       totalInvoices: -1
     },
@@ -184,10 +184,10 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       cash_flow_analysis: true,
       budget_tracking: true,
       phone_support: true,
-      api_access: true,
+      api_access: false,
       audit_trail: true,
       team_permissions: true,
-      dedicated_support: true
+      dedicated_support: false
     }
   }
 };

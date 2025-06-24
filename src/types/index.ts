@@ -36,6 +36,8 @@ export interface Category {
   created_at: string;
 }
 
+// In your src/types/index.ts, update the Income and Expense interfaces:
+
 export interface Income {
   id: string;
   user_id: string;
@@ -47,6 +49,14 @@ export interface Income {
   reference_number?: string;
   created_at: string;
   updated_at: string;
+  // Add these tax fields
+  currency?: string;
+  exchange_rate?: number;
+  base_amount?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  total_with_tax?: number;
+  client_id?: string;
 }
 
 export interface Expense {
@@ -61,6 +71,13 @@ export interface Expense {
   receipt_url?: string;
   created_at: string;
   updated_at: string;
+  // Add these tax fields
+  currency?: string;
+  exchange_rate?: number;
+  base_amount?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  total_with_tax?: number;
 }
 
 export interface Client {

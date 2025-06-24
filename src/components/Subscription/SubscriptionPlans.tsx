@@ -387,7 +387,7 @@ function getHighlightedFeatures(plan: PlanType): string[] {
     case 'essentials':
       return [
         'Up to 3 team members',
-        'Up to 200 monthly invoices',
+        'Unlimited monthly invoices',
         'Everything in Simple Start',
         'Multi-currency support',
         'Recurring invoices',
@@ -403,9 +403,7 @@ function getHighlightedFeatures(plan: PlanType): string[] {
         'Custom invoice branding',
         'Budget tracking',
         'Cash flow analysis',
-        'API access',
         'Phone & email support',
-        'Dedicated account manager'
       ];
     default:
       return [];
