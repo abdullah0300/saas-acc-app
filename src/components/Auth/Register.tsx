@@ -37,75 +37,55 @@ const PLANS: Plan[] = [
   {
     id: 'simple_start',
     name: 'Simple Start',
-    monthlyPrice: 15,
-    yearlyPrice: 144, // 20% off
+    monthlyPrice: 5,
+    yearlyPrice: 48, // 20% off
     icon: Star,
     features: [
       'Single user access',
-      'Unlimited invoices',
-      'Track income & expenses',
+      'Up to 50 monthly invoices',
+      'Income & expense tracking',
       'Basic financial reports',
-      'Category management',
       'Client management',
-      'Export to PDF',
+      'PDF export',
       'Email support'
     ],
-    highlighted: ['Single user access']
+    highlighted: ['Single user access', 'Up to 50 monthly invoices']
   },
   {
     id: 'essentials',
     name: 'Essentials',
-    monthlyPrice: 30,
-    yearlyPrice: 288,
+    monthlyPrice: 25,
+    yearlyPrice: 240, // 20% off
     icon: Zap,
     popular: true,
     features: [
-      'Up to 3 users',
+      'Up to 3 team members',
+      'Unlimited monthly invoices',
       'Everything in Simple Start',
+      'Multi-currency support',
+      'Recurring invoices',
       'Advanced reports',
       'Tax management',
-      'Multi-currency support',
-      'Invoice templates',
-      'Recurring invoices',
-      'Priority email support'
+      'Priority support'
     ],
-    highlighted: ['Up to 3 users', 'Multi-currency support']
+    highlighted: ['Up to 3 team members', 'Unlimited monthly invoices']
   },
   {
     id: 'plus',
     name: 'Plus',
     monthlyPrice: 45,
-    yearlyPrice: 432,
+    yearlyPrice: 432, // 20% off
     icon: Rocket,
     features: [
-      'Up to 5 users',
+      'Up to 10 team members',
+      'Unlimited monthly invoices',
       'Everything in Essentials',
       'Custom invoice branding',
-      'Advanced tax reports',
-      'Profit & loss statements',
-      'Cash flow analysis',
       'Budget tracking',
+      'Cash flow analysis',
       'Phone & email support'
     ],
-    highlighted: ['Up to 5 users', 'Budget tracking']
-  },
-  {
-    id: 'advanced',
-    name: 'Advanced',
-    monthlyPrice: 85,
-    yearlyPrice: 816,
-    icon: Building,
-    features: [
-      'Up to 25 users',
-      'Everything in Plus',
-      'Custom report builder',
-      'API access',
-      'Advanced analytics',
-      'Team permissions',
-      'Audit trail',
-      'Dedicated account manager'
-    ],
-    highlighted: ['Up to 25 users', 'API access', 'Dedicated account manager']
+    highlighted: ['Up to 10 team members']
   }
 ];
 
@@ -480,7 +460,7 @@ export const Register: React.FC = () => {
                   </div>
 
                   {/* Plan Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {PLANS.map((plan) => {
                       const Icon = plan.icon;
                       return (

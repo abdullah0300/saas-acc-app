@@ -39,6 +39,7 @@ import { NotificationPreferences } from './components/Settings/NotificationPrefe
 import { AuditLogs } from './components/Settings/AuditLogs';
 import { CashFlowInsights } from './components/Reports/CashFlowInsights';
 import { TaxReport } from './components/Reports/TaxReport';
+import { SubscriptionEnforcer } from './components/Subscription/SubscriptionEnforcer';
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -75,6 +76,7 @@ function App() {
             <Route element={
               <ProtectedRoute>
                 <SubscriptionProvider>
+                  <SubscriptionEnforcer>
                   <DataProvider>
                     <SettingsProvider>
                       <NotificationProvider>
@@ -82,6 +84,7 @@ function App() {
                       </NotificationProvider>
                     </SettingsProvider>
                   </DataProvider>
+                  </SubscriptionEnforcer>
                 </SubscriptionProvider>
               </ProtectedRoute>
             }>

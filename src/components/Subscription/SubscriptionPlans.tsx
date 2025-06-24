@@ -252,7 +252,14 @@ export const SubscriptionPlans: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-8">
         {plans.map((plan) => {
           const Icon = getPlanIcon(plan.id);
-          const isCurrentPlan = currentPlan === plan.id && subscription?.interval === billingInterval;
+          const trialExpired = subscription?.trial_end ? new Date(subscription.trial_end) < new Date() : false;
+const hasPaidSubscription = !!(subscription?.stripe_subscription_id && subscription?.status === 'active');
+const isCurrentPlan = !!(
+  currentPlan === plan.id && 
+  subscription?.interval === billingInterval && 
+  hasPaidSubscription && 
+  !trialExpired
+);
           const price = billingInterval === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
           const isPopular = plan.id === 'essentials';
           
