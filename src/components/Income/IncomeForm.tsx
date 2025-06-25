@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
+import { AddCategoryModal } from '../Common/AddCategoryModal';
 import { 
   createIncome, 
   updateIncome, 
@@ -37,6 +38,8 @@ export const IncomeForm: React.FC = () => {
       loadIncome();
     }
   }, [id, isEdit]);
+
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   const loadCategories = async () => {
     if (!user) return;
@@ -176,17 +179,28 @@ export const IncomeForm: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Category
               </label>
-              <select
-                value={formData.category_id}
-                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              
+<select
+  value={formData.category_id}
+  onChange={(e) => {
+    if (e.target.value === 'new') {
+      setShowAddCategory(true);
+    } else {
+      setFormData({ ...formData, category_id: e.target.value });
+    }
+  }}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <option value="new" className="font-semibold text-blue-600 border-t">
+                  ➕ Add new category...
+                </option>
                 <option value="">Select category</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
                 ))}
+                
               </select>
             </div>
 
@@ -256,6 +270,25 @@ export const IncomeForm: React.FC = () => {
           </div>
         </form>
       </div>
+{/* Add Category Modal */}
+<AddCategoryModal
+  isOpen={showAddCategory}
+  onClose={() => setShowAddCategory(false)}
+  type="income"
+  currentCategories={categories}
+  onCategoryAdded={(newCategory) => {
+    setCategories([...categories, newCategory]);
+    setFormData({ ...formData, category_id: newCategory.id });
+  }}
+  onCategoryDeleted={(categoryId) => {
+    // Remove from categories list
+    setCategories(categories.filter(cat => cat.id !== categoryId));
+    // Clear selection if deleted category was selected
+    if (formData.category_id === categoryId) {
+      setFormData({ ...formData, category_id: '' });
+    }
+  }}
+/>
     </div>
   );
 };

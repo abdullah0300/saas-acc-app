@@ -805,3 +805,21 @@ export const deleteInvoiceTemplate = async (id: string) => {
   if (error) throw error;
 };
 
+
+export const checkCategoryExists = async (
+  userId: string, 
+  name: string, 
+  type: 'income' | 'expense'
+) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  const { data } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('user_id', effectiveUserId)
+    .eq('name', name)
+    .eq('type', type)
+    .single();
+    
+  return !!data;
+};

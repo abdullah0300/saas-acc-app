@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Upload } from 'lucide-react';
-import { getVendors, createVendor } from '../../services/database';
-import { Vendor } from '../../types';
-import { Plus, X } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Plus, X } from 'lucide-react';
 import { 
+  getVendors, 
+  createVendor,
   createExpense, 
   updateExpense, 
   getExpenses,
   getCategories 
 } from '../../services/database';
+import { Vendor, Category } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../services/supabaseClient';
-import { Category } from '../../types';
+import { AddCategoryModal } from '../Common/AddCategoryModal';
 
 export const ExpenseForm: React.FC = () => {
   const { user } = useAuth();
-  const { taxRates, defaultTaxRate } = useSettings(); // Added taxRates and defaultTaxRate
+  const { taxRates, defaultTaxRate } = useSettings();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -30,13 +30,24 @@ export const ExpenseForm: React.FC = () => {
     vendor: '',
     vendor_id: '',
     receipt_url: '',
-    tax_rate: defaultTaxRate.toString(), // Added tax_rate
-    tax_amount: '0' // Added tax_amount
+    tax_rate: defaultTaxRate.toString(),
+    tax_amount: '0'
   });
+  
   const [categories, setCategories] = useState<Category[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [error, setError] = useState('');
+  const [showVendorModal, setShowVendorModal] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [isAddingVendor, setIsAddingVendor] = useState(false);
+  const [newVendorData, setNewVendorData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
 
   useEffect(() => {
     loadCategories();
@@ -45,21 +56,13 @@ export const ExpenseForm: React.FC = () => {
     }
   }, [id, isEdit]);
 
-const [vendors, setVendors] = useState<Vendor[]>([]);
-const [showVendorModal, setShowVendorModal] = useState(false);
-const [newVendorData, setNewVendorData] = useState({
-  name: '',
-  email: '',
-  phone: '',
-  address: ''
-});
+  useEffect(() => {
+    if (user) {
+      loadVendors();
+    }
+  }, [user]);
 
-
-useEffect(() => {
-  if (user) {
-    loadVendors();
-  }
-}, [user]);
+  // ... rest of your component code stays the same
 
 const loadVendors = async () => {
   if (!user) return;
@@ -72,7 +75,7 @@ const loadVendors = async () => {
   }
 };
 
-const [isAddingVendor, setIsAddingVendor] = useState(false);
+
   const loadCategories = async () => {
     if (!user) return;
     
@@ -282,17 +285,26 @@ const [isAddingVendor, setIsAddingVendor] = useState(false);
                 Category
               </label>
               <select
-                value={formData.category_id}
-                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+  value={formData.category_id}
+  onChange={(e) => {
+    if (e.target.value === 'new') {
+      setShowAddCategory(true);
+    } else {
+      setFormData({ ...formData, category_id: e.target.value });
+    }
+  }}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  <option value="">Select category</option>
+  {categories.map((category) => (
+    <option key={category.id} value={category.id}>
+      {category.name}
+    </option>
+  ))}
+  <option value="new" className="font-semibold text-blue-600 border-t">
+    ➕ Add new category...
+  </option>
+</select>
             </div>
 
             {/* Tax Rate - Added this section */}
@@ -510,6 +522,23 @@ const [isAddingVendor, setIsAddingVendor] = useState(false);
     </div>
   </div>
 )}
+{/* Add Category Modal */}
+<AddCategoryModal
+  isOpen={showAddCategory}
+  onClose={() => setShowAddCategory(false)}
+  type="expense"
+  currentCategories={categories}
+  onCategoryAdded={(newCategory) => {
+    setCategories([...categories, newCategory]);
+    setFormData({ ...formData, category_id: newCategory.id });
+  }}
+  onCategoryDeleted={(categoryId) => {
+    setCategories(categories.filter(cat => cat.id !== categoryId));
+    if (formData.category_id === categoryId) {
+      setFormData({ ...formData, category_id: '' });
+    }
+  }}
+/>
     </div>
   );
 };
