@@ -21,7 +21,22 @@ import {
   Eye,
   EyeOff,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Shield,
+  Calculator,
+  TrendingUp,
+  PieChart,
+  BarChart3,
+  Receipt,
+  DollarSign,
+  FileText,
+  Coins,
+  Wallet,
+  Users,
+  Phone,
+  CheckCircle,
+  Trophy,
+  Gift
 } from 'lucide-react';
 import { countries, CountryData } from '../../data/countries';
 
@@ -34,6 +49,10 @@ interface Plan {
   features: string[];
   highlighted?: string[];
   popular?: boolean;
+  limits: {
+    users: number;
+    monthlyInvoices: number;
+  };
 }
 
 // Your actual plans matching subscription_plan_new enum
@@ -53,7 +72,11 @@ const PLANS: Plan[] = [
       'PDF export',
       'Email support'
     ],
-    highlighted: ['Single user access', 'Up to 50 monthly invoices']
+    highlighted: ['Single user access', 'Up to 50 monthly invoices'],
+    limits: {
+      users: 1,
+      monthlyInvoices: 50
+    }
   },
   {
     id: 'essentials',
@@ -72,7 +95,11 @@ const PLANS: Plan[] = [
       'Tax management',
       'Priority support'
     ],
-    highlighted: ['Up to 3 team members', 'Unlimited monthly invoices']
+    highlighted: ['Up to 3 team members', 'Unlimited monthly invoices'],
+    limits: {
+      users: 3,
+      monthlyInvoices: -1
+    }
   },
   {
     id: 'plus',
@@ -87,9 +114,15 @@ const PLANS: Plan[] = [
       'Custom invoice branding',
       'Budget tracking',
       'Cash flow analysis',
-      'Phone & email support'
+      'Phone & email support',
+      'Audit trail',
+      'Team permissions'
     ],
-    highlighted: ['Up to 10 team members']
+    highlighted: ['Up to 10 team members', 'Phone & email support'],
+    limits: {
+      users: 10,
+      monthlyInvoices: -1
+    }
   }
 ];
 
@@ -104,6 +137,7 @@ export const Register: React.FC = () => {
   const [checkingInvite, setCheckingInvite] = useState(!!inviteCode);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1); // Multi-step form
 
   // Form state
   const [formData, setFormData] = useState({
@@ -123,6 +157,14 @@ export const Register: React.FC = () => {
   const selectedCountry = countries.find(c => c.code === formData.country);
   const hasStates = selectedCountry?.states && selectedCountry.states.length > 0;
 
+  // Accounting feature highlights
+  const features = [
+    { icon: TrendingUp, title: "Track Growth", description: "Real-time financial insights" },
+    { icon: Receipt, title: "Smart Invoicing", description: "Professional invoices in seconds" },
+    { icon: PieChart, title: "Visual Reports", description: "Beautiful charts & analytics" },
+    { icon: Shield, title: "Secure & Compliant", description: "Bank-level encryption" }
+  ];
+
   useEffect(() => {
     if (inviteCode) {
       checkInvitation();
@@ -133,15 +175,12 @@ export const Register: React.FC = () => {
     if (!inviteCode) return;
     
     setCheckingInvite(true);
-    setError(''); // Clear any previous errors
+    setError('');
     
     try {
-      // Clear any stale auth sessions first
       await supabase.auth.signOut();
       
       const result = await registrationService.validateInvitation(inviteCode);
-      
-      console.log('Invitation validation result:', result);
       
       if (result.valid && result.invitation) {
         setInviteDetails({
@@ -167,7 +206,6 @@ export const Register: React.FC = () => {
     setLoading(true);
 
     try {
-      // Validate form
       if (formData.password !== formData.confirmPassword) {
         throw new Error('Passwords do not match');
       }
@@ -184,7 +222,6 @@ export const Register: React.FC = () => {
         throw new Error('Please select a state/province');
       }
 
-      // Register user
       const result = await registrationService.register({
         ...formData,
         inviteCode: inviteCode || undefined
@@ -194,7 +231,6 @@ export const Register: React.FC = () => {
         throw new Error(result.error || 'Registration failed');
       }
 
-      // Success - navigate to dashboard
       navigate('/dashboard');
       
     } catch (err: any) {
@@ -209,10 +245,17 @@ export const Register: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear state when country changes
     if (name === 'country' && value !== formData.country) {
       setFormData(prev => ({ ...prev, state: '' }));
     }
+  };
+
+  const nextStep = () => {
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
   if (checkingInvite) {
@@ -232,32 +275,70 @@ export const Register: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Background decoration */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-1/2 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto relative">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
-            <Sparkles className="h-8 w-8 text-white" />
+    <div className="min-h-screen flex">
+      {/* Left Side - Registration Form */}
+      <div className="flex-1 lg:flex-[2] flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+        {/* Floating Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+          <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-40 left-1/2 w-64 h-64 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+          
+          {/* Floating Icons */}
+          <div className="absolute top-10 right-10 text-indigo-200 animate-spin-slow">
+            <Calculator className="h-10 w-10" />
           </div>
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {inviteDetails ? 'Join Your Team' : 'Start Your Free Trial'}
-          </h2>
-          <p className="mt-3 text-lg text-gray-600">
-            {inviteDetails 
-              ? `You've been invited to join ${inviteDetails.teamName}`
-              : '30-day free trial • No credit card required • Cancel anytime'}
-          </p>
+          <div className="absolute bottom-10 left-10 text-purple-200 animate-bounce-slow">
+            <Coins className="h-8 w-8" />
+          </div>
+          <div className="absolute top-1/2 right-20 text-pink-200 animate-float">
+            <Receipt className="h-6 w-6" />
+          </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden border border-white">
-          <div className="px-8 py-10 sm:p-12">
+        <div className="w-full max-w-4xl relative">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
+              <Wallet className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              {inviteDetails ? 'Join Your Team' : 'Start Your Free Trial'}
+            </h2>
+            <p className="mt-3 text-lg text-gray-600">
+              {inviteDetails 
+                ? `You've been invited to join ${inviteDetails.teamName}`
+                : '30-day free trial • No credit card required • Cancel anytime'}
+            </p>
+          </div>
+
+          {/* Progress Steps */}
+          {!inviteDetails && (
+            <div className="flex items-center justify-center mb-8">
+              <div className="flex items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  currentStep >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+                }`}>
+                  <span className="text-sm font-semibold">1</span>
+                </div>
+                <div className={`w-24 h-1 ${currentStep >= 2 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  currentStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+                }`}>
+                  <span className="text-sm font-semibold">2</span>
+                </div>
+                <div className={`w-24 h-1 ${currentStep >= 3 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  currentStep >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
+                }`}>
+                  <span className="text-sm font-semibold">3</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Form Card */}
+          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white">
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-4 rounded-xl flex items-start animate-shake">
                 <AlertCircle className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
@@ -266,154 +347,36 @@ export const Register: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Personal Information Section */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg">
-                    <User className="h-5 w-5 text-indigo-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      id="firstName"
-                      name="firstName"
-                      required
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                      placeholder="John"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      id="lastName"
-                      name="lastName"
-                      required
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                      placeholder="Doe"
-                    />
-                  </div>
-                </div>
-
-                {/* Company Name */}
-                <div>
-                  <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Name <span className="text-gray-400">(Optional)</span>
-                  </label>
-                  <div className="relative">
-                    <Building2 className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      id="companyName"
-                      name="companyName"
-                      value={formData.companyName}
-                      onChange={handleChange}
-                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                      placeholder="Acme Inc."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Location Section */}
-              <div className="space-y-6 pt-6 border-t border-gray-100">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
-                    <Globe className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Location</h3>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
-                      Country
-                    </label>
-                    <select
-                      id="country"
-                      name="country"
-                      required
-                      value={formData.country}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
-                    >
-                      {countries.map(country => (
-                        <option key={country.code} value={country.code}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {hasStates && (
-                    <div>
-                      <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
-                        State/Province
-                      </label>
-                      <select
-                        id="state"
-                        name="state"
-                        required
-                        value={formData.state}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
-                      >
-                        <option value="">Select state/province</option>
-                        {selectedCountry?.states?.map(state => (
-                          <option key={state.code} value={state.code}>
-                            {state.name}
-                          </option>
-                        ))}
-                      </select>
+              {/* Step 1: Account Details */}
+              {currentStep === 1 && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg">
+                      <User className="h-5 w-5 text-indigo-600" />
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Account Section */}
-              <div className="space-y-6 pt-6 border-t border-gray-100">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg">
-                    <Lock className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-xl font-semibold text-gray-900">Create Your Account</h3>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Account Details</h3>
-                </div>
 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      required
-                      value={formData.email}
-                      onChange={handleChange}
-                      disabled={!!inviteDetails}
-                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      placeholder="john@example.com"
-                    />
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                        disabled={!!inviteDetails}
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        placeholder="john@example.com"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                       Password
@@ -465,26 +428,165 @@ export const Register: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Subscription Plans - Only show if not invited */}
-              {!inviteDetails && (
-                <div className="space-y-6 pt-6 border-t border-gray-100">
-                  <div className="flex items-center gap-3 mb-4">
+                  {!inviteDetails && (
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02]"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        Next: Personal Info
+                        <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Step 2: Personal Information */}
+              {(currentStep === 2 || inviteDetails) && !inviteDetails && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
+                      <Building2 className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">Personal Information</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        required
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                        placeholder="John"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        required
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
+                      Company Name <span className="text-gray-400">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="companyName"
+                      name="companyName"
+                      value={formData.companyName}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                      placeholder="Acme Inc."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
+                        Country
+                      </label>
+                      <select
+                        id="country"
+                        name="country"
+                        required
+                        value={formData.country}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
+                      >
+                        {countries.map(country => (
+                          <option key={country.code} value={country.code}>
+                            {country.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {hasStates && (
+                      <div>
+                        <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+                          State/Province
+                        </label>
+                        <select
+                          id="state"
+                          name="state"
+                          required
+                          value={formData.state}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
+                        >
+                          <option value="">Select state/province</option>
+                          {selectedCountry?.states?.map(state => (
+                            <option key={state.code} value={state.code}>
+                              {state.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={prevStep}
+                      className="flex-1 px-8 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="flex-1 group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02]"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        Next: Choose Plan
+                        <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Plan Selection */}
+              {(currentStep === 3 || inviteDetails) && !inviteDetails && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
                       <CreditCard className="h-5 w-5 text-purple-600" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Choose Your Plan</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">Choose Your Plan</h3>
                   </div>
 
                   {/* Billing Toggle */}
-                  <div className="flex justify-center mb-6">
-                    <div className="bg-gray-100 p-1 rounded-xl inline-flex">
+                  <div className="flex justify-center mb-8">
+                    <div className="bg-gray-100 p-1 rounded-lg inline-flex relative">
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, interval: 'monthly' }))}
-                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
                           formData.interval === 'monthly'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-600 hover:text-gray-900'
@@ -495,118 +597,212 @@ export const Register: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, interval: 'yearly' }))}
-                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
                           formData.interval === 'yearly'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
                         Yearly
-                        <span className="ml-2 text-xs bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-0.5 rounded-full">
+                      </button>
+                      {formData.interval === 'yearly' && (
+                        <span className="absolute -top-3 right-0 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                           Save 20%
                         </span>
-                      </button>
+                      )}
                     </div>
                   </div>
 
                   {/* Plans Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
                     {PLANS.map((plan) => {
                       const isSelected = formData.plan === plan.id;
                       const Icon = plan.icon;
+                      const price = formData.interval === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+                      const yearlyPrice = plan.yearlyPrice;
+                      const savings = plan.monthlyPrice * 12 - yearlyPrice;
                       
                       return (
                         <div
                           key={plan.id}
                           onClick={() => setFormData(prev => ({ ...prev, plan: plan.id }))}
-                          className={`relative rounded-2xl p-6 cursor-pointer transition-all transform hover:scale-105 ${
-                            isSelected
-                              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-xl'
-                              : 'bg-white border-2 border-gray-200 hover:border-indigo-300'
+                          className={`relative rounded-2xl cursor-pointer transition-all ${
+                            plan.popular
+                              ? 'bg-gradient-to-b from-indigo-500 to-purple-600 text-white shadow-xl transform scale-105 p-1'
+                              : isSelected && !plan.popular
+                                ? 'border-2 border-indigo-500 bg-white'
+                                : 'border border-gray-200 bg-white hover:border-gray-300'
                           }`}
                         >
                           {plan.popular && (
-                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                              <span className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
+                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                              <div className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
+                                <Zap className="h-3 w-3" />
                                 MOST POPULAR
-                              </span>
+                              </div>
                             </div>
                           )}
                           
-                          <div className="text-center mb-6">
-                            <div className={`inline-flex p-3 rounded-2xl mb-4 ${
-                              isSelected ? 'bg-white/20' : 'bg-gradient-to-br from-indigo-100 to-purple-100'
-                            }`}>
-                              <Icon className={`h-8 w-8 ${isSelected ? 'text-white' : 'text-indigo-600'}`} />
+                          <div className={`${plan.popular ? 'bg-white rounded-xl' : ''} p-4 lg:p-6`}>
+                            {/* Icon and Name */}
+                            <div className="text-center mb-6">
+                              <div className={`inline-flex p-3 rounded-full mb-4 ${
+                                plan.popular ? 'bg-indigo-100' : 'bg-gray-100'
+                              }`}>
+                                <Icon className={`h-6 w-6 ${plan.popular ? 'text-indigo-600' : 'text-gray-700'}`} />
+                              </div>
+                              
+                              <h4 className={`text-xl font-bold ${plan.popular ? 'text-gray-900' : 'text-gray-900'}`}>
+                                {plan.name}
+                              </h4>
                             </div>
                             
-                            <h4 className={`text-xl font-bold mb-2 ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                              {plan.name}
-                            </h4>
-                            
-                            <div className="flex items-baseline justify-center gap-1">
-                              <span className={`text-3xl font-bold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                                ${formData.interval === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice}
-                              </span>
-                              <span className={`text-sm ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
-                                /{formData.interval === 'monthly' ? 'month' : 'year'}
-                              </span>
+                            {/* Pricing */}
+                            <div className="text-center mb-6">
+                              <div className="flex items-baseline justify-center gap-1">
+                                <span className="text-4xl font-bold text-gray-900">
+                                  ${formData.interval === 'yearly' ? yearlyPrice : plan.monthlyPrice}
+                                </span>
+                                <span className="text-gray-500">
+                                  /{formData.interval === 'yearly' ? 'year' : 'month'}
+                                </span>
+                              </div>
+                              
+                              {formData.interval === 'yearly' && (
+                                <p className="text-sm text-emerald-600 mt-2">
+                                  Save ${savings} per year
+                                </p>
+                              )}
                             </div>
+                            
+                            {/* User and Invoice Limits */}
+                            <div className="flex justify-center gap-6 mb-6 pb-6 border-b border-gray-200">
+                              <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm text-gray-600">
+                                  {plan.limits.users === 1 ? 'Just you' : `${plan.limits.users} users`}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm text-gray-600">
+                                  {plan.limits.monthlyInvoices === -1 ? 'Unlimited' : `${plan.limits.monthlyInvoices}/mo`}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Features List */}
+                            <ul className="space-y-3">
+                              {plan.features.slice(0, 5).map((feature, index) => {
+                                const isHighlighted = plan.highlighted?.includes(feature);
+                                return (
+                                  <li 
+                                    key={index} 
+                                    className="flex items-start text-sm"
+                                  >
+                                    <Check className="h-5 w-5 mr-2 text-emerald-500 flex-shrink-0" />
+                                    <span className={isHighlighted ? 'text-gray-900 font-medium' : 'text-gray-600'}>
+                                      {feature}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
                           </div>
-                          
-                          <ul className="space-y-3">
-                            {plan.features.slice(0, 5).map((feature, index) => {
-                              const isHighlighted = plan.highlighted?.includes(feature);
-                              return (
-                                <li 
-                                  key={index} 
-                                  className={`flex items-start text-sm ${
-                                    isSelected 
-                                      ? 'text-white' 
-                                      : isHighlighted 
-                                        ? 'text-gray-900 font-medium' 
-                                        : 'text-gray-600'
-                                  }`}
-                                >
-                                  <Check className={`h-5 w-5 mr-3 mt-0.5 flex-shrink-0 ${
-                                    isSelected ? 'text-white' : 'text-emerald-500'
-                                  }`} />
-                                  {feature}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                          
-                          {isSelected && (
-                            <div className="absolute inset-0 rounded-2xl ring-2 ring-indigo-600 ring-offset-4"></div>
-                          )}
                         </div>
                       );
                     })}
                   </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={prevStep}
+                      className="flex-1 px-8 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        {loading ? (
+                          <>
+                            <Loader2 className="animate-spin h-5 w-5 mr-3" />
+                            Creating account...
+                          </>
+                        ) : (
+                          <>
+                            Start Free Trial
+                            <Gift className="ml-2 h-5 w-5" />
+                          </>
+                        )}
+                      </div>
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-semibold shadow-xl hover:shadow-2xl transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                <div className="relative flex items-center justify-center">
-                  {loading ? (
-                    <>
-                      <Loader2 className="animate-spin h-5 w-5 mr-3" />
-                      Creating your account...
-                    </>
-                  ) : (
-                    <>
-                      {inviteDetails ? 'Join Team' : 'Start Free Trial'}
-                      <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
+              {/* For invited users - simplified form */}
+              {inviteDetails && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        required
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                        placeholder="John"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        required
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      {loading ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5 mr-3" />
+                          Joining team...
+                        </>
+                      ) : (
+                        <>
+                          Join Team
+                          <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </div>
+                  </button>
                 </div>
-              </button>
+              )}
 
               {/* Sign In Link */}
               <p className="text-center text-sm text-gray-600">
@@ -620,24 +816,97 @@ export const Register: React.FC = () => {
               </p>
             </form>
           </div>
+
+          {/* Trust Indicators */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-500 mb-4">Join 10,000+ businesses managing their finances with AccuBooks</p>
+            <div className="flex justify-center items-center gap-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+                <span className="text-sm text-gray-600">30-day free trial</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-emerald-600" />
+                <span className="text-sm text-gray-600">No credit card required</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-emerald-600" />
+                <span className="text-sm text-gray-600">Cancel anytime</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Feature Showcase */}
+      <div className="hidden xl:flex xl:flex-1 lg:max-w-md bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-8 lg:p-12 items-center justify-center relative overflow-hidden">
+        {/* Animated Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.3'%3E%3Cpath d='M0 38.59l2.83-2.83 1.41 1.41L1.41 40H0v-1.41zM0 1.4l2.83 2.83 1.41-1.41L1.41 0H0v1.41zM38.59 40l-2.83-2.83 1.41-1.41L40 38.59V40h-1.41zM40 1.41l-2.83 2.83-1.41-1.41L38.59 0H40v1.41zM20 18.6l2.83-2.83 1.41 1.41L21.41 20l2.83 2.83-1.41 1.41L20 21.41l-2.83 2.83-1.41-1.41L18.59 20l-2.83-2.83 1.41-1.41L20 18.59z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}></div>
         </div>
 
-        {/* Trust Indicators */}
-        <div className="mt-12 text-center">
-          <p className="text-sm text-gray-500 mb-4">Trusted by thousands of businesses worldwide</p>
-          <div className="flex justify-center items-center gap-8 opacity-60">
-            <div className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-emerald-600" />
-              <span className="text-sm text-gray-600">SSL Secured</span>
+        <div className="relative max-w-sm">
+          {/* Animated Dashboard Preview */}
+          <div className="mb-12 relative">
+            <div className="absolute inset-0 bg-white/20 rounded-3xl blur-3xl"></div>
+            <div className="relative bg-white/10 backdrop-blur rounded-3xl p-8 border border-white/20">
+              {/* Mock Dashboard Stats */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-white/20 backdrop-blur rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <TrendingUp className="h-5 w-5 text-emerald-300" />
+                    <span className="text-xs text-emerald-300">+15.3%</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white">$48,574</p>
+                  <p className="text-xs text-white/70">Monthly Revenue</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Receipt className="h-5 w-5 text-blue-300" />
+                    <span className="text-xs text-blue-300">+8 new</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white">142</p>
+                  <p className="text-xs text-white/70">Total Invoices</p>
+                </div>
+              </div>
+              
+              {/* Mock Chart */}
+              <div className="bg-white/10 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-white">Revenue Growth</h4>
+                  <BarChart3 className="h-4 w-4 text-white/70" />
+                </div>
+                <div className="flex items-end gap-1 h-24">
+                  {[40, 65, 45, 75, 55, 85, 70, 90].map((height, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 bg-gradient-to-t from-indigo-400 to-purple-400 rounded-t opacity-80"
+                      style={{ height: `${height}%` }}
+                    ></div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-emerald-600" />
-              <span className="text-sm text-gray-600">GDPR Compliant</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-emerald-600" />
-              <span className="text-sm text-gray-600">24/7 Support</span>
-            </div>
+          </div>
+
+          {/* Features List */}
+          <div className="space-y-6">
+            <h3 className="text-3xl font-bold text-white text-center mb-8">
+              Everything you need to succeed
+            </h3>
+            {features.map((feature, index) => (
+              <div key={index} className="flex items-start gap-4 text-white">
+                <div className="flex-shrink-0 p-3 bg-white/20 backdrop-blur rounded-xl">
+                  <feature.icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-lg">{feature.title}</h4>
+                  <p className="text-white/80 text-sm">{feature.description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -648,6 +917,27 @@ export const Register: React.FC = () => {
           33% { transform: translate(30px, -50px) scale(1.1); }
           66% { transform: translate(-20px, 20px) scale(0.9); }
         }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+          20%, 40%, 60%, 80% { transform: translateX(2px); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         .animate-blob {
           animation: blob 10s infinite;
         }
@@ -657,13 +947,20 @@ export const Register: React.FC = () => {
         .animation-delay-4000 {
           animation-delay: 4s;
         }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-          20%, 40%, 60%, 80% { transform: translateX(2px); }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+        .animate-spin-slow {
+          animation: spin-slow 20s linear infinite;
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 3s ease-in-out infinite;
         }
         .animate-shake {
           animation: shake 0.5s ease-in-out;
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-out;
         }
       `}</style>
     </div>
