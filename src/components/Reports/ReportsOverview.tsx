@@ -71,6 +71,13 @@ interface MonthlyData {
   taxPaid: number;
 }
 
+interface VendorSpending {
+  id: string;
+  name: string;
+  totalSpent: number;
+  expenseCount: number;
+}
+
 interface CategoryBreakdown {
   name: string;
   value: number;
@@ -138,6 +145,9 @@ export const ReportsOverview: React.FC = () => {
     loadReportData();
   }, [user, period]);
 
+
+const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
+
   const loadReportData = async () => {
     if (!user) return;
 
@@ -196,6 +206,7 @@ export const ReportsOverview: React.FC = () => {
       processCashFlowData(incomes, expenses, startDate, endDate);
       processClientMetrics(clients, incomes, invoices);
       processKPIMetrics(incomes, expenses, invoices, clients, prevIncomes, prevExpenses);
+      processVendorMetrics(expenses);
 
     } catch (err: any) {
       console.error('Error loading report data:', err);
@@ -464,6 +475,35 @@ export const ReportsOverview: React.FC = () => {
       clientGrowth: 0 // Would need historical client data
     });
   };
+
+  const processVendorMetrics = (expenses: any[]) => {
+  const vendorSpending = expenses.reduce((acc, expense) => {
+    if (expense.vendor_detail) {
+      const vendorId = expense.vendor_detail.id;
+      if (!acc[vendorId]) {
+        acc[vendorId] = {
+          id: vendorId,
+          name: expense.vendor_detail.name,
+          totalSpent: 0,
+          expenseCount: 0
+        };
+      }
+      acc[vendorId].totalSpent += expense.amount;
+      acc[vendorId].expenseCount += 1;
+    }
+    return acc;
+  }, {} as Record<string, VendorSpending>);
+
+  // Fix: Cast the result or use type assertion
+  const vendors = Object.values(vendorSpending) as VendorSpending[];
+  
+  // Now TypeScript knows the type
+  const sortedVendors = vendors
+    .sort((a, b) => b.totalSpent - a.totalSpent)
+    .slice(0, 5);
+  
+  setTopVendors(sortedVendors);
+};
 
   const refreshData = async () => {
     setRefreshing(true);
@@ -1064,7 +1104,93 @@ export const ReportsOverview: React.FC = () => {
           </div>
         </div>
 
-
+{/* Top Vendors */}
+{/* Top Vendors - Light Gradient Style */}
+{topVendors.length > 0 && (
+  <div className="bg-gradient-to-br from-purple-50 via-white to-indigo-50 rounded-2xl shadow-lg p-6 border border-purple-100">
+    <div className="flex justify-between items-center mb-6">
+      <div className="flex items-center gap-3">
+        <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
+          <Briefcase className="h-6 w-6 text-white" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Top Vendors</h2>
+          <p className="text-sm text-gray-600">Highest spending by vendor</p>
+        </div>
+      </div>
+      <button className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 transition-colors hover:bg-purple-50 px-3 py-1 rounded-lg">
+        View all
+        <ArrowRight className="h-4 w-4" />
+      </button>
+    </div>
+    
+    <div className="space-y-3">
+      {topVendors.map((vendor, index) => {
+        const progressWidth = (vendor.totalSpent / topVendors[0].totalSpent) * 100;
+        const gradients = [
+          'from-purple-500 to-purple-600',
+          'from-indigo-500 to-indigo-600',
+          'from-violet-500 to-violet-600',
+          'from-blue-500 to-blue-600',
+          'from-cyan-500 to-cyan-600'
+        ];
+        
+        return (
+          <div key={vendor.id} className="bg-white/70 backdrop-blur rounded-xl p-4 relative overflow-hidden border border-purple-100/50 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradients[index]} flex items-center justify-center text-white font-bold text-sm shadow-md`}>
+                  #{index + 1}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{vendor.name}</p>
+                  <p className="text-xs text-gray-600">{vendor.expenseCount} transactions</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold text-gray-900">
+                  {formatCurrency(vendor.totalSpent)}
+                </p>
+                <p className="text-xs text-purple-600 font-medium">
+                  {((vendor.totalSpent / topVendors.reduce((sum, v) => sum + v.totalSpent, 0)) * 100).toFixed(1)}% of total
+                </p>
+              </div>
+            </div>
+            
+            {/* Background progress indicator */}
+            <div 
+              className={`absolute inset-0 bg-gradient-to-r ${gradients[index]} opacity-10`}
+              style={{ width: `${progressWidth}%` }}
+            ></div>
+          </div>
+        );
+      })}
+    </div>
+    
+    {/* Summary Stats */}
+    <div className="mt-6 grid grid-cols-3 gap-4">
+      <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-3 text-center border border-purple-200">
+        <p className="text-xs text-purple-700 font-medium">Total Vendors</p>
+        <p className="text-xl font-bold text-purple-900">{topVendors.length}</p>
+      </div>
+      <div className="bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl p-3 text-center border border-indigo-200">
+        <p className="text-xs text-indigo-700 font-medium">Total Spent</p>
+        <p className="text-xl font-bold text-indigo-900">
+          {formatCurrency(topVendors.reduce((sum, v) => sum + v.totalSpent, 0))}
+        </p>
+      </div>
+      <div className="bg-gradient-to-br from-violet-100 to-violet-50 rounded-xl p-3 text-center border border-violet-200">
+        <p className="text-xs text-violet-700 font-medium">Avg/Vendor</p>
+        <p className="text-xl font-bold text-violet-900">
+          {formatCurrency(topVendors.reduce((sum, v) => sum + v.totalSpent, 0) / topVendors.length)}
+        </p>
+      </div>
+    </div>
+    
+    {/* Subtle decorative element */}
+    <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-gradient-to-br from-purple-200/20 to-indigo-200/20 rounded-full blur-3xl"></div>
+  </div>
+)}
 
         {/* Tax Analysis */}
         <div className="bg-white rounded-2xl shadow-lg p-6">

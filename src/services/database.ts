@@ -1,4 +1,3 @@
-// src/services/database.ts
 import { supabase } from './supabaseClient';
 import { 
   Income, 
@@ -10,7 +9,8 @@ import {
   User,
   Subscription,
   TransactionType,
-  InvoiceStatus
+  InvoiceStatus,
+  Vendor  
 } from '../types';
 import { TeamMember, TeamInvite } from '../types/userManagement';
 import { subscriptionService } from './subscriptionService';
@@ -197,7 +197,8 @@ export const getExpenses = async (userId: string, startDate?: string, endDate?: 
     .from('expenses')
     .select(`
       *,
-      category:categories(*)
+      category:categories(*),
+      vendor_detail:vendors(*)
     `)
     .eq('user_id', effectiveUserId)
     .order('date', { ascending: false });
@@ -336,6 +337,70 @@ export const getInvoices = async (userId: string) => {
   return data as Invoice[];
 };
 
+
+// Vendor functions - Team aware
+export const getVendors = async (userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  const { data, error } = await supabase
+    .from('vendors')
+    .select('*')
+    .eq('user_id', effectiveUserId)
+    .order('name');
+  
+  if (error) throw error;
+  return data as Vendor[];
+};
+
+export const createVendor = async (vendor: Omit<Vendor, 'id' | 'created_at' | 'updated_at'>) => {
+  const effectiveUserId = await getEffectiveUserId(vendor.user_id);
+  
+  const { data, error } = await supabase
+    .from('vendors')
+    .insert([{
+      ...vendor,
+      user_id: effectiveUserId,
+      email: vendor.email || null,
+      phone: vendor.phone || null,
+      address: vendor.address || null,
+      tax_id: vendor.tax_id || null,
+      notes: vendor.notes || null
+    }])
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const updateVendor = async (id: string, updates: Partial<Vendor>) => {
+  const updateData: any = { ...updates };
+  if ('email' in updates) updateData.email = updates.email || null;
+  if ('phone' in updates) updateData.phone = updates.phone || null;
+  if ('address' in updates) updateData.address = updates.address || null;
+  if ('tax_id' in updates) updateData.tax_id = updates.tax_id || null;
+  if ('notes' in updates) updateData.notes = updates.notes || null;
+  
+  const { data, error } = await supabase
+    .from('vendors')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const deleteVendor = async (id: string) => {
+  const { error } = await supabase
+    .from('vendors')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
 export const getInvoice = async (id: string) => {
   const { data, error } = await supabase
     .from('invoices')
@@ -351,40 +416,109 @@ export const getInvoice = async (id: string) => {
   return data as Invoice;
 };
 
-export const createInvoice = async (invoice: any, items: any[]) => {
-  const effectiveUserId = await getEffectiveUserId(invoice.user_id);
+export const createInvoice = async (
+  userId: string, 
+  invoice: Partial<Invoice>,
+  items: Partial<InvoiceItem>[]
+): Promise<Invoice> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
   
-  // Start a Supabase transaction
-  const { data: invoiceData, error: invoiceError } = await supabase
-    .from('invoices')
-    .insert([{
-      ...invoice,
-      user_id: effectiveUserId
-    }])
-    .select()
-    .single();
-
-  if (invoiceError) throw invoiceError;
-
-  // Insert invoice items
-  if (items.length > 0) {
-    const itemsWithInvoiceId = items.map(item => ({
-      ...item,
-      invoice_id: invoiceData.id
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('invoice_items')
-      .insert(itemsWithInvoiceId);
-
-    if (itemsError) {
-      // Rollback by deleting the invoice
-      await supabase.from('invoices').delete().eq('id', invoiceData.id);
-      throw itemsError;
-    }
+  // First check if user can create invoice
+  const { data: limitCheck, error: limitError } = await supabase
+    .rpc('check_invoice_limit', { p_user_id: effectiveUserId });
+  
+  if (limitError) throw limitError;
+  
+  if (!limitCheck.can_create) {
+    throw new Error(
+      limitCheck.limit === -1 
+        ? 'Cannot create invoice: ' + limitCheck.reason
+        : `Monthly invoice limit reached (${limitCheck.usage}/${limitCheck.limit})`
+    );
   }
+  
+  // Use the new RPC function for plans with limits
+  if (limitCheck.limit > 0) {
+    const invoiceData: any = {
+      p_user_id: effectiveUserId,
+      p_invoice_data: {
+        invoice_number: invoice.invoice_number,
+        client_id: invoice.client_id,
+        date: invoice.date,
+        due_date: invoice.due_date,
+        status: invoice.status || 'draft',
+        subtotal: invoice.subtotal,
+        tax_rate: invoice.tax_rate,
+        tax_amount: invoice.tax_amount,
+        total: invoice.total,
+        notes: invoice.notes,
+        currency: invoice.currency || 'USD'
+      }
+    };
 
-  return invoiceData;
+    // Only include optional fields if they exist
+    if ('discount_type' in invoice) invoiceData.p_invoice_data.discount_type = invoice.discount_type;
+    if ('discount_value' in invoice) invoiceData.p_invoice_data.discount_value = invoice.discount_value;
+    if ('exchange_rate' in invoice) invoiceData.p_invoice_data.exchange_rate = invoice.exchange_rate || 1;
+
+    const { data: result, error: createError } = await supabase
+      .rpc('create_invoice_with_limit', invoiceData);
+    
+    if (createError) throw createError;
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create invoice');
+    }
+    
+    // Now add invoice items
+    if (items.length > 0) {
+      const invoiceItems = items.map(item => ({
+        ...item,
+        invoice_id: result.invoice_id
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(invoiceItems);
+      
+      if (itemsError) throw itemsError;
+    }
+    
+    // Fetch and return the complete invoice
+    const { data: newInvoice, error: fetchError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', result.invoice_id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    return newInvoice;
+  } else {
+    // For unlimited plans, use regular insert
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert({ ...invoice, user_id: effectiveUserId })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    // Add invoice items
+    if (items.length > 0) {
+      const invoiceItems = items.map(item => ({
+        ...item,
+        invoice_id: data.id
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(invoiceItems);
+      
+      if (itemsError) throw itemsError;
+    }
+    
+    return data;
+  }
 };
 
 export const updateInvoice = async (id: string, updates: any, items?: any[]) => {
@@ -628,8 +762,6 @@ export const getUserTeamInfo = async (userId: string) => {
   return data;
 };
 
-// Add these functions to your src/services/database.ts file
-
 // Invoice Template functions
 export const getInvoiceTemplates = async (userId: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
@@ -672,3 +804,4 @@ export const deleteInvoiceTemplate = async (id: string) => {
   
   if (error) throw error;
 };
+

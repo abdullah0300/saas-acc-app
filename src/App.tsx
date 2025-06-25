@@ -40,6 +40,8 @@ import { AuditLogs } from './components/Settings/AuditLogs';
 import { CashFlowInsights } from './components/Reports/CashFlowInsights';
 import { TaxReport } from './components/Reports/TaxReport';
 import { SubscriptionEnforcer } from './components/Subscription/SubscriptionEnforcer';
+import { PlanProtectedRoute } from './components/Auth/PlanProtectedRoute';
+import { VendorList, VendorForm } from './components/Vendors';
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -114,15 +116,35 @@ function App() {
               <Route path="/clients" element={<ClientList />} />
               <Route path="/clients/new" element={<ClientForm />} />
               <Route path="/clients/edit/:id" element={<ClientForm />} />
+              {/* Vendors */}
+              <Route path="/vendors" element={<VendorList />} />
+              <Route path="/vendors/new" element={<VendorForm />} />
+              <Route path="/vendors/:id/edit" element={<VendorForm />} />
               
               {/* Reports */}
-              <Route path="/reports" element={<ReportsOverview />} />
-              <Route path="/reports/profit-loss" element={<ProfitLossReport />} />
-              <Route path="/reports/cash-flow" element={<CashFlowInsights />} />
-              <Route path="/reports/tax" element={<TaxReport />} /> 
+                      <Route path="/reports" element={<ReportsOverview />} />
+                      <Route path="/reports/profit-loss" element={
+                        <PlanProtectedRoute feature="profit_loss_statements">
+                          <ProfitLossReport />
+                        </PlanProtectedRoute>
+                      } />
+                      <Route path="/reports/cash-flow" element={
+                        <PlanProtectedRoute feature="cash_flow_analysis">
+                          <CashFlowInsights />
+                        </PlanProtectedRoute>
+                      } />
+                      <Route path="/reports/tax" element={
+                        <PlanProtectedRoute feature="advanced_tax_reports">
+                          <TaxReport />
+                        </PlanProtectedRoute>
+                      } />
               
-              {/* Budget */}
-              <Route path="/budget" element={<BudgetPlanning />} />
+              {/* Budget Planning - Plus only */}
+                      <Route path="/budget" element={
+                        <PlanProtectedRoute feature="budget_tracking">
+                          <BudgetPlanning />
+                        </PlanProtectedRoute>
+                      } />
               
               {/* Settings */}
               <Route path="/settings" element={<SettingsLayout />}>

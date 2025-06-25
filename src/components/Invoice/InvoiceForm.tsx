@@ -2,10 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { Settings, Save, X } from 'lucide-react';
 import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { InvoiceSettings } from './InvoiceSettings';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
+import { UsageLimitGate } from '../Subscription/FeatureGate';
 import { 
   createInvoice, 
   updateInvoice, 
@@ -14,7 +16,9 @@ import {
   getInvoice,
   getNextInvoiceNumber,
   getInvoiceTemplates,
-  createInvoiceTemplate
+  createInvoiceTemplate,
+  deleteInvoiceTemplate,
+  getCategories
 } from '../../services/database';
 import { Invoice, InvoiceItem, Client } from '../../types';
 import { format, addDays, parseISO, addWeeks, addMonths } from 'date-fns';
@@ -28,6 +32,31 @@ type FormInvoiceItem = {
   quantity: number;
   rate: number;
   amount: number;
+};
+
+const InvoiceFormHeader = () => {
+  const { usage, limits, getUsagePercentage } = useSubscription();
+  const usagePercentage = getUsagePercentage('invoices');
+  
+  if (limits.monthlyInvoices === -1) return null;
+  
+  return (
+    <div className="mb-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-blue-800">
+            Monthly Invoices: {usage.monthlyInvoices} / {limits.monthlyInvoices}
+          </span>
+          <div className="w-32 bg-blue-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all"
+              style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export const InvoiceForm: React.FC = () => {
@@ -48,7 +77,8 @@ export const InvoiceForm: React.FC = () => {
     is_recurring: false,
     frequency: 'monthly' as 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly',
     recurring_end_date: '',
-    payment_terms: 30
+    payment_terms: 30,
+    income_category_id: '' // Add this for income category
   });
 
   // Use FormInvoiceItem type for local state
@@ -56,9 +86,13 @@ export const InvoiceForm: React.FC = () => {
     { id: Date.now().toString(), description: '', quantity: 1, rate: 0, amount: 0 }
   ]);
 
-  const [showNewClientForm, setShowNewClientForm] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientEmail, setNewClientEmail] = useState('');
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [newClientData, setNewClientData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
   const [isAddingClient, setIsAddingClient] = useState(false);
 
   // Template state
@@ -98,6 +132,21 @@ export const InvoiceForm: React.FC = () => {
     },
     enabled: !!user
   });
+
+  // Fetch income categories
+  const { data: incomeCategories = [] } = useQuery({
+    queryKey: ['categories', user?.id, 'income'],
+    queryFn: async () => {
+      if (!user) return [];
+      return await getCategories(user.id, 'income');
+    },
+    enabled: !!user
+  });
+
+  // Debug log to check if categories are loading
+  useEffect(() => {
+    console.log('Income categories loaded:', incomeCategories);
+  }, [incomeCategories]);
 
   // Fetch invoice data if editing
   const { data: invoiceData } = useQuery({
@@ -205,46 +254,148 @@ export const InvoiceForm: React.FC = () => {
     }
   };
 
-  // Create client mutation
-  const createClientMutation = useMutation({
-    mutationFn: async () => {
-      if (!user || !newClientName) throw new Error('Missing data');
-      
-      return await createClient({
+  // Delete template
+  const handleDeleteTemplate = async () => {
+    if (!selectedTemplate) return;
+    
+    const template = templates.find(t => t.id === selectedTemplate);
+    if (!template) return;
+    
+    if (window.confirm(`Are you sure you want to delete the template "${template.name}"?`)) {
+      try {
+        await deleteInvoiceTemplate(selectedTemplate);
+        
+        // Refresh templates list
+        await loadTemplates();
+        
+        // Reset selection
+        setSelectedTemplate('');
+        
+        // Show success message
+        alert('Template deleted successfully!');
+      } catch (err: any) {
+        alert('Error deleting template: ' + err.message);
+      }
+    }
+  };
+
+  // Handle client creation
+  const handleCreateClient = async () => {
+    if (!user || !newClientData.name.trim()) return;
+    
+    setIsAddingClient(true);
+    
+    try {
+      const client = await createClient({
         user_id: user.id,
-        name: newClientName,
-        email: newClientEmail || undefined,
-        phone: undefined,
-        address: undefined
+        name: newClientData.name.trim(),
+        email: newClientData.email || undefined,
+        phone: newClientData.phone || undefined,
+        address: newClientData.address || undefined
       });
-    },
-    onSuccess: (newClient) => {
-      // Update clients cache
+      
+      // Refresh clients list
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       
       // Select the new client
-      setFormData(prev => ({ ...prev, client_id: newClient.id }));
-      setShowNewClientForm(false);
-      setNewClientName('');
-      setNewClientEmail('');
+      setFormData(prev => ({ ...prev, client_id: client.id }));
+      
+      // Close modal and reset
+      setShowClientModal(false);
+      setNewClientData({ name: '', email: '', phone: '', address: '' });
+    } catch (err: any) {
+      alert('Error creating client: ' + err.message);
+    } finally {
+      setIsAddingClient(false);
     }
-  });
+  };
 
   // Create invoice mutation
   const createInvoiceMutation = useMutation({
     mutationFn: async ({ invoiceData, items }: { invoiceData: any, items: FormInvoiceItem[] }) => {
+      if (!user) throw new Error('User not authenticated');
+      
       // Remove the local 'id' field before sending to database
       const itemsForDb = items.map(({ id, ...item }) => item);
-      return await createInvoice(invoiceData, itemsForDb);
+      
+      try {
+        return await createInvoice(user.id, invoiceData, itemsForDb);
+      } catch (error: any) {
+        // If the error is about discount fields, try a direct insert
+        if (error.message && error.message.includes('discount_type')) {
+          console.log('Falling back to direct invoice creation');
+          
+          // Direct insert to bypass the RPC function
+          const { data: newInvoice, error: insertError } = await supabase
+            .from('invoices')
+            .insert({
+              ...invoiceData,
+              user_id: user.id,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+          
+          if (insertError) throw insertError;
+          
+          // Add invoice items
+          if (itemsForDb.length > 0) {
+            const invoiceItems = itemsForDb.map(item => ({
+              ...item,
+              invoice_id: newInvoice.id
+            }));
+            
+            const { error: itemsError } = await supabase
+              .from('invoice_items')
+              .insert(invoiceItems);
+            
+            if (itemsError) throw itemsError;
+          }
+          
+          // Update invoice settings for next invoice number
+          const { data: settings } = await supabase
+            .from('invoice_settings')
+            .select('next_number')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (settings) {
+            await supabase
+              .from('invoice_settings')
+              .update({ next_number: (settings.next_number || 1) + 1 })
+              .eq('user_id', user.id);
+          }
+          
+          return newInvoice;
+        }
+        
+        throw error;
+      }
     },
     onSuccess: async (newInvoice) => {
       // Handle recurring invoice if needed
       if (formData.is_recurring) {
+        const templateInvoiceData = {
+          invoice_number: formData.invoice_number,
+          client_id: formData.client_id || null,
+          date: formData.date,
+          due_date: formData.due_date,
+          subtotal,
+          tax_rate: parseFloat(formData.tax_rate) || 0,
+          tax_amount: taxAmount,
+          total,
+          notes: formData.notes || null,
+          status: 'draft' as const,
+          currency: 'USD',
+          exchange_rate: 1
+        };
+        
         const recurringData = {
           user_id: user!.id,
           invoice_id: newInvoice.id,
           template_data: {
-            ...invoiceData,
+            ...templateInvoiceData,
             items: items.map(({ id, ...item }) => item) // Remove id before storing
           },
           frequency: formData.frequency,
@@ -271,7 +422,6 @@ export const InvoiceForm: React.FC = () => {
 
   const [showSettings, setShowSettings] = useState(false);
 
-
   // Update invoice mutation
   const updateInvoiceMutation = useMutation({
     mutationFn: async ({ id, invoiceData, items }: { id: string, invoiceData: any, items: FormInvoiceItem[] }) => {
@@ -282,9 +432,24 @@ export const InvoiceForm: React.FC = () => {
     onSuccess: async () => {
       // Handle recurring invoice update
       if (formData.is_recurring) {
+        const templateInvoiceData = {
+          invoice_number: formData.invoice_number,
+          client_id: formData.client_id || null,
+          date: formData.date,
+          due_date: formData.due_date,
+          subtotal,
+          tax_rate: parseFloat(formData.tax_rate) || 0,
+          tax_amount: taxAmount,
+          total,
+          notes: formData.notes || null,
+          status: 'draft' as const,
+          currency: 'USD',
+          exchange_rate: 1
+        };
+        
         const recurringData = {
           template_data: {
-            ...invoiceData,
+            ...templateInvoiceData,
             items: items.map(({ id, ...item }) => item) // Remove id before storing
           },
           frequency: formData.frequency,
@@ -332,7 +497,8 @@ export const InvoiceForm: React.FC = () => {
         is_recurring: !!recurringData,
         frequency: recurringData?.frequency || 'monthly',
         recurring_end_date: recurringData?.end_date || '',
-        payment_terms: 30
+        payment_terms: 30,
+        income_category_id: invoice.income_category_id || ''
       });
       
       // Convert InvoiceItem[] to FormInvoiceItem[]
@@ -351,26 +517,26 @@ export const InvoiceForm: React.FC = () => {
     
     if (!user) return;
     
-    const invoiceData = {
-      user_id: user.id,
+    // Create clean invoice data without any discount fields
+    const cleanInvoiceData = {
       invoice_number: formData.invoice_number,
       client_id: formData.client_id || null,
       date: formData.date,
       due_date: formData.due_date,
-      subtotal,
-      tax_rate: parseFloat(formData.tax_rate) || 0,
-      tax_amount: taxAmount,
-      total,
+      subtotal: Number(subtotal.toFixed(2)),
+      tax_rate: Number(parseFloat(formData.tax_rate) || 0),
+      tax_amount: Number(taxAmount.toFixed(2)),
+      total: Number(total.toFixed(2)),
       notes: formData.notes || null,
       status: 'draft' as const,
       currency: 'USD',
-      exchange_rate: 1
+      income_category_id: formData.income_category_id || null
     };
     
     if (isEdit && id) {
-      updateInvoiceMutation.mutate({ id, invoiceData, items });
+      updateInvoiceMutation.mutate({ id, invoiceData: cleanInvoiceData, items });
     } else {
-      createInvoiceMutation.mutate({ invoiceData, items });
+      createInvoiceMutation.mutate({ invoiceData: cleanInvoiceData, items });
     }
   };
   
@@ -403,17 +569,6 @@ export const InvoiceForm: React.FC = () => {
       }
       return item;
     }));
-  };
-
-  const handleAddClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsAddingClient(true);
-    
-    try {
-      await createClientMutation.mutateAsync();
-    } finally {
-      setIsAddingClient(false);
-    }
   };
 
   const getNextInvoiceDate = () => {
@@ -450,7 +605,9 @@ export const InvoiceForm: React.FC = () => {
 </div>
 </div>
       
+      <InvoiceFormHeader />
 
+      <UsageLimitGate type="invoices">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Template Selection - Only show when creating new invoice */}
         {!isEdit && templates.length > 0 && (
@@ -458,18 +615,31 @@ export const InvoiceForm: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Start from a template (optional)
             </label>
-            <select
-              value={selectedTemplate}
-              onChange={(e) => handleTemplateSelect(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">-- Select a template --</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={selectedTemplate}
+                onChange={(e) => handleTemplateSelect(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Select a template --</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+              {selectedTemplate && (
+                <button
+                  type="button"
+                  onClick={handleDeleteTemplate}
+                  className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2"
+                  title="Delete selected template"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -508,7 +678,7 @@ export const InvoiceForm: React.FC = () => {
                 </select>
                 <button
                   type="button"
-                  onClick={() => setShowNewClientForm(true)}
+                  onClick={() => setShowClientModal(true)}
                   className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
                 >
                   <Plus className="h-4 w-4" />
@@ -543,57 +713,31 @@ export const InvoiceForm: React.FC = () => {
             </div>
           </div>
 
-          {/* New Client Form */}
-          {showNewClientForm && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Client</h3>
-              <form onSubmit={handleAddClient} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Client Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email (optional)
-                  </label>
-                  <input
-                    type="email"
-                    value={newClientEmail}
-                    onChange={(e) => setNewClientEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={isAddingClient}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {isAddingClient ? 'Adding...' : 'Add Client'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNewClientForm(false);
-                      setNewClientName('');
-                      setNewClientEmail('');
-                    }}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+          {/* Income Category Field - Added here */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Income Category (Internal Use)
+            </label>
+            <select
+              value={formData.income_category_id}
+              onChange={(e) => setFormData({ ...formData, income_category_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select a category (optional)</option>
+              {incomeCategories && incomeCategories.length > 0 ? (
+                incomeCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No income categories found - Please create categories first</option>
+              )}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              This category will be used when the invoice is marked as paid. Not visible to clients.
+            </p>
+          </div>
 
           {/* Recurring Invoice Options */}
           <div className="bg-gray-50 rounded-lg p-6">
@@ -794,6 +938,7 @@ export const InvoiceForm: React.FC = () => {
           </div>
         </div>
       </form>
+      </UsageLimitGate>
 
       {/* Template Save Dialog */}
       {showSaveTemplateDialog && (
@@ -842,6 +987,104 @@ export const InvoiceForm: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <InvoiceSettings onClose={() => setShowSettings(false)} />
+          </div>
+        </div>
+      )}
+      
+      {/* Client Creation Modal */}
+      {showClientModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Add New Client</h3>
+                <button
+                  onClick={() => {
+                    setShowClientModal(false);
+                    setNewClientData({ name: '', email: '', phone: '', address: '' });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Client Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientData.name}
+                    onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter client name"
+                    autoFocus
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={newClientData.email}
+                    onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="client@example.com"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={newClientData.phone}
+                    onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={newClientData.address}
+                    onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Street address..."
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowClientModal(false);
+                  setNewClientData({ name: '', email: '', phone: '', address: '' });
+                }}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateClient}
+                disabled={!newClientData.name.trim() || isAddingClient}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isAddingClient ? 'Creating...' : 'Create Client'}
+              </button>
+            </div>
           </div>
         </div>
       )}

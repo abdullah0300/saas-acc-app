@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Building2 } from 'lucide-react';
 import { 
   Plus, 
   Search, 
@@ -192,6 +193,13 @@ export const ExpenseList: React.FC = () => {
             <Download className="h-4 w-4 mr-2 text-gray-600" />
             Export
           </button>
+          <Link
+      to="/vendors"
+      className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+    >
+      <Building2 className="h-5 w-5 mr-2" />
+      Manage Vendors
+    </Link>
           <Link
             to="/expenses/new"
             className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-105 shadow-lg shadow-red-200"

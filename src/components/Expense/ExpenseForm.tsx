@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload } from 'lucide-react';
+import { getVendors, createVendor } from '../../services/database';
+import { Vendor } from '../../types';
+import { Plus, X } from 'lucide-react';
 import { 
   createExpense, 
   updateExpense, 
@@ -25,6 +28,7 @@ export const ExpenseForm: React.FC = () => {
     category_id: '',
     date: new Date().toISOString().split('T')[0],
     vendor: '',
+    vendor_id: '',
     receipt_url: '',
     tax_rate: defaultTaxRate.toString(), // Added tax_rate
     tax_amount: '0' // Added tax_amount
@@ -41,6 +45,34 @@ export const ExpenseForm: React.FC = () => {
     }
   }, [id, isEdit]);
 
+const [vendors, setVendors] = useState<Vendor[]>([]);
+const [showVendorModal, setShowVendorModal] = useState(false);
+const [newVendorData, setNewVendorData] = useState({
+  name: '',
+  email: '',
+  phone: '',
+  address: ''
+});
+
+
+useEffect(() => {
+  if (user) {
+    loadVendors();
+  }
+}, [user]);
+
+const loadVendors = async () => {
+  if (!user) return;
+  
+  try {
+    const vendorList = await getVendors(user.id);
+    setVendors(vendorList);
+  } catch (err) {
+    console.error('Error loading vendors:', err);
+  }
+};
+
+const [isAddingVendor, setIsAddingVendor] = useState(false);
   const loadCategories = async () => {
     if (!user) return;
     
@@ -66,6 +98,7 @@ export const ExpenseForm: React.FC = () => {
           category_id: expense.category_id || '',
           date: expense.date,
           vendor: expense.vendor || '',
+          vendor_id: expense.vendor_id || '',  // Add this
           receipt_url: expense.receipt_url || '',
           tax_rate: defaultTaxRate.toString(), // Set default tax rate
           tax_amount: '0' // Initialize tax amount
@@ -75,6 +108,40 @@ export const ExpenseForm: React.FC = () => {
       setError(err.message);
     }
   };
+
+ const handleCreateVendor = async () => {
+  if (!user || !newVendorData.name.trim()) return;
+  
+  setIsAddingVendor(true);
+  
+  try {
+    const vendor = await createVendor({
+      user_id: user.id,
+      name: newVendorData.name.trim(),
+      email: newVendorData.email || undefined,
+      phone: newVendorData.phone || undefined,
+      address: newVendorData.address || undefined
+    });
+    
+    // Refresh vendors list
+    await loadVendors();
+    
+    // Select the new vendor
+    setFormData({  // Changed from setExpense
+      ...formData,  // Changed from expense
+      vendor_id: vendor.id,
+      vendor: vendor.name
+    });
+    
+    // Close modal and reset
+    setShowVendorModal(false);
+    setNewVendorData({ name: '', email: '', phone: '', address: '' });
+  } catch (err: any) {
+    alert('Error creating vendor: ' + err.message);
+  } finally {
+    setIsAddingVendor(false);
+  }
+};
 
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,7 +188,10 @@ export const ExpenseForm: React.FC = () => {
         category_id: formData.category_id || undefined,
         date: formData.date,
         vendor: formData.vendor || undefined,
-        receipt_url: formData.receipt_url || undefined
+        vendor_id: formData.vendor_id || undefined,  // Add this line
+        receipt_url: formData.receipt_url || undefined,
+        tax_rate: parseFloat(formData.tax_rate) || 0,  // Add this
+        tax_amount: parseFloat(formData.tax_amount) || 0  // Add this
       };
 
       if (isEdit && id) {
@@ -258,18 +328,41 @@ export const ExpenseForm: React.FC = () => {
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vendor
-              </label>
-              <input
-                type="text"
-                value={formData.vendor}
-                onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Vendor name"
-              />
-            </div>
+           <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Vendor
+  </label>
+  <div className="flex gap-2">
+    <select
+      value={formData.vendor_id}  // Changed from expense.vendor_id
+      onChange={(e) => {
+        const selectedVendor = vendors.find(v => v.id === e.target.value);
+        setFormData({  // Changed from setExpense
+          ...formData,  // Changed from expense
+          vendor_id: e.target.value,
+          vendor: selectedVendor?.name || ''
+        });
+      }}
+      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    >
+      <option value="">Select a vendor (optional)</option>
+      {vendors.map((vendor) => (
+        <option key={vendor.id} value={vendor.id}>
+          {vendor.name}
+        </option>
+      ))}
+    </select>
+    <button
+      type="button"
+      onClick={() => setShowVendorModal(true)}
+      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+      title="Add new vendor"
+    >
+      <Plus className="h-4 w-4" />
+    </button>
+  </div>
+</div>
+
           </div>
 
           <div>
@@ -320,6 +413,103 @@ export const ExpenseForm: React.FC = () => {
           </div>
         </form>
       </div>
+      {/* Vendor Creation Modal */}
+{showVendorModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg max-w-md w-full">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Add New Vendor</h3>
+          <button
+            onClick={() => {
+              setShowVendorModal(false);
+              setNewVendorData({ name: '', email: '', phone: '', address: '' });
+            }}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      
+      <div className="px-6 py-4">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vendor Name *
+            </label>
+            <input
+              type="text"
+              value={newVendorData.name}
+              onChange={(e) => setNewVendorData({ ...newVendorData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Enter vendor name"
+              autoFocus
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={newVendorData.email}
+              onChange={(e) => setNewVendorData({ ...newVendorData, email: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="vendor@example.com"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone
+            </label>
+            <input
+              type="tel"
+              value={newVendorData.phone}
+              onChange={(e) => setNewVendorData({ ...newVendorData, phone: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="+1 (555) 123-4567"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Address
+            </label>
+            <textarea
+              value={newVendorData.address}
+              onChange={(e) => setNewVendorData({ ...newVendorData, address: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Street address..."
+            />
+          </div>
+        </div>
+      </div>
+      
+      <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+        <button
+          onClick={() => {
+            setShowVendorModal(false);
+            setNewVendorData({ name: '', email: '', phone: '', address: '' });
+          }}
+          className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleCreateVendor}
+          disabled={!newVendorData.name.trim() || isAddingVendor}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {isAddingVendor ? 'Creating...' : 'Create Vendor'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

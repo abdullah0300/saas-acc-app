@@ -68,6 +68,8 @@ export interface Expense {
   description: string;
   date: string;
   vendor?: string;
+  vendor_id?: string;  // Add this line
+  vendor_detail?: Vendor;  // Add this line
   receipt_url?: string;
   created_at: string;
   updated_at: string;
@@ -110,6 +112,7 @@ export interface Invoice {
   items?: InvoiceItem[];
   created_at: string;
   updated_at: string;
+  income_category_id?: string; // Add this line
 }
 
 export interface InvoiceItem {
@@ -239,3 +242,18 @@ export const notificationConfig: Record<NotificationType, {
   system_update: { icon: 'Info', color: 'text-blue-600', bgColor: 'bg-blue-100' },
   feature_announcement: { icon: 'Sparkles', color: 'text-purple-600', bgColor: 'bg-purple-100' }
 };
+
+
+export interface Vendor {
+  id: string;
+  user_id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  tax_id?: string;
+  payment_terms?: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}

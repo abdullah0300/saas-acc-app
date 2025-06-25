@@ -41,15 +41,58 @@ import {
 import { getDashboardStats, getIncomes, getExpenses, getInvoices, getClients } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { useSubscriptionLimits } from '../Subscription/SubscriptionGuard';
+import { useSubscription } from '../../contexts/SubscriptionContext';
+import { FeatureGate } from '../Subscription/FeatureGate';
 import { supabase } from '../../services/supabaseClient';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { Income, Expense, Invoice, Client } from '../../types';
 
+const UsageSummaryCard = () => {
+  const { usage, limits, plan } = useSubscription();
+  
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Plan Usage</h3>
+      <div className="space-y-3">
+        <div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Team Members</span>
+            <span className="font-medium">
+              {usage.users} / {limits.users === -1 ? '∞' : limits.users}
+            </span>
+          </div>
+        </div>
+        <div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Monthly Invoices</span>
+            <span className="font-medium">
+              {usage.monthlyInvoices} / {limits.monthlyInvoices === -1 ? '∞' : limits.monthlyInvoices}
+            </span>
+          </div>
+        </div>
+        <div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Total Clients</span>
+            <span className="font-medium">
+              {usage.totalClients} / {limits.totalClients === -1 ? '∞' : limits.totalClients}
+            </span>
+          </div>
+        </div>
+      </div>
+      <Link 
+        to="/settings/subscription"
+        className="mt-4 block text-center text-sm text-blue-600 hover:text-blue-800"
+      >
+        View Plan Details →
+      </Link>
+    </div>
+  );
+};
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, loading: settingsLoading } = useSettings();
-  const { limits, usage } = useSubscriptionLimits();
+  const { limits, usage } = useSubscription();
   const [stats, setStats] = useState<any>(null);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any>({ expense: [], income: [] });
@@ -275,7 +318,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Subscription Status Bar */}
+       {/* Subscription Status Bar */}
         {subscription && (
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between">
@@ -288,26 +331,7 @@ export const Dashboard: React.FC = () => {
                   </span>
                 </div>
               </div>
-              
-              {limits && subscription.plan !== 'professional' && (
-                <div className="flex space-x-6">
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">Invoices</p>
-                    <p className="text-lg font-semibold">
-                      {usage?.invoices || 0}/{limits.invoices === -1 ? '∞' : limits.invoices}
-                    </p>
-                    {limits.invoices > 0 && usage?.invoices >= limits.invoices * 0.8 && (
-                      <p className="text-xs text-yellow-600">Almost at limit</p>
-                    )}
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-gray-600">Clients</p>
-                    <p className="text-lg font-semibold">
-                      {usage?.clients || 0}/{limits.clients === -1 ? '∞' : limits.clients}
-                    </p>
-                  </div>
-                </div>
-              )}
+             
               
               {subscription.plan !== 'professional' && (
                 <Link
@@ -421,98 +445,108 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-
-
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Revenue Overview</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                  <XAxis dataKey="month" stroke="#6B7280" fontSize={12} tickLine={false} />
-                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `${formatCurrency(value/1000)}k`} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="income" 
-                    stroke="#4F46E5" 
-                    fillOpacity={1}
-                    fill="url(#colorRevenue)"
-                    strokeWidth={3}
-                    name="Revenue"
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="expenses" 
-                    stroke="#EF4444" 
-                    fillOpacity={1}
-                    fill="url(#colorExpense)"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    name="Expenses"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+          <FeatureGate feature="cash_flow_analysis" className="h-full">
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Cash Flow</h3>
+                <Link
+                  to="/reports/cash-flow"
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  View Details →
+                </Link>
+              </div>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                    <XAxis dataKey="month" stroke="#6B7280" fontSize={12} tickLine={false} />
+                    <YAxis stroke="#6B7280" fontSize={12} tickLine={false} tickFormatter={(value) => `${formatCurrency(value/1000)}k`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="income" 
+                      stroke="#4F46E5" 
+                      fillOpacity={1}
+                      fill="url(#colorRevenue)"
+                      strokeWidth={3}
+                      name="Revenue"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="expenses" 
+                      stroke="#EF4444" 
+                      fillOpacity={1}
+                      fill="url(#colorExpense)"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name="Expenses"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          </FeatureGate>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Expense Breakdown</h2>
-            <div className="h-72">
-              {categoryData.expense.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height="70%">
-                    <RePieChart>
-                      <Pie
-                        data={categoryData.expense}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        {categoryData.expense.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                    </RePieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    {categoryData.expense.map((cat: any, index: number) => (
-                      <div key={cat.name} className="flex items-center gap-3">
-                        <div 
-                          className="w-4 h-4 rounded-lg" 
-                          style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{cat.name}</p>
-                          <p className="text-xs text-gray-500">{formatCurrency(cat.value)}</p>
+          <FeatureGate feature="budget_tracking" className="h-full">
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Overview</h3>
+              <div className="h-72">
+                {categoryData.expense.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height="70%">
+                      <RePieChart>
+                        <Pie
+                          data={categoryData.expense}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={4}
+                          dataKey="value"
+                        >
+                          {categoryData.expense.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                      </RePieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      {categoryData.expense.map((cat: any, index: number) => (
+                        <div key={cat.name} className="flex items-center gap-3">
+                          <div 
+                            className="w-4 h-4 rounded-lg" 
+                            style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">{cat.name}</p>
+                            <p className="text-xs text-gray-500">{formatCurrency(cat.value)}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500">
+                    No expense data available
                   </div>
-                </>
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-500">
-                  No expense data available
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          </FeatureGate>
         </div>
 
         {/* Recent Clients and Invoices Section */}
