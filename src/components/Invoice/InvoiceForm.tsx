@@ -7,6 +7,7 @@ import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { InvoiceSettings } from './InvoiceSettings';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { UsageLimitGate } from '../Subscription/FeatureGate';
 import { 
   createInvoice, 
@@ -33,6 +34,7 @@ type FormInvoiceItem = {
   rate: number;
   amount: number;
 };
+
 
 const InvoiceFormHeader = () => {
   const { usage, limits, getUsagePercentage } = useSubscription();
@@ -65,6 +67,7 @@ export const InvoiceForm: React.FC = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const queryClient = useQueryClient();
+  const { formatCurrency } = useSettings();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -114,7 +117,9 @@ export const InvoiceForm: React.FC = () => {
       if (!user) return '';
       return await getNextInvoiceNumber(user.id);
     },
-    enabled: !!user && !isEdit
+    enabled: !!user && !isEdit,
+     staleTime: 0, // ADD THIS - Always consider data stale
+      gcTime: 0 // ADD THIS - Don't cache the result
   });
 
   useEffect(() => {
@@ -194,13 +199,14 @@ export const InvoiceForm: React.FC = () => {
     if (!template) return;
     
     const templateData = template.template_data;
-    
+    const currentInvoiceNumber = formData.invoice_number;
     // Load template data into form
     setFormData(prev => ({
       ...prev,
       tax_rate: templateData.tax_rate?.toString() || '0',
       notes: templateData.notes || '',
       payment_terms: templateData.payment_terms || 30,
+      invoice_number: currentInvoiceNumber,
       // Don't override client, date, due_date, invoice_number
     }));
     
@@ -412,6 +418,8 @@ export const InvoiceForm: React.FC = () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['recurring-invoices'] });
+       queryClient.invalidateQueries({ queryKey: ['nextInvoiceNumber'] }); // ADD THIS LINE
+
       
       navigate('/invoices');
     },
@@ -847,7 +855,7 @@ export const InvoiceForm: React.FC = () => {
                   required
                 />
                 <div className="w-32 px-3 py-2 bg-gray-100 rounded-lg text-right font-medium">
-                  ${item.amount.toFixed(2)}
+                  {formatCurrency(item.amount)}
                 </div>
                 <button
                   type="button"
@@ -867,7 +875,7 @@ export const InvoiceForm: React.FC = () => {
               <div className="w-64 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                  <span className="font-medium">{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Tax</span>
@@ -882,12 +890,12 @@ export const InvoiceForm: React.FC = () => {
                       className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
                     />
                     <span>%</span>
-                    <span className="font-medium w-20 text-right">${taxAmount.toFixed(2)}</span>
+                    <span className="font-medium w-20 text-right">{formatCurrency(taxAmount)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between text-lg font-bold pt-2 border-t">
                   <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
