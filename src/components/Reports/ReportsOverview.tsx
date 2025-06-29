@@ -56,8 +56,10 @@ import {
 import { getIncomes, getExpenses, getInvoices, getClients, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, eachMonthOfInterval, parseISO, isWithinInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, eachMonthOfInterval, parseISO, isWithinInterval, differenceInDays } from 'date-fns';
 import { supabase } from '../../services/supabaseClient';
+import { InsightsEngine, Insight } from '../../services/insightsService';
+import { InsightsPanel } from './InsightsPanel';
 
 // Types
 interface MonthlyData {
@@ -110,7 +112,15 @@ export const ReportsOverview: React.FC = () => {
   const [compareMode, setCompareMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [loadingInsights, setLoadingInsights] = useState(true);
+const [dismissedInsights, setDismissedInsights] = useState<string[]>(() => {
+  // Load dismissed insights from localStorage on component mount
+  const saved = localStorage.getItem('dismissedInsights');
+  return saved ? JSON.parse(saved) : [];
+});
+const [showAllInsights, setShowAllInsights] = useState(false);
+
   // Data states
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [categoryData, setCategoryData] = useState<{ income: CategoryBreakdown[], expense: CategoryBreakdown[] }>({ income: [], expense: [] });
@@ -140,10 +150,12 @@ export const ReportsOverview: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [showDetails, setShowDetails] = useState(false);
+  const [categoryView, setCategoryView] = useState<'income' | 'expense'>('income');
 
   useEffect(() => {
-    loadReportData();
-  }, [user, period]);
+  clearOldDismissedInsights();
+  loadReportData();
+}, [user, period]);
 
 
 const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
@@ -207,6 +219,9 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       processClientMetrics(clients, incomes, invoices);
       processKPIMetrics(incomes, expenses, invoices, clients, prevIncomes, prevExpenses);
       processVendorMetrics(expenses);
+      
+      // Generate insights after all data is processed
+      await generateInsights();
 
     } catch (err: any) {
       console.error('Error loading report data:', err);
@@ -504,6 +519,165 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
   
   setTopVendors(sortedVendors);
 };
+const generateInsights = async () => {
+   if (!user) return; 
+    try {
+      setLoadingInsights(true);
+      const incomes = await getIncomes(user.id, format(subMonths(new Date(), 6), 'yyyy-MM-dd'), format(new Date(), 'yyyy-MM-dd'));
+      const expenses = await getExpenses(user.id, format(subMonths(new Date(), 6), 'yyyy-MM-dd'), format(new Date(), 'yyyy-MM-dd'));
+      const invoices = await getInvoices(user.id);
+      const clients = await getClients(user.id);
+      // Prepare data for insights engine
+      const currentMonthStart = startOfMonth(new Date());
+      const lastMonthStart = subMonths(currentMonthStart, 1);
+      
+      // Calculate current month metrics
+      const currentMonthIncomes = incomes.filter(inc => 
+        new Date(inc.date) >= currentMonthStart
+      );
+      const currentMonthExpenses = expenses.filter(exp => 
+        new Date(exp.date) >= currentMonthStart
+      );
+      
+      // Calculate last month metrics
+      const lastMonthIncomes = incomes.filter(inc => 
+        new Date(inc.date) >= lastMonthStart && 
+        new Date(inc.date) < currentMonthStart
+      );
+      const lastMonthExpenses = expenses.filter(exp => 
+        new Date(exp.date) >= lastMonthStart && 
+        new Date(exp.date) < currentMonthStart
+      );
+      
+      // Calculate averages (last 6 months)
+      // Calculate averages and months of data
+        const sixMonthsAgo = subMonths(new Date(), 6);
+        const last6MonthsIncomes = incomes.filter(inc => 
+          new Date(inc.date) >= sixMonthsAgo
+        );
+
+        // Calculate actual months of data (important for new users)
+        let monthsOfData = 1;
+        if (incomes.length > 0 || expenses.length > 0) {
+          const allTransactions = [...incomes, ...expenses];
+          const oldestTransaction = allTransactions
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+          
+          if (oldestTransaction) {
+            monthsOfData = Math.max(1, Math.ceil(
+              differenceInDays(new Date(), new Date(oldestTransaction.date)) / 30
+            ));
+          }
+        }
+
+          // Use actual months for average calculation
+          const avgMonthlyRevenue = monthsOfData >= 6 
+            ? last6MonthsIncomes.reduce((sum, inc) => sum + inc.amount, 0) / 6
+            : incomes.reduce((sum, inc) => sum + inc.amount, 0) / Math.min(monthsOfData, Math.max(1, monthsOfData));
+                
+      // Get expense categories
+      const expenseByCategory = expenses.reduce((acc, expense) => {
+        const category = expense.category?.name || 'Uncategorized';
+        if (!acc[category]) acc[category] = 0;
+        acc[category] += expense.amount;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      const topCategories = Object.entries(expenseByCategory)
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5);
+      
+      // Calculate cash flow metrics
+      const currentBalance = incomes.reduce((sum, inc) => sum + inc.amount, 0) - 
+                            expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const avgMonthlyExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0) / 6;
+      const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
+      const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + inv.total, 0);
+      const expectedIncome30Days = invoices
+        .filter(inv => {
+          const dueDate = new Date(inv.due_date);
+          const today = new Date();
+          const thirtyDaysFromNow = new Date(today.setDate(today.getDate() + 30));
+          return inv.status !== 'paid' && dueDate <= thirtyDaysFromNow;
+        })
+        .reduce((sum, inv) => sum + inv.total, 0);
+      
+      // Calculate tax metrics
+      const categorizedExpenses = expenses.filter(exp => exp.category_id).reduce((sum, exp) => sum + exp.amount, 0);
+      const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const quarterlyTaxEstimate = (incomes.reduce((sum, inc) => sum + inc.amount, 0) - totalExpenses) * 0.25; // Rough estimate
+      
+      // Get insights
+      const insightsData = await InsightsEngine.getAllInsights({
+        revenue: {
+          current: currentMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0),
+          previous: lastMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0),
+          average: avgMonthlyRevenue
+        },
+        expenses: {
+          current: currentMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+          previous: lastMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+          byCategory: topCategories
+        },
+        cashFlow: {
+          balance: currentBalance,
+          monthlyExpenses: avgMonthlyExpenses,
+          expectedIncome: expectedIncome30Days,
+          overdueAmount: overdueAmount
+        },
+        invoices: invoices,
+        clients: clients,
+        tax: {
+          categorizedAmount: categorizedExpenses,
+          totalAmount: totalExpenses,
+          quarterlyEstimate: quarterlyTaxEstimate
+        }
+      });
+      
+      // Filter out dismissed insights
+      const activeInsights = insightsData.filter(insight => 
+        !dismissedInsights.includes(insight.id)
+      );
+      
+      setInsights(activeInsights);
+    } catch (error) {
+      console.error('Error generating insights:', error);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  const handleDismissInsight = (insightId: string) => {
+  const newDismissed = [...dismissedInsights, insightId];
+  setDismissedInsights(newDismissed);
+  setInsights(prev => prev.filter(insight => insight.id !== insightId));
+  
+  // Save to localStorage
+  localStorage.setItem('dismissedInsights', JSON.stringify(newDismissed));
+  
+  // Optional: Clear old dismissed insights after 30 days
+  const dismissalData = {
+    insights: newDismissed,
+    timestamp: new Date().toISOString()
+  };
+  localStorage.setItem('dismissedInsightsData', JSON.stringify(dismissalData));
+};
+
+const clearOldDismissedInsights = () => {
+  const savedData = localStorage.getItem('dismissedInsightsData');
+  if (savedData) {
+    const { insights, timestamp } = JSON.parse(savedData);
+    const daysSinceDismissal = differenceInDays(new Date(), new Date(timestamp));
+    
+    // Clear dismissed insights older than 30 days
+    if (daysSinceDismissal > 30) {
+      setDismissedInsights([]);
+      localStorage.removeItem('dismissedInsights');
+      localStorage.removeItem('dismissedInsightsData');
+    }
+  }
+};
 
   const refreshData = async () => {
     setRefreshing(true);
@@ -681,6 +855,13 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
                 <FileText className="h-4 w-4 mr-2" />
                 Tax Reports
               </Link>
+              <Link
+                  to="/reports/client-profitability"
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg shadow-purple-200"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Client Profitability
+                </Link>
              
             </div>
           </div>
@@ -788,9 +969,15 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           </div>
         </div>
+{/* Smart Insights Panel */}
+        <InsightsPanel 
+          insights={insights} 
+          onDismiss={handleDismissInsight}
+          loading={loadingInsights}
+        />
 
          {/* Insights Panel */}
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
+        {/* <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
               <AlertCircle className="h-6 w-6" />
@@ -835,7 +1022,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
               </div>
             )}
           </div>
-        </div>
+        </div> */}
 
         {/* Main Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -940,65 +1127,205 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
           </div>
 
           {/* Category Performance */}
+          {/* Category Performance - Enhanced */}
 <div className="bg-white rounded-2xl shadow-lg p-6">
-  <div className="flex justify-between items-center mb-6">
-    <h2 className="text-xl font-bold text-gray-900">Category Performance</h2>
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+      <h2 className="text-xl font-bold text-gray-900">Category Breakdown</h2>
+      <p className="text-sm text-gray-600 mt-1">Where your money comes from and goes</p>
+    </div>
     <div className="flex items-center gap-2">
-      <button className="text-sm px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg font-medium">
-        Income
+      <button
+        onClick={() => setCategoryView('income')}
+        className={`text-sm px-4 py-2 rounded-lg font-medium transition-all ${
+          categoryView === 'income'
+            ? 'bg-emerald-100 text-emerald-700 shadow-sm'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Income
+        </div>
       </button>
-      <button className="text-sm px-3 py-1 bg-gray-100 text-gray-600 rounded-lg">
-        Expenses
+      <button
+        onClick={() => setCategoryView('expense')}
+        className={`text-sm px-4 py-2 rounded-lg font-medium transition-all ${
+          categoryView === 'expense'
+            ? 'bg-red-100 text-red-700 shadow-sm'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <TrendingDown className="h-4 w-4" />
+          Expenses
+        </div>
       </button>
     </div>
   </div>
   
-  <div className="h-80">
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={categoryData.income}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          outerRadius={100}
-          fill="#8884d8"
-          dataKey="value"
-          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
-            const RADIAN = Math.PI / 180;
-            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-            const x = cx + radius * Math.cos(-midAngle * RADIAN);
-            const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-            return (
-              <text 
-                x={x} 
-                y={y} 
-                fill="white" 
-                textAnchor={x > cx ? 'start' : 'end'} 
-                dominantBaseline="central"
-                fontSize={12}
-                fontWeight="bold"
-              >
-                {`${(percent * 100).toFixed(0)}%`}
-              </text>
-            );
-          }}
-        >
-          {categoryData.income.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
-          ))}
-        </Pie>
-        <Tooltip formatter={(value: any) => formatCurrency(value)} />
-        <Legend 
-          verticalAlign="bottom" 
-          height={36}
-          formatter={(value, entry: any) => `${value}: ${formatCurrency(entry.payload.value)}`}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+  {/* Summary Stats */}
+  <div className="grid grid-cols-2 gap-4 mb-6">
+    <div className={`p-4 rounded-xl ${
+      categoryView === 'income' 
+        ? 'bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200' 
+        : 'bg-gradient-to-br from-red-50 to-pink-50 border border-red-200'
+    }`}>
+      <p className={`text-sm font-medium ${
+        categoryView === 'income' ? 'text-emerald-700' : 'text-red-700'
+      }`}>
+        Total {categoryView === 'income' ? 'Income' : 'Expenses'}
+      </p>
+      <p className={`text-2xl font-bold mt-1 ${
+        categoryView === 'income' ? 'text-emerald-900' : 'text-red-900'
+      }`}>
+        {formatCurrency(
+          categoryView === 'income'
+            ? categoryData.income.reduce((sum, cat) => sum + cat.value, 0)
+            : categoryData.expense.reduce((sum, cat) => sum + cat.value, 0)
+        )}
+      </p>
+    </div>
+    <div className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200">
+      <p className="text-sm font-medium text-gray-700">Categories</p>
+      <p className="text-2xl font-bold text-gray-900 mt-1">
+        {categoryView === 'income' ? categoryData.income.length : categoryData.expense.length}
+      </p>
+    </div>
   </div>
-</div>
+
+  {/* Chart and Details Container */}
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {/* Pie Chart */}
+    <div className="h-64 relative">
+      {(categoryView === 'income' ? categoryData.income : categoryData.expense).length > 0 ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={categoryView === 'income' ? categoryData.income : categoryData.expense}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={90}
+              paddingAngle={2}
+              dataKey="value"
+            >
+              {(categoryView === 'income' ? categoryData.income : categoryData.expense)
+                .map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={chartColors[index % chartColors.length]} 
+                  />
+                ))}
+            </Pie>
+            <Tooltip 
+              formatter={(value: any) => formatCurrency(value)}
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                border: 'none',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <PieChartIcon className="h-10 w-10 text-gray-400" />
+            </div>
+            <p className="text-gray-500">No {categoryView} data yet</p>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Category List */}
+    <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+      {(categoryView === 'income' ? categoryData.income : categoryData.expense)
+        .slice(0, 6)
+        .map((category, index) => {
+          const isPositiveTrend = category.trend > 0;
+          return (
+            <div
+              key={category.name}
+              className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div
+                  className="w-4 h-4 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: chartColors[index % chartColors.length] }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{category.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {category.count} transaction{category.count !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="text-right">
+                  <p className="font-semibold text-gray-900">
+                    {formatCurrency(category.value)}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {category.percentage.toFixed(1)}%
+                  </p>
+                </div>
+                {category.trend !== 0 && (
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    isPositiveTrend
+                      ? categoryView === 'income' 
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-red-100 text-red-700'
+                      : categoryView === 'income'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {isPositiveTrend ? (
+                      <ArrowUpRight className="h-3 w-3" />
+                    ) : (
+                      <ArrowDownRight className="h-3 w-3" />
+                    )}
+                    {Math.abs(category.trend).toFixed(0)}%
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      
+      {(categoryView === 'income' ? categoryData.income : categoryData.expense).length > 6 && (
+        <button className="w-full text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2">
+          View all {(categoryView === 'income' ? categoryData.income : categoryData.expense).length} categories →
+        </button>
+      )}
+    </div>
+  </div>
+
+  {/* Insights for categories */}
+  {categoryView === 'expense' && categoryData.expense.length > 0 && (
+    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-medium text-amber-900">
+            Top spending category: {categoryData.expense[0].name}
+          </p>
+          <p className="text-sm text-amber-700 mt-1">
+            Represents {categoryData.expense[0].percentage.toFixed(1)}% of total expenses. 
+            {categoryData.expense[0].trend > 20 && ' Spending increased by ' + categoryData.expense[0].trend.toFixed(0) + '% from last period.'}
+          </p>
+        </div>
+      </div>
+    </div>
+  )}
+
+
+
+          
+        </div>
         </div>
 
         {/* Cash Flow & Client Analysis */}

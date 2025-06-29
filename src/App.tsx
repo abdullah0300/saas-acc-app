@@ -42,7 +42,7 @@ import { TaxReport } from './components/Reports/TaxReport';
 import { SubscriptionEnforcer } from './components/Subscription/SubscriptionEnforcer';
 import { PlanProtectedRoute } from './components/Auth/PlanProtectedRoute';
 import { VendorList, VendorForm } from './components/Vendors';
-
+import { ClientProfitability } from './components/Reports/ClientProfitability';
 // Create a QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -128,6 +128,12 @@ function App() {
                           <ProfitLossReport />
                         </PlanProtectedRoute>
                       } />
+                      <Route path="/reports/client-profitability" element={
+                      <PlanProtectedRoute feature="advanced_reports">
+                        <ClientProfitability />
+                      </PlanProtectedRoute>
+                    } />
+
                       <Route path="/reports/cash-flow" element={
                         <PlanProtectedRoute feature="cash_flow_analysis">
                           <CashFlowInsights />
