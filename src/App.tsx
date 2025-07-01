@@ -43,6 +43,8 @@ import { SubscriptionEnforcer } from './components/Subscription/SubscriptionEnfo
 import { PlanProtectedRoute } from './components/Auth/PlanProtectedRoute';
 import { VendorList, VendorForm } from './components/Vendors';
 import { ClientProfitability } from './components/Reports/ClientProfitability';
+import { SecuritySettings } from './components/Settings/SecuritySettings';
+
 // Create a QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -173,6 +175,7 @@ function App() {
                 <Route path="team" element={<TeamManagement />} />
                 <Route path="subscription" element={<SubscriptionPlans />} />
                   <Route path="audit" element={<AuditLogs />} />
+                  <Route path="security" element={<SecuritySettings />} />
               </Route>
               
               <Route path="/payment/success" element={<PaymentSuccess />} />

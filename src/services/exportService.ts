@@ -1,11 +1,52 @@
 // src/services/exportService.ts
 
-import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, parseISO } from 'date-fns';
 import { ExportTemplates, ExportType, ExportOptions } from './exportTemplates';
 import { getIncomes, getExpenses, getInvoices, getClients } from './database';
 import { supabase } from './supabaseClient';
+import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, parseISO, startOfYear } from 'date-fns';
+import { auditService } from './auditService';
 
 export class ExportService {
+  // Add this method to the ExportService class
+static async exportAllData(userId: string): Promise<void> {
+  try {
+    // Create a timestamp for all exports
+    const timestamp = format(new Date(), 'yyyy-MM-dd-HHmm');
+    
+    // Export all data types
+    const exports = [
+      this.exportData('summary', userId, { 
+        dateRange: { 
+          start: '2020-01-01', 
+          end: format(new Date(), 'yyyy-MM-dd') 
+        } 
+      }),
+      this.exportData('detailed', userId, { 
+        dateRange: { 
+          start: '2020-01-01', 
+          end: format(new Date(), 'yyyy-MM-dd') 
+        } 
+      }),
+      this.exportData('tax', userId, {
+        dateRange: { 
+          start: format(startOfYear(new Date()), 'yyyy-MM-dd'), 
+          end: format(new Date(), 'yyyy-MM-dd') 
+        }
+      })
+    ];
+    
+    await Promise.all(exports);
+    
+    // Log the export
+    await auditService.logExport('user', { 
+      type: 'full_account_export',
+      timestamp 
+    });
+  } catch (error) {
+    console.error('Failed to export all data:', error);
+    throw error;
+  }
+}
   // Main export function
   static async exportData(
     type: ExportType,
@@ -82,6 +123,7 @@ export class ExportService {
       .reduce((sum, inv) => sum + inv.total, 0);
     const collectionRate = this.calculateCollectionRate(periodInvoices);
     const avgDaysToPayment = this.calculateAvgPaymentDays(periodInvoices);
+    
     
     // Monthly breakdown
     const monthlyData = this.generateMonthlyBreakdown(incomes, expenses, startDate, endDate);
