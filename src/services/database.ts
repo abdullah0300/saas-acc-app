@@ -492,6 +492,21 @@ export const createInvoice = async (
       .single();
     
     if (fetchError) throw fetchError;
+    // ADD THESE LINES:
+// Check if we should show anticipation modal after successful creation
+const currentUsage = limitCheck.usage + 1; // We just created one
+const usagePercentage = (currentUsage / limitCheck.limit) * 100;
+if (usagePercentage >= 80 && usagePercentage < 100) {
+  // Dispatch custom event that SubscriptionContext will listen for
+  window.dispatchEvent(new CustomEvent('invoiceCreated', { 
+    detail: { 
+      usage: currentUsage, 
+      limit: limitCheck.limit 
+    } 
+  }));
+}
+
+return newInvoice;
     return newInvoice;
   } else {
     // For unlimited plans, use regular insert

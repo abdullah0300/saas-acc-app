@@ -1,6 +1,9 @@
 // src/components/Layout/Sidebar.tsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Crown, Calculator } from 'lucide-react';
+import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   Home, 
   TrendingUp, 
@@ -28,6 +31,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const { signOut, user } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const [profile, setProfile] = React.useState<User | null>(null);
+  const { hasFeature, showAnticipationModal } = useSubscription();
+const navigate = useNavigate();
 
   const menuItems = [
     { path: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -35,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { path: '/expenses', icon: TrendingDown, label: 'Expenses' },
     { path: '/clients', icon: Users, label: 'Clients' },
     { path: '/invoices', icon: FileText, label: 'Invoices' },
-    { path: '/budget', icon: PiggyBank, label: 'Budget' },
+    { path: '/budget', icon: PiggyBank, label: 'Budget', feature: 'budget_tracking' },
     { path: '/reports', icon: BarChart3, label: 'Reports' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
@@ -124,35 +129,47 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
-            {menuItems.map(({ path, icon: Icon, label }) => {
-              const active = isActive(path);
-              return (
-                <Link
-                  key={path}
-                  to={path}
-                  className={`group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    active
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
-                      : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
-                  }`}
-                  onClick={() => {
-                    if (window.innerWidth < 1024) {
-                      onToggle();
-                    }
-                  }}
-                >
-                  <Icon className={`h-5 w-5 transition-transform duration-200 ${
-                    active ? 'scale-110' : 'group-hover:scale-110'
-                  }`} />
-                  <span className="font-medium">{label}</span>
-                  {active && (
-                    <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Navigation */}
+<nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+  {menuItems.map(({ path, icon: Icon, label, feature }) => {
+    const active = isActive(path);
+    const hasAccess = !feature || hasFeature(feature as any);
+    
+    return (
+      <button
+        key={path}
+        onClick={() => {
+          if (feature && !hasAccess) {
+            showAnticipationModal('feature', {
+              featureName: label
+            });
+          } else {
+            navigate(path);
+            if (window.innerWidth < 1024) {
+              onToggle();
+            }
+          }
+        }}
+        className={`w-full group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+          active
+            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
+            : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
+        }`}
+      >
+        <Icon className={`h-5 w-5 transition-transform duration-200 ${
+          active ? 'scale-110' : 'group-hover:scale-110'
+        }`} />
+        <span className="font-medium">{label}</span>
+        {feature && !hasAccess && (
+          <Crown className="h-4 w-4 ml-auto text-amber-400" />
+        )}
+        {active && hasAccess && (
+          <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+        )}
+      </button>
+    );
+  })}
+</nav>
           
           {/* Sign out button */}
           <div className="p-4 border-t border-gray-700/50">

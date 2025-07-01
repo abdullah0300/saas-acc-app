@@ -63,6 +63,14 @@ interface SubscriptionContextType {
   // Actions
   refreshUsage: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
+   showAnticipationModal: (type: 'usage' | 'feature' | 'trial', context?: any) => void;
+  anticipationModalState: {
+    isOpen: boolean;
+    type: 'usage' | 'feature' | 'trial';
+    context?: any;
+  };
+  setAnticipationModalState: (state: any) => void;
+
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -86,10 +94,38 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+// ADD THESE NEW LINES:
+const [lastModalShown, setLastModalShown] = useState<{
+  [key: string]: Date;
+}>({});
+const [anticipationModalState, setAnticipationModalState] = useState<{
+  isOpen: boolean;
+  type: 'usage' | 'feature' | 'trial';
+  context?: any;
+}>({ isOpen: false, type: 'usage' });
 
   const plan = (subscription?.plan || 'simple_start') as PlanType;
   const limits = getPlanLimits(plan);
 
+  // ADD THIS NEW FUNCTION:
+const shouldShowAnticipationModal = (key: string): boolean => {
+  const lastShown = lastModalShown[key];
+  if (!lastShown) return true;
+  
+  const daysSinceLastShown = (new Date().getTime() - lastShown.getTime()) / (1000 * 60 * 60 * 24);
+  return daysSinceLastShown >= 7; // Show again after 7 days
+};
+
+const showAnticipationModal = (type: 'usage' | 'feature' | 'trial', context?: any) => {
+  const modalKey = `${type}-${context?.itemType || context?.featureName || 'default'}`;
+  
+  if (shouldShowAnticipationModal(modalKey)) {
+    setAnticipationModalState({ isOpen: true, type, context });
+    setLastModalShown({ ...lastModalShown, [modalKey]: new Date() });
+  }
+};
+
+// Existing loadSubscription function continues here...
   // Load subscription data
   const loadSubscription = useCallback(async () => {
     if (!user) return;
@@ -222,6 +258,23 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [user, loadSubscription]);
 
+  // Listen for invoice creation events
+useEffect(() => {
+  const handleInvoiceCreated = (event: CustomEvent) => {
+    const { usage, limit } = event.detail;
+    showAnticipationModal('usage', {
+      currentUsage: usage,
+      limit: limit,
+      itemType: 'invoices'
+    });
+  };
+  
+  window.addEventListener('invoiceCreated', handleInvoiceCreated as EventListener);
+  return () => {
+    window.removeEventListener('invoiceCreated', handleInvoiceCreated as EventListener);
+  };
+}, [showAnticipationModal]);
+
   // Feature checks
   const checkFeature = (feature: keyof PlanFeatures): boolean => {
     return hasFeature(plan, feature);
@@ -232,9 +285,23 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const checkCanCreateInvoice = (): boolean => {
-    return canCreateInvoice(plan, usage.monthlyInvoices);
-  };
-
+  const canCreate = canCreateInvoice(plan, usage.monthlyInvoices);
+  
+  // ADD THESE NEW LINES:
+  // Check if we should show anticipation modal (at 80% usage)
+  if (limits.monthlyInvoices > 0) {
+    const usagePercentage = (usage.monthlyInvoices / limits.monthlyInvoices) * 100;
+    if (usagePercentage >= 80 && usagePercentage < 100 && canCreate) {
+      showAnticipationModal('usage', {
+        currentUsage: usage.monthlyInvoices,
+        limit: limits.monthlyInvoices,
+        itemType: 'invoices'
+      });
+    }
+  }
+  
+  return canCreate;
+};
   const checkCanAddClients = (): boolean => {
     if (limits.totalClients === -1) return true;
     return usage.totalClients < limits.totalClients;
@@ -318,7 +385,10 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     trialDaysLeft,
     isActive,
     refreshUsage,
-    refreshSubscription
+    refreshSubscription,
+    showAnticipationModal,
+    anticipationModalState,
+    setAnticipationModalState
   };
 
   return (

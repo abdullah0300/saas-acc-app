@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { ExportService } from '../../services/exportService';
+import { Crown } from 'lucide-react';
+import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -60,6 +64,7 @@ import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, ea
 import { supabase } from '../../services/supabaseClient';
 import { InsightsEngine, Insight } from '../../services/insightsService';
 import { InsightsPanel } from './InsightsPanel';
+import { ExportDropdown } from './ExportDropdown';
 
 // Types
 interface MonthlyData {
@@ -107,6 +112,8 @@ interface CashFlowData {
 
 export const ReportsOverview: React.FC = () => {
   const { user } = useAuth();
+  const { hasFeature, showAnticipationModal } = useSubscription();
+const navigate = useNavigate();
   const { formatCurrency, baseCurrency } = useSettings();
   const [period, setPeriod] = useState('6months');
   const [compareMode, setCompareMode] = useState(false);
@@ -146,19 +153,21 @@ const [showAllInsights, setShowAllInsights] = useState(false);
     clientGrowth: 0
   });
 
+
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [showDetails, setShowDetails] = useState(false);
   const [categoryView, setCategoryView] = useState<'income' | 'expense'>('income');
 
-  useEffect(() => {
+ useEffect(() => {
   clearOldDismissedInsights();
   loadReportData();
 }, [user, period]);
 
 
 const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
+
 
   const loadReportData = async () => {
     if (!user) return;
@@ -685,36 +694,44 @@ const clearOldDismissedInsights = () => {
     setRefreshing(false);
   };
 
-  const exportReport = () => {
-    // Generate comprehensive CSV report
-    let csv = 'AccuBooks Financial Report\n';
-    csv += `Period: ${period}\n`;
-    csv += `Generated: ${format(new Date(), 'MMMM dd, yyyy HH:mm')}\n\n`;
-    
-    // KPI Summary
-    csv += 'KEY PERFORMANCE INDICATORS\n';
-    csv += `Total Revenue,${kpiMetrics.totalRevenue}\n`;
-    csv += `Total Expenses,${kpiMetrics.totalExpenses}\n`;
-    csv += `Net Profit,${kpiMetrics.netProfit}\n`;
-    csv += `Profit Margin,${kpiMetrics.profitMargin.toFixed(2)}%\n`;
-    csv += `Collection Rate,${kpiMetrics.collectionRate.toFixed(2)}%\n`;
-    csv += `Average Days to Payment,${kpiMetrics.avgDaysToPayment.toFixed(0)}\n\n`;
-    
-    // Monthly Breakdown
-    csv += 'MONTHLY BREAKDOWN\n';
-    csv += 'Month,Revenue,Expenses,Profit,Invoiced,Collected\n';
-    monthlyData.forEach(month => {
-      csv += `${month.month},${month.income},${month.expenses},${month.profit},${month.invoiced},${month.collected}\n`;
-    });
-    
-    // Download
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `financial-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-  };
+  const exportReport = async () => {
+    if (!user) return;
+  // This function is now deprecated - using ExportDropdown instead
+  // Keeping for backward compatibility if needed
+  const dateRange = getDateRangeForPeriod();
+  await ExportService.exportData('summary', user.id, { dateRange });
+};
+
+const getDateRangeForPeriod = () => {
+  const now = new Date();
+  switch (period) {
+    case '1month':
+      return {
+        start: format(subMonths(now, 30), 'yyyy-MM-dd'),
+        end: format(now, 'yyyy-MM-dd')
+      };
+    case '3months':
+      return {
+        start: format(subMonths(now, 90), 'yyyy-MM-dd'),
+        end: format(now, 'yyyy-MM-dd')
+      };
+    case '6months':
+      return {
+        start: format(subMonths(now, 180), 'yyyy-MM-dd'),
+        end: format(now, 'yyyy-MM-dd')
+      };
+    case '1year':
+      return {
+        start: format(subMonths(now, 365), 'yyyy-MM-dd'),
+        end: format(now, 'yyyy-MM-dd')
+      };
+    default:
+      return {
+        start: format(subMonths(now, 180), 'yyyy-MM-dd'),
+        end: format(now, 'yyyy-MM-dd')
+      };
+  }
+};
 
   // Custom chart components
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -814,7 +831,7 @@ const clearOldDismissedInsights = () => {
                 Refresh
               </button>
               
-              <button
+              {/* <button
                 onClick={() => setCompareMode(!compareMode)}
                 className={`inline-flex items-center px-4 py-2 rounded-xl transition-all ${
                   compareMode 
@@ -824,8 +841,7 @@ const clearOldDismissedInsights = () => {
               >
                 <Activity className="h-4 w-4 mr-2" />
                 Compare
-              </button>
-              
+              </button> */}
               <button
                 onClick={exportReport}
                 className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all"
@@ -834,34 +850,93 @@ const clearOldDismissedInsights = () => {
                 Export
               </button>
               
-              <Link
-                to="/reports/profit-loss"
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                P&L Statement
-              </Link>
-              <Link
-                to="/reports/cash-flow"
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Cash Flow
-              </Link>
-              <Link
-                to="/reports/tax"
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Tax Reports
-              </Link>
-              <Link
-                  to="/reports/client-profitability"
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg shadow-purple-200"
+  {/* Only show for Essentials and Plus plans */}
+{/* Advanced Export - Show to all users with Pro badge */}
+{user && (
+  <ExportDropdown 
+    userId={user.id}
+    clients={clientMetrics}
+    currentPeriod={period}
+  />
+)}
+              
+              {/* Replace the P&L Statement Link */}
+                <button
+                  onClick={() => {
+                    if (hasFeature('profit_loss_statements')) {
+                      navigate('/reports/profit-loss');
+                    } else {
+                      showAnticipationModal('feature', {
+                        featureName: 'Profit & Loss Statements'
+                      });
+                    }
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
                 >
-                  <Users className="h-4 w-4 mr-2" />
-                  Client Profitability
-                </Link>
+                  <FileText className="h-4 w-4 mr-2" />
+                  P&L Statement
+                  {!hasFeature('profit_loss_statements') && (
+                    <Crown className="h-4 w-4 ml-2 text-amber-300" />
+                  )}
+                </button>
+
+              <button
+                    onClick={() => {
+                      if (hasFeature('cash_flow_analysis')) {
+                        navigate('/reports/cash-flow');
+                      } else {
+                        showAnticipationModal('feature', {
+                          featureName: 'Cash Flow Analysis'
+                        });
+                      }
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Cash Flow
+                    {!hasFeature('cash_flow_analysis') && (
+                      <Crown className="h-4 w-4 ml-2 text-amber-300" />
+                    )}
+                  </button>
+
+              <button
+                    onClick={() => {
+                      if (hasFeature('advanced_tax_reports')) {
+                        navigate('/reports/tax');
+                      } else {
+                        showAnticipationModal('feature', {
+                          featureName: 'Advanced Tax Reports'
+                        });
+                      }
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Tax Reports
+                    {!hasFeature('advanced_tax_reports') && (
+                      <Crown className="h-4 w-4 ml-2 text-amber-300" />
+                    )}
+                  </button>
+
+
+              <button
+                      onClick={() => {
+                        if (hasFeature('advanced_reports')) {
+                          navigate('/reports/client-profitability');
+                        } else {
+                          showAnticipationModal('feature', {
+                            featureName: 'Client Profitability Analysis'
+                          });
+                        }
+                      }}
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg shadow-purple-200"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Client Profitability
+                      {!hasFeature('advanced_reports') && (
+                        <Crown className="h-4 w-4 ml-2 text-amber-300" />
+                      )}
+                    </button>
              
             </div>
           </div>

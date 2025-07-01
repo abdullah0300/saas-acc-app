@@ -1,51 +1,51 @@
 // src/components/Auth/PlanProtectedRoute.tsx
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { FeatureGate } from '../Subscription/FeatureGate';
 import { PlanFeatures } from '../../config/subscriptionConfig';
 
 interface PlanProtectedRouteProps {
   children: React.ReactNode;
   feature: keyof PlanFeatures;
-  redirectTo?: string;
-  showModal?: boolean;
+  featureName?: string;
+  fallbackPath?: string; // Where to redirect if no access
 }
 
 export const PlanProtectedRoute: React.FC<PlanProtectedRouteProps> = ({ 
   children, 
   feature,
-  redirectTo = '/settings/subscription',
-  showModal = true
+  featureName,
+  fallbackPath = '/dashboard' // Default fallback
 }) => {
-  const { hasFeature, loading } = useSubscription();
+  const navigate = useNavigate();
+  const { hasFeature, setAnticipationModalState } = useSubscription();
+  const hasAccess = hasFeature(feature);
+  const hasCheckedAccess = useRef(false);
   
-  // Show loading state
-  if (loading) {
+  useEffect(() => {
+    if (!hasAccess && !hasCheckedAccess.current) {
+      hasCheckedAccess.current = true;
+      
+      // Show the modal with a custom onClose handler
+      setAnticipationModalState({
+        isOpen: true,
+        type: 'feature',
+        context: {
+          featureName: featureName || feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          fallbackPath: fallbackPath // Pass the fallback path to the modal
+        }
+      });
+    }
+  }, [hasAccess, feature, featureName, setAnticipationModalState, fallbackPath]);
+  
+  // Don't render restricted content
+  if (!hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
   
-  // Check if user has access to this feature
-  if (!hasFeature(feature)) {
-    if (showModal) {
-      return (
-        <>
-          <Navigate to={redirectTo} />
-          <FeatureGate feature={feature} variant="modal">
-            {/* Empty fragment as children since we're just showing the modal */}
-            <></>
-          </FeatureGate>
-        </>
-      );
-    }
-    
-    return <Navigate to={redirectTo} />;
-  }
-  
-  // User has access, render the protected content
   return <>{children}</>;
 };

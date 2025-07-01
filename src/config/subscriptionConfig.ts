@@ -27,6 +27,7 @@ export interface PlanFeatures {
   advanced_reports: boolean;
   tax_management: boolean;
   priority_support: boolean;
+  advanced_exports: boolean;
   
   // Plus+ features
   unlimited_invoices: boolean;
@@ -79,7 +80,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       category_management: true,
       export_pdf: true,
       email_support: true,
-      
+      advanced_exports: false,
       // Advanced features - not available
       multi_currency: false,
       recurring_invoices: false,
@@ -124,7 +125,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       category_management: true,
       export_pdf: true,
       email_support: true,
-      
+      advanced_exports: true,
+
       // Essentials features
       multi_currency: true,
       recurring_invoices: true,
@@ -184,10 +186,12 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       cash_flow_analysis: true,
       budget_tracking: true,
       phone_support: true,
+      advanced_exports: true,
       api_access: false,
       audit_trail: true,
       team_permissions: true,
       dedicated_support: false
+      
     }
   }
 };

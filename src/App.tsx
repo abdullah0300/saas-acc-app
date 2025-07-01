@@ -124,23 +124,33 @@ function App() {
               {/* Reports */}
                       <Route path="/reports" element={<ReportsOverview />} />
                       <Route path="/reports/profit-loss" element={
-                        <PlanProtectedRoute feature="profit_loss_statements">
+                        <PlanProtectedRoute feature="profit_loss_statements"
+                         featureName="Profit & Loss Statements"     // ADD THIS LINE
+    fallbackPath="/reports">
                           <ProfitLossReport />
                         </PlanProtectedRoute>
                       } />
                       <Route path="/reports/client-profitability" element={
-                      <PlanProtectedRoute feature="advanced_reports">
+                      <PlanProtectedRoute feature="advanced_reports"
+                      featureName="Client Profitability Analysis" // ADD THIS LINE
+    fallbackPath="/reports"
+                      >
                         <ClientProfitability />
                       </PlanProtectedRoute>
                     } />
 
                       <Route path="/reports/cash-flow" element={
-                        <PlanProtectedRoute feature="cash_flow_analysis">
+                        <PlanProtectedRoute feature="cash_flow_analysis"
+                         featureName="Cash Flow Analysis"           // ADD THIS LINE
+    fallbackPath="/reports">
                           <CashFlowInsights />
                         </PlanProtectedRoute>
                       } />
+
                       <Route path="/reports/tax" element={
-                        <PlanProtectedRoute feature="advanced_tax_reports">
+                        <PlanProtectedRoute feature="advanced_tax_reports"
+                        featureName="Advanced Tax Reports"         // ADD THIS LINE
+    fallbackPath="/reports">
                           <TaxReport />
                         </PlanProtectedRoute>
                       } />
