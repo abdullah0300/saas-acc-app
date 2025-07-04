@@ -1,8 +1,8 @@
 // src/components/Layout/Header.tsx
 import React from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Bell, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { NotificationBell } from '../Notifications/NotificationBell'; // ADD THIS
+import { NotificationBell } from '../Notifications/NotificationBell';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -12,17 +12,40 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user } = useAuth();
 
   return (
-    <header className="bg-white shadow-sm border-b">
-      <div className="flex items-center justify-between px-4 py-4">
+    <header className="bg-white shadow-sm border-b lg:bg-white lg:shadow-sm lg:border-b">
+      <div className="flex items-center justify-between px-4 py-4 lg:px-4 lg:py-4">
+        {/* Desktop Menu Button (Hidden on mobile) */}
         <button
           onClick={onMenuClick}
-          className="lg:hidden text-gray-600 hover:text-gray-900"
+          className="hidden lg:block text-gray-600 hover:text-gray-900"
         >
           <Menu className="h-6 w-6" />
         </button>
         
-        <div className="flex items-center space-x-4 ml-auto">
-          {/* Replace the static Bell with NotificationBell component */}
+        {/* Mobile Logo */}
+        <div className="flex items-center lg:hidden">
+          <img 
+            src="/logo.png" 
+            alt="Logo" 
+            className="h-8 w-auto"
+          />
+        </div>
+        
+        {/* Mobile: Futuristic Header Design */}
+        <div className="flex items-center space-x-3 lg:hidden">
+          {/* Notification Bell - Mobile (Functional) */}
+          <div className="relative rounded-full bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl [&>button]:p-2 [&>button]:bg-transparent [&>button]:hover:bg-transparent [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-white">
+            <NotificationBell />
+          </div>
+          
+          {/* Profile Button - Mobile */}
+          <button className="relative p-2 rounded-full bg-gradient-to-r from-purple-300 to-pink-300 hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl">
+            <User className="h-5 w-5 text-white" />
+          </button>
+        </div>
+        
+        {/* Desktop: Original Design */}
+        <div className="hidden lg:flex items-center space-x-4 ml-auto">
           <NotificationBell />
         </div>
       </div>
