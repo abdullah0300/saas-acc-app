@@ -641,7 +641,7 @@ export class InsightsEngine {
         allInsights.push({
           id: 'get-started',
           type: 'info',
-          title: 'Welcome to AccuBooks! 👋',
+          title: 'Welcome to SmartCFO! 👋',
           message: 'Start by creating your first invoice to begin tracking income and building financial insights.',
           action: {
             label: 'Create First Invoice',

@@ -1,21 +1,21 @@
 // src/components/Auth/Register.tsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { registrationService } from '../../services/registrationService';
-import { supabase } from '../../services/supabaseClient';
-import { 
-  Building2, 
-  Mail, 
-  Lock, 
-  User, 
-  Globe, 
-  MapPin, 
-  CreditCard, 
-  Check, 
-  AlertCircle, 
-  Star, 
-  Zap, 
-  Rocket, 
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { registrationService } from "../../services/registrationService";
+import { supabase } from "../../services/supabaseClient";
+import {
+  Building2,
+  Mail,
+  Lock,
+  User,
+  Globe,
+  MapPin,
+  CreditCard,
+  Check,
+  AlertCircle,
+  Star,
+  Zap,
+  Rocket,
   Building,
   Loader2,
   Eye,
@@ -36,9 +36,9 @@ import {
   Phone,
   CheckCircle,
   Trophy,
-  Gift
-} from 'lucide-react';
-import { countries, CountryData } from '../../data/countries';
+  Gift,
+} from "lucide-react";
+import { countries, CountryData } from "../../data/countries";
 
 interface Plan {
   id: string;
@@ -58,81 +58,81 @@ interface Plan {
 // Your actual plans matching subscription_plan_new enum
 const PLANS: Plan[] = [
   {
-    id: 'simple_start',
-    name: 'Simple Start',
+    id: "simple_start",
+    name: "Simple Start",
     monthlyPrice: 5,
     yearlyPrice: 48, // 20% off
     icon: Star,
     features: [
-      'Single user access',
-      'Up to 50 monthly invoices',
-      'Income & expense tracking',
-      'Basic financial reports',
-      'Client management',
-      'PDF export',
-      'Email support'
+      "Single user access",
+      "Up to 50 monthly invoices",
+      "Income & expense tracking",
+      "Basic financial reports",
+      "Client management",
+      "PDF export",
+      "Email support",
     ],
-    highlighted: ['Single user access', 'Up to 50 monthly invoices'],
+    highlighted: ["Single user access", "Up to 50 monthly invoices"],
     limits: {
       users: 1,
-      monthlyInvoices: 50
-    }
+      monthlyInvoices: 50,
+    },
   },
   {
-    id: 'essentials',
-    name: 'Essentials',
+    id: "essentials",
+    name: "Essentials",
     monthlyPrice: 25,
     yearlyPrice: 240, // 20% off
     icon: Zap,
     popular: true,
     features: [
-      'Up to 3 team members',
-      'Unlimited monthly invoices',
-      'Everything in Simple Start',
-      'Multi-currency support',
-      'Recurring invoices',
-      'Advanced reports',
-      'Tax management',
-      'Priority support'
+      "Up to 3 team members",
+      "Unlimited monthly invoices",
+      "Everything in Simple Start",
+      "Multi-currency support",
+      "Recurring invoices",
+      "Advanced reports",
+      "Tax management",
+      "Priority support",
     ],
-    highlighted: ['Up to 3 team members', 'Unlimited monthly invoices'],
+    highlighted: ["Up to 3 team members", "Unlimited monthly invoices"],
     limits: {
       users: 3,
-      monthlyInvoices: -1
-    }
+      monthlyInvoices: -1,
+    },
   },
   {
-    id: 'plus',
-    name: 'Plus',
+    id: "plus",
+    name: "Plus",
     monthlyPrice: 45,
     yearlyPrice: 432, // 20% off
     icon: Rocket,
     features: [
-      'Up to 10 team members',
-      'Unlimited monthly invoices',
-      'Everything in Essentials',
-      'Custom invoice branding',
-      'Budget tracking',
-      'Cash flow analysis',
-      'Phone & email support',
-      'Audit trail',
-      'Team permissions'
+      "Up to 10 team members",
+      "Unlimited monthly invoices",
+      "Everything in Essentials",
+      "Custom invoice branding",
+      "Budget tracking",
+      "Cash flow analysis",
+      "Phone & email support",
+      "Audit trail",
+      "Team permissions",
     ],
-    highlighted: ['Up to 10 team members', 'Phone & email support'],
+    highlighted: ["Up to 10 team members", "Phone & email support"],
     limits: {
       users: 10,
-      monthlyInvoices: -1
-    }
-  }
+      monthlyInvoices: -1,
+    },
+  },
 ];
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const inviteCode = searchParams.get('invite');
-  
+  const inviteCode = searchParams.get("invite");
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [inviteDetails, setInviteDetails] = useState<any>(null);
   const [checkingInvite, setCheckingInvite] = useState(!!inviteCode);
   const [showPassword, setShowPassword] = useState(false);
@@ -141,28 +141,45 @@ export const Register: React.FC = () => {
 
   // Form state
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    companyName: '',
-    country: 'US',
-    state: '',
-    plan: 'essentials',
-    interval: 'monthly' as 'monthly' | 'yearly'
+    email: "",
+    password: "",
+    confirmPassword: "",
+    firstName: "",
+    lastName: "",
+    companyName: "",
+    country: "US",
+    state: "",
+    plan: "essentials",
+    interval: "monthly" as "monthly" | "yearly",
   });
 
   // Get selected country data
-  const selectedCountry = countries.find(c => c.code === formData.country);
-  const hasStates = selectedCountry?.states && selectedCountry.states.length > 0;
+  const selectedCountry = countries.find((c) => c.code === formData.country);
+  const hasStates =
+    selectedCountry?.states && selectedCountry.states.length > 0;
 
   // Accounting feature highlights
   const features = [
-    { icon: TrendingUp, title: "Track Growth", description: "Real-time financial insights" },
-    { icon: Receipt, title: "Smart Invoicing", description: "Professional invoices in seconds" },
-    { icon: PieChart, title: "Visual Reports", description: "Beautiful charts & analytics" },
-    { icon: Shield, title: "Secure & Compliant", description: "Bank-level encryption" }
+    {
+      icon: TrendingUp,
+      title: "Track Growth",
+      description: "Real-time financial insights",
+    },
+    {
+      icon: Receipt,
+      title: "Smart Invoicing",
+      description: "Professional invoices in seconds",
+    },
+    {
+      icon: PieChart,
+      title: "Visual Reports",
+      description: "Beautiful charts & analytics",
+    },
+    {
+      icon: Shield,
+      title: "Secure & Compliant",
+      description: "Bank-level encryption",
+    },
   ];
 
   useEffect(() => {
@@ -173,28 +190,28 @@ export const Register: React.FC = () => {
 
   const checkInvitation = async () => {
     if (!inviteCode) return;
-    
+
     setCheckingInvite(true);
-    setError('');
-    
+    setError("");
+
     try {
       await supabase.auth.signOut();
-      
+
       const result = await registrationService.validateInvitation(inviteCode);
-      
+
       if (result.valid && result.invitation) {
         setInviteDetails({
           ...result.invitation,
-          teamName: result.teamName
+          teamName: result.teamName,
         });
-        setFormData(prev => ({ ...prev, email: result.invitation.email }));
-        setError('');
+        setFormData((prev) => ({ ...prev, email: result.invitation.email }));
+        setError("");
       } else {
-        setError(result.error || 'Invalid invitation');
+        setError(result.error || "Invalid invitation");
       }
     } catch (err) {
-      console.error('Error checking invitation:', err);
-      setError('Failed to validate invitation. Please try again.');
+      console.error("Error checking invitation:", err);
+      setError("Failed to validate invitation. Please try again.");
     } finally {
       setCheckingInvite(false);
     }
@@ -202,16 +219,16 @@ export const Register: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       if (formData.password !== formData.confirmPassword) {
-        throw new Error('Passwords do not match');
+        throw new Error("Passwords do not match");
       }
 
       if (formData.password.length < 6) {
-        throw new Error('Password must be at least 6 characters');
+        throw new Error("Password must be at least 6 characters");
       }
 
       if (inviteDetails && formData.email !== inviteDetails.email) {
@@ -219,34 +236,35 @@ export const Register: React.FC = () => {
       }
 
       if (hasStates && !formData.state) {
-        throw new Error('Please select a state/province');
+        throw new Error("Please select a state/province");
       }
 
       const result = await registrationService.register({
         ...formData,
-        inviteCode: inviteCode || undefined
+        inviteCode: inviteCode || undefined,
       });
 
       if (!result.success) {
-        throw new Error(result.error || 'Registration failed');
+        throw new Error(result.error || "Registration failed");
       }
 
-      navigate('/dashboard');
-      
+      navigate("/dashboard");
     } catch (err: any) {
-      console.error('Registration error:', err);
-      setError(err.message || 'Registration failed. Please try again.');
+      console.error("Registration error:", err);
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (name === 'country' && value !== formData.country) {
-      setFormData(prev => ({ ...prev, state: '' }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "country" && value !== formData.country) {
+      setFormData((prev) => ({ ...prev, state: "" }));
     }
   };
 
@@ -268,7 +286,9 @@ export const Register: React.FC = () => {
             </div>
             <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mx-auto relative" />
           </div>
-          <p className="mt-4 text-gray-600 font-medium">Checking invitation...</p>
+          <p className="mt-4 text-gray-600 font-medium">
+            Checking invitation...
+          </p>
         </div>
       </div>
     );
@@ -283,7 +303,7 @@ export const Register: React.FC = () => {
           <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
           <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
           <div className="absolute top-40 left-1/2 w-64 h-64 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-          
+
           {/* Floating Icons */}
           <div className="absolute top-10 right-10 text-indigo-200 animate-spin-slow">
             <Calculator className="h-10 w-10" />
@@ -303,12 +323,12 @@ export const Register: React.FC = () => {
               <Wallet className="h-8 w-8 text-white" />
             </div>
             <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              {inviteDetails ? 'Join Your Team' : 'Start Your Free Trial'}
+              {inviteDetails ? "Join Your Team" : "Start Your Free Trial"}
             </h2>
             <p className="mt-3 text-lg text-gray-600">
-              {inviteDetails 
+              {inviteDetails
                 ? `You've been invited to join ${inviteDetails.teamName}`
-                : '30-day free trial • No credit card required • Cancel anytime'}
+                : "30-day free trial • No credit card required • Cancel anytime"}
             </p>
           </div>
 
@@ -316,21 +336,37 @@ export const Register: React.FC = () => {
           {!inviteDetails && (
             <div className="flex items-center justify-center mb-8">
               <div className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                  currentStep >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
-                }`}>
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                    currentStep >= 1
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-200 text-gray-500"
+                  }`}
+                >
                   <span className="text-sm font-semibold">1</span>
                 </div>
-                <div className={`w-24 h-1 ${currentStep >= 2 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                  currentStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
-                }`}>
+                <div
+                  className={`w-24 h-1 ${currentStep >= 2 ? "bg-indigo-600" : "bg-gray-200"}`}
+                ></div>
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                    currentStep >= 2
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-200 text-gray-500"
+                  }`}
+                >
                   <span className="text-sm font-semibold">2</span>
                 </div>
-                <div className={`w-24 h-1 ${currentStep >= 3 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                  currentStep >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
-                }`}>
+                <div
+                  className={`w-24 h-1 ${currentStep >= 3 ? "bg-indigo-600" : "bg-gray-200"}`}
+                ></div>
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                    currentStep >= 3
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-200 text-gray-500"
+                  }`}
+                >
                   <span className="text-sm font-semibold">3</span>
                 </div>
               </div>
@@ -354,11 +390,16 @@ export const Register: React.FC = () => {
                     <div className="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg">
                       <User className="h-5 w-5 text-indigo-600" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900">Create Your Account</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Create Your Account
+                    </h3>
                   </div>
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Email Address
                     </label>
                     <div className="relative">
@@ -378,7 +419,10 @@ export const Register: React.FC = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="password"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Password
                     </label>
                     <div className="relative">
@@ -398,13 +442,20 @@ export const Register: React.FC = () => {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="confirmPassword"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Confirm Password
                     </label>
                     <div className="relative">
@@ -421,10 +472,16 @@ export const Register: React.FC = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
-                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -451,12 +508,17 @@ export const Register: React.FC = () => {
                     <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
                       <Building2 className="h-5 w-5 text-emerald-600" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900">Personal Information</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Personal Information
+                    </h3>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label
+                        htmlFor="firstName"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
                         First Name
                       </label>
                       <input
@@ -472,7 +534,10 @@ export const Register: React.FC = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label
+                        htmlFor="lastName"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
                         Last Name
                       </label>
                       <input
@@ -489,8 +554,12 @@ export const Register: React.FC = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
-                      Company Name <span className="text-gray-400">(Optional)</span>
+                    <label
+                      htmlFor="companyName"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Company Name{" "}
+                      <span className="text-gray-400">(Optional)</span>
                     </label>
                     <input
                       type="text"
@@ -505,7 +574,10 @@ export const Register: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label
+                        htmlFor="country"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
                         Country
                       </label>
                       <select
@@ -516,7 +588,7 @@ export const Register: React.FC = () => {
                         onChange={handleChange}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
                       >
-                        {countries.map(country => (
+                        {countries.map((country) => (
                           <option key={country.code} value={country.code}>
                             {country.name}
                           </option>
@@ -526,7 +598,10 @@ export const Register: React.FC = () => {
 
                     {hasStates && (
                       <div>
-                        <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+                        <label
+                          htmlFor="state"
+                          className="block text-sm font-medium text-gray-700 mb-2"
+                        >
                           State/Province
                         </label>
                         <select
@@ -538,7 +613,7 @@ export const Register: React.FC = () => {
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
                         >
                           <option value="">Select state/province</option>
-                          {selectedCountry?.states?.map(state => (
+                          {selectedCountry?.states?.map((state) => (
                             <option key={state.code} value={state.code}>
                               {state.name}
                             </option>
@@ -577,7 +652,9 @@ export const Register: React.FC = () => {
                     <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
                       <CreditCard className="h-5 w-5 text-purple-600" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900">Choose Your Plan</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Choose Your Plan
+                    </h3>
                   </div>
 
                   {/* Billing Toggle */}
@@ -585,27 +662,37 @@ export const Register: React.FC = () => {
                     <div className="bg-gray-100 p-1 rounded-lg inline-flex relative">
                       <button
                         type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, interval: 'monthly' }))}
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            interval: "monthly",
+                          }))
+                        }
                         className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                          formData.interval === 'monthly'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
+                          formData.interval === "monthly"
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "text-gray-600 hover:text-gray-900"
                         }`}
                       >
                         Monthly
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, interval: 'yearly' }))}
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            interval: "yearly",
+                          }))
+                        }
                         className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                          formData.interval === 'yearly'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
+                          formData.interval === "yearly"
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "text-gray-600 hover:text-gray-900"
                         }`}
                       >
                         Yearly
                       </button>
-                      {formData.interval === 'yearly' && (
+                      {formData.interval === "yearly" && (
                         <span className="absolute -top-3 right-0 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                           Save 20%
                         </span>
@@ -618,20 +705,25 @@ export const Register: React.FC = () => {
                     {PLANS.map((plan) => {
                       const isSelected = formData.plan === plan.id;
                       const Icon = plan.icon;
-                      const price = formData.interval === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+                      const price =
+                        formData.interval === "monthly"
+                          ? plan.monthlyPrice
+                          : plan.yearlyPrice;
                       const yearlyPrice = plan.yearlyPrice;
                       const savings = plan.monthlyPrice * 12 - yearlyPrice;
-                      
+
                       return (
                         <div
                           key={plan.id}
-                          onClick={() => setFormData(prev => ({ ...prev, plan: plan.id }))}
+                          onClick={() =>
+                            setFormData((prev) => ({ ...prev, plan: plan.id }))
+                          }
                           className={`relative rounded-2xl cursor-pointer transition-all ${
                             plan.popular
-                              ? 'bg-gradient-to-b from-indigo-500 to-purple-600 text-white shadow-xl transform scale-105 p-1'
+                              ? "bg-gradient-to-b from-indigo-500 to-purple-600 text-white shadow-xl transform scale-105 p-1"
                               : isSelected && !plan.popular
-                                ? 'border-2 border-indigo-500 bg-white'
-                                : 'border border-gray-200 bg-white hover:border-gray-300'
+                                ? "border-2 border-indigo-500 bg-white"
+                                : "border border-gray-200 bg-white hover:border-gray-300"
                           }`}
                         >
                           {plan.popular && (
@@ -642,71 +734,98 @@ export const Register: React.FC = () => {
                               </div>
                             </div>
                           )}
-                          
-                          <div className={`${plan.popular ? 'bg-white rounded-xl' : ''} p-4 lg:p-6`}>
+
+                          <div
+                            className={`${plan.popular ? "bg-white rounded-xl" : ""} p-4 lg:p-6`}
+                          >
                             {/* Icon and Name */}
                             <div className="text-center mb-6">
-                              <div className={`inline-flex p-3 rounded-full mb-4 ${
-                                plan.popular ? 'bg-indigo-100' : 'bg-gray-100'
-                              }`}>
-                                <Icon className={`h-6 w-6 ${plan.popular ? 'text-indigo-600' : 'text-gray-700'}`} />
+                              <div
+                                className={`inline-flex p-3 rounded-full mb-4 ${
+                                  plan.popular ? "bg-indigo-100" : "bg-gray-100"
+                                }`}
+                              >
+                                <Icon
+                                  className={`h-6 w-6 ${plan.popular ? "text-indigo-600" : "text-gray-700"}`}
+                                />
                               </div>
-                              
-                              <h4 className={`text-xl font-bold ${plan.popular ? 'text-gray-900' : 'text-gray-900'}`}>
+
+                              <h4
+                                className={`text-xl font-bold ${plan.popular ? "text-gray-900" : "text-gray-900"}`}
+                              >
                                 {plan.name}
                               </h4>
                             </div>
-                            
+
                             {/* Pricing */}
                             <div className="text-center mb-6">
                               <div className="flex items-baseline justify-center gap-1">
                                 <span className="text-4xl font-bold text-gray-900">
-                                  ${formData.interval === 'yearly' ? yearlyPrice : plan.monthlyPrice}
+                                  $
+                                  {formData.interval === "yearly"
+                                    ? yearlyPrice
+                                    : plan.monthlyPrice}
                                 </span>
                                 <span className="text-gray-500">
-                                  /{formData.interval === 'yearly' ? 'year' : 'month'}
+                                  /
+                                  {formData.interval === "yearly"
+                                    ? "year"
+                                    : "month"}
                                 </span>
                               </div>
-                              
-                              {formData.interval === 'yearly' && (
+
+                              {formData.interval === "yearly" && (
                                 <p className="text-sm text-emerald-600 mt-2">
                                   Save ${savings} per year
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* User and Invoice Limits */}
                             <div className="flex justify-center gap-6 mb-6 pb-6 border-b border-gray-200">
                               <div className="flex items-center gap-2">
                                 <Users className="h-4 w-4 text-gray-400" />
                                 <span className="text-sm text-gray-600">
-                                  {plan.limits.users === 1 ? 'Just you' : `${plan.limits.users} users`}
+                                  {plan.limits.users === 1
+                                    ? "Just you"
+                                    : `${plan.limits.users} users`}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <FileText className="h-4 w-4 text-gray-400" />
                                 <span className="text-sm text-gray-600">
-                                  {plan.limits.monthlyInvoices === -1 ? 'Unlimited' : `${plan.limits.monthlyInvoices}/mo`}
+                                  {plan.limits.monthlyInvoices === -1
+                                    ? "Unlimited"
+                                    : `${plan.limits.monthlyInvoices}/mo`}
                                 </span>
                               </div>
                             </div>
-                            
+
                             {/* Features List */}
                             <ul className="space-y-3">
-                              {plan.features.slice(0, 5).map((feature, index) => {
-                                const isHighlighted = plan.highlighted?.includes(feature);
-                                return (
-                                  <li 
-                                    key={index} 
-                                    className="flex items-start text-sm"
-                                  >
-                                    <Check className="h-5 w-5 mr-2 text-emerald-500 flex-shrink-0" />
-                                    <span className={isHighlighted ? 'text-gray-900 font-medium' : 'text-gray-600'}>
-                                      {feature}
-                                    </span>
-                                  </li>
-                                );
-                              })}
+                              {plan.features
+                                .slice(0, 5)
+                                .map((feature, index) => {
+                                  const isHighlighted =
+                                    plan.highlighted?.includes(feature);
+                                  return (
+                                    <li
+                                      key={index}
+                                      className="flex items-start text-sm"
+                                    >
+                                      <Check className="h-5 w-5 mr-2 text-emerald-500 flex-shrink-0" />
+                                      <span
+                                        className={
+                                          isHighlighted
+                                            ? "text-gray-900 font-medium"
+                                            : "text-gray-600"
+                                        }
+                                      >
+                                        {feature}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
                             </ul>
                           </div>
                         </div>
@@ -750,7 +869,10 @@ export const Register: React.FC = () => {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label
+                        htmlFor="firstName"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
                         First Name
                       </label>
                       <input
@@ -766,7 +888,10 @@ export const Register: React.FC = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label
+                        htmlFor="lastName"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
                         Last Name
                       </label>
                       <input
@@ -806,9 +931,9 @@ export const Register: React.FC = () => {
 
               {/* Sign In Link */}
               <p className="text-center text-sm text-gray-600">
-                Already have an account?{' '}
-                <Link 
-                  to="/login" 
+                Already have an account?{" "}
+                <Link
+                  to="/login"
                   className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all"
                 >
                   Sign in
@@ -819,7 +944,9 @@ export const Register: React.FC = () => {
 
           {/* Trust Indicators */}
           <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500 mb-4">Join 10,000+ businesses managing their finances with AccuBooks</p>
+            <p className="text-sm text-gray-500 mb-4">
+              Join 10,000+ businesses managing their finances with SmartCFO
+            </p>
             <div className="flex justify-center items-center gap-6">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-emerald-600" />
@@ -827,7 +954,9 @@ export const Register: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Shield className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm text-gray-600">No credit card required</span>
+                <span className="text-sm text-gray-600">
+                  No credit card required
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Gift className="h-5 w-5 text-emerald-600" />
@@ -842,9 +971,12 @@ export const Register: React.FC = () => {
       <div className="hidden xl:flex xl:flex-1 lg:max-w-md bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-8 lg:p-12 items-center justify-center relative overflow-hidden">
         {/* Animated Background Pattern */}
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.3'%3E%3Cpath d='M0 38.59l2.83-2.83 1.41 1.41L1.41 40H0v-1.41zM0 1.4l2.83 2.83 1.41-1.41L1.41 0H0v1.41zM38.59 40l-2.83-2.83 1.41-1.41L40 38.59V40h-1.41zM40 1.41l-2.83 2.83-1.41-1.41L38.59 0H40v1.41zM20 18.6l2.83-2.83 1.41 1.41L21.41 20l2.83 2.83-1.41 1.41L20 21.41l-2.83 2.83-1.41-1.41L18.59 20l-2.83-2.83 1.41-1.41L20 18.59z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.3'%3E%3Cpath d='M0 38.59l2.83-2.83 1.41 1.41L1.41 40H0v-1.41zM0 1.4l2.83 2.83 1.41-1.41L1.41 0H0v1.41zM38.59 40l-2.83-2.83 1.41-1.41L40 38.59V40h-1.41zM40 1.41l-2.83 2.83-1.41-1.41L38.59 0H40v1.41zM20 18.6l2.83-2.83 1.41 1.41L21.41 20l2.83 2.83-1.41 1.41L20 21.41l-2.83 2.83-1.41-1.41L18.59 20l-2.83-2.83 1.41-1.41L20 18.59z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          ></div>
         </div>
 
         <div className="relative max-w-sm">
@@ -871,11 +1003,13 @@ export const Register: React.FC = () => {
                   <p className="text-xs text-white/70">Total Invoices</p>
                 </div>
               </div>
-              
+
               {/* Mock Chart */}
               <div className="bg-white/10 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-medium text-white">Revenue Growth</h4>
+                  <h4 className="text-sm font-medium text-white">
+                    Revenue Growth
+                  </h4>
                   <BarChart3 className="h-4 w-4 text-white/70" />
                 </div>
                 <div className="flex items-end gap-1 h-24">

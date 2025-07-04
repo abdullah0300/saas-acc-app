@@ -1,36 +1,38 @@
 // src/components/Subscription/SubscriptionPlans.tsx
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  Check, 
-  Star, 
-  Zap, 
-  Rocket, 
-  Calendar, 
-  CreditCard, 
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  Check,
+  Star,
+  Zap,
+  Rocket,
+  Calendar,
+  CreditCard,
   Loader2,
   AlertCircle,
   Users,
   FileText,
   Globe,
   Shield,
-  Phone
-} from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useSubscription } from '../../contexts/SubscriptionContext';
-import { stripeService } from '../../services/stripeService';
-import { SUBSCRIPTION_PLANS, PlanType } from '../../config/subscriptionConfig';
+  Phone,
+} from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useSubscription } from "../../contexts/SubscriptionContext";
+import { stripeService } from "../../services/stripeService";
+import { SUBSCRIPTION_PLANS, PlanType } from "../../config/subscriptionConfig";
 
 export const SubscriptionPlans: React.FC = () => {
   const { user } = useAuth();
   const { subscription, plan: currentPlan, trialDaysLeft } = useSubscription();
   const navigate = useNavigate();
-  
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
+    "monthly"
+  );
   const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     // Set billing interval based on current subscription
@@ -41,25 +43,31 @@ export const SubscriptionPlans: React.FC = () => {
 
   const handlePlanSelection = async (planId: PlanType) => {
     if (!user?.email) {
-      setError('Please complete your profile with an email address first.');
+      setError("Please complete your profile with an email address first.");
       return;
     }
-    
+
     setLoading(planId);
-    setError('');
-    
-    console.log('Starting plan selection:', {
+    setError("");
+
+    console.log("Starting plan selection:", {
       planId,
       billingInterval,
       userId: user.id,
       userEmail: user.email,
-      currentSubscription: subscription
+      currentSubscription: subscription,
     });
-    
+
     try {
       // If user has a Stripe customer with active subscription, use portal
-      if (subscription?.stripe_customer_id && subscription?.stripe_subscription_id && subscription.status === 'active') {
-        const { url } = await stripeService.createPortalSession(subscription.stripe_customer_id);
+      if (
+        subscription?.stripe_customer_id &&
+        subscription?.stripe_subscription_id &&
+        subscription.status === "active"
+      ) {
+        const { url } = await stripeService.createPortalSession(
+          subscription.stripe_customer_id
+        );
         window.location.href = url;
       } else {
         // Create a new checkout session
@@ -69,21 +77,24 @@ export const SubscriptionPlans: React.FC = () => {
           user.id,
           user.email
         );
-        
+
         // Redirect to Stripe Checkout
         window.location.href = url;
       }
     } catch (err: any) {
-      console.error('Error with plan selection:', err);
+      console.error("Error with plan selection:", err);
       // Show more detailed error information
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to process plan selection. Please try again.';
+      const errorMessage =
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to process plan selection. Please try again.";
       setError(errorMessage);
-      
+
       // Log full error details for debugging
-      console.error('Full error details:', {
+      console.error("Full error details:", {
         message: err.message,
         response: err.response,
-        data: err.response?.data
+        data: err.response?.data,
       });
     } finally {
       setLoading(null);
@@ -92,19 +103,21 @@ export const SubscriptionPlans: React.FC = () => {
 
   const handleManageSubscription = async () => {
     if (!subscription?.stripe_customer_id) {
-      setError('No active subscription found.');
+      setError("No active subscription found.");
       return;
     }
-    
-    setLoading('manage');
-    setError('');
-    
+
+    setLoading("manage");
+    setError("");
+
     try {
-      const { url } = await stripeService.createPortalSession(subscription.stripe_customer_id);
+      const { url } = await stripeService.createPortalSession(
+        subscription.stripe_customer_id
+      );
       window.location.href = url;
     } catch (err: any) {
-      console.error('Error opening customer portal:', err);
-      setError('Failed to open billing portal. Please try again.');
+      console.error("Error opening customer portal:", err);
+      setError("Failed to open billing portal. Please try again.");
     } finally {
       setLoading(null);
     }
@@ -116,20 +129,24 @@ export const SubscriptionPlans: React.FC = () => {
   // Plan icons
   const getPlanIcon = (planId: PlanType) => {
     switch (planId) {
-      case 'simple_start': return Star;
-      case 'essentials': return Zap;
-      case 'plus': return Rocket;
-      default: return Star;
+      case "simple_start":
+        return Star;
+      case "essentials":
+        return Zap;
+      case "plus":
+        return Rocket;
+      default:
+        return Star;
     }
   };
 
   // Feature icons mapping
   const featureIcons: Record<string, any> = {
-    'team members': Users,
-    'monthly invoices': FileText,
-    'Multi-currency support': Globe,
-    'Custom invoice branding': Shield,
-    'Phone & email support': Phone
+    "team members": Users,
+    "monthly invoices": FileText,
+    "Multi-currency support": Globe,
+    "Custom invoice branding": Shield,
+    "Phone & email support": Phone,
   };
 
   return (
@@ -137,28 +154,34 @@ export const SubscriptionPlans: React.FC = () => {
       {/* Header */}
       <div className="mb-8">
         <button
-          onClick={() => navigate('/settings')}
+          onClick={() => navigate("/settings")}
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
           Back to Settings
         </button>
-        
+
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Choose Your Plan</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Choose Your Plan
+            </h1>
             <p className="mt-2 text-lg text-gray-600">
               Select the plan that best fits your business needs
             </p>
           </div>
-          
+
           {currentTrialDays > 0 && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg px-4 py-3">
               <div className="flex items-center">
                 <Calendar className="h-5 w-5 text-blue-600 mr-2" />
                 <div>
-                  <p className="text-sm font-medium text-blue-900">Trial Period</p>
-                  <p className="text-sm text-blue-700">{currentTrialDays} days left</p>
+                  <p className="text-sm font-medium text-blue-900">
+                    Trial Period
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    {currentTrialDays} days left
+                  </p>
                 </div>
               </div>
             </div>
@@ -172,39 +195,45 @@ export const SubscriptionPlans: React.FC = () => {
           <div className="flex justify-between items-center">
             <div>
               <p className="text-sm text-gray-600">
-                Current plan: <span className="font-semibold text-gray-900">
+                Current plan:{" "}
+                <span className="font-semibold text-gray-900">
                   {SUBSCRIPTION_PLANS[currentPlan]?.displayName || currentPlan}
-                </span>
-                {' '}({subscription.interval === 'yearly' ? 'Yearly' : 'Monthly'} billing)
+                </span>{" "}
+                ({subscription.interval === "yearly" ? "Yearly" : "Monthly"}{" "}
+                billing)
               </p>
               {subscription.cancel_at_period_end && (
                 <p className="text-sm text-red-600 mt-1">
                   <AlertCircle className="inline h-4 w-4 mr-1" />
-                  Cancels on {new Date(subscription.current_period_end).toLocaleDateString()}
+                  Cancels on{" "}
+                  {new Date(
+                    subscription.current_period_end
+                  ).toLocaleDateString()}
                 </p>
               )}
-              {subscription.status === 'past_due' && (
+              {subscription.status === "past_due" && (
                 <p className="text-sm text-red-600 mt-1">
                   <AlertCircle className="inline h-4 w-4 mr-1" />
                   Payment failed - please update your payment method
                 </p>
               )}
             </div>
-            
-            {subscription.stripe_customer_id && subscription.status !== 'canceled' && (
-              <button
-                onClick={handleManageSubscription}
-                disabled={loading === 'manage'}
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                {loading === 'manage' ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <CreditCard className="h-4 w-4 mr-2" />
-                )}
-                Manage Billing
-              </button>
-            )}
+
+            {subscription.stripe_customer_id &&
+              subscription.status !== "canceled" && (
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={loading === "manage"}
+                  className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                  {loading === "manage" ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <CreditCard className="h-4 w-4 mr-2" />
+                  )}
+                  Manage Billing
+                </button>
+              )}
           </div>
         </div>
       )}
@@ -223,21 +252,21 @@ export const SubscriptionPlans: React.FC = () => {
       <div className="flex justify-center mb-8">
         <div className="bg-gray-100 p-1 rounded-lg inline-flex">
           <button
-            onClick={() => setBillingInterval('monthly')}
+            onClick={() => setBillingInterval("monthly")}
             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-              billingInterval === 'monthly'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+              billingInterval === "monthly"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Monthly billing
           </button>
           <button
-            onClick={() => setBillingInterval('yearly')}
+            onClick={() => setBillingInterval("yearly")}
             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-              billingInterval === 'yearly'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+              billingInterval === "yearly"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             Yearly billing
@@ -252,22 +281,30 @@ export const SubscriptionPlans: React.FC = () => {
       <div className="grid md:grid-cols-3 gap-8">
         {plans.map((plan) => {
           const Icon = getPlanIcon(plan.id);
-          const trialExpired = subscription?.trial_end ? new Date(subscription.trial_end) < new Date() : false;
-const hasPaidSubscription = !!(subscription?.stripe_subscription_id && subscription?.status === 'active');
-const isCurrentPlan = !!(
-  currentPlan === plan.id && 
-  subscription?.interval === billingInterval && 
-  hasPaidSubscription && 
-  !trialExpired
-);
-          const price = billingInterval === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
-          const isPopular = plan.id === 'essentials';
-          
+          const trialExpired = subscription?.trial_end
+            ? new Date(subscription.trial_end) < new Date()
+            : false;
+          const hasPaidSubscription = !!(
+            subscription?.stripe_subscription_id &&
+            subscription?.status === "active"
+          );
+          const isCurrentPlan = !!(
+            currentPlan === plan.id &&
+            subscription?.interval === billingInterval &&
+            hasPaidSubscription &&
+            !trialExpired
+          );
+          const price =
+            billingInterval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
+          const isPopular = plan.id === "essentials";
+
           return (
             <div
               key={plan.id}
               className={`relative bg-white rounded-2xl shadow-xl border-2 transition-all hover:shadow-2xl ${
-                isPopular ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-50' : 'border-gray-200'
+                isPopular
+                  ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-50"
+                  : "border-gray-200"
               }`}
             >
               {isPopular && (
@@ -277,48 +314,65 @@ const isCurrentPlan = !!(
                   </span>
                 </div>
               )}
-              
+
               <div className="p-8">
                 <div className="text-center mb-6">
-                  <div className={`inline-flex p-3 rounded-full mb-4 ${
-                    isPopular ? 'bg-gradient-to-br from-blue-100 to-indigo-100' : 'bg-gray-100'
-                  }`}>
-                    <Icon className={`h-8 w-8 ${isPopular ? 'text-blue-600' : 'text-gray-700'}`} />
+                  <div
+                    className={`inline-flex p-3 rounded-full mb-4 ${
+                      isPopular
+                        ? "bg-gradient-to-br from-blue-100 to-indigo-100"
+                        : "bg-gray-100"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-8 w-8 ${isPopular ? "text-blue-600" : "text-gray-700"}`}
+                    />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900">{plan.displayName}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {plan.displayName}
+                  </h3>
                   <p className="text-gray-600 mt-2">{plan.description}</p>
-                  
+
                   <div className="mt-6">
                     <div className="flex items-baseline justify-center">
-                      <span className="text-5xl font-extrabold text-gray-900">${price}</span>
-                      <span className="text-gray-600 ml-2">/{billingInterval === 'yearly' ? 'year' : 'month'}</span>
+                      <span className="text-5xl font-extrabold text-gray-900">
+                        ${price}
+                      </span>
+                      <span className="text-gray-600 ml-2">
+                        /{billingInterval === "yearly" ? "year" : "month"}
+                      </span>
                     </div>
-                    {billingInterval === 'yearly' && (
+                    {billingInterval === "yearly" && (
                       <p className="text-sm text-green-600 mt-2">
-                        Save ${plan.monthlyPrice * 12 - plan.yearlyPrice} per year
+                        Save ${plan.monthlyPrice * 12 - plan.yearlyPrice} per
+                        year
                       </p>
                     )}
                   </div>
                 </div>
-                
+
                 {/* Key limits */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Team Members</p>
                       <p className="text-lg font-semibold text-gray-900">
-                        {plan.limits.users === 1 ? 'Just you' : `Up to ${plan.limits.users}`}
+                        {plan.limits.users === 1
+                          ? "Just you"
+                          : `Up to ${plan.limits.users}`}
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-sm text-gray-600">Monthly Invoices</p>
                       <p className="text-lg font-semibold text-gray-900">
-                        {plan.limits.monthlyInvoices === -1 ? 'Unlimited' : plan.limits.monthlyInvoices}
+                        {plan.limits.monthlyInvoices === -1
+                          ? "Unlimited"
+                          : plan.limits.monthlyInvoices}
                       </p>
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Top features */}
                 <ul className="space-y-3 mb-8">
                   {getHighlightedFeatures(plan.id).map((feature, index) => {
@@ -331,16 +385,16 @@ const isCurrentPlan = !!(
                     );
                   })}
                 </ul>
-                
+
                 <button
                   onClick={() => handlePlanSelection(plan.id)}
                   disabled={loading === plan.id || isCurrentPlan}
                   className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
                     isCurrentPlan
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                       : isPopular
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg'
-                        : 'bg-gray-900 text-white hover:bg-gray-800'
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+                        : "bg-gray-900 text-white hover:bg-gray-800"
                   } disabled:opacity-50`}
                 >
                   {loading === plan.id ? (
@@ -349,9 +403,9 @@ const isCurrentPlan = !!(
                       Processing...
                     </span>
                   ) : isCurrentPlan ? (
-                    'Current Plan'
+                    "Current Plan"
                   ) : (
-                    'Choose Plan'
+                    "Choose Plan"
                   )}
                 </button>
               </div>
@@ -369,7 +423,11 @@ const isCurrentPlan = !!(
           Prices are in USD. Taxes may apply based on your location.
         </p>
         <p className="text-sm text-gray-600 mt-4">
-          Need help choosing? <a href="mailto:support@accubooks.com" className="text-blue-600 hover:underline">
+          Need help choosing?{" "}
+          <a
+            href="mailto:support@SmartCFO.com"
+            className="text-blue-600 hover:underline"
+          >
             Contact our sales team
           </a>
         </p>
@@ -381,36 +439,36 @@ const isCurrentPlan = !!(
 // Helper function to get highlighted features for each plan
 function getHighlightedFeatures(plan: PlanType): string[] {
   switch (plan) {
-    case 'simple_start':
+    case "simple_start":
       return [
-        'Single user access',
-        'Up to 50 monthly invoices',
-        'Income & expense tracking',
-        'Basic financial reports',
-        'Client management',
-        'PDF export',
-        'Email support'
+        "Single user access",
+        "Up to 50 monthly invoices",
+        "Income & expense tracking",
+        "Basic financial reports",
+        "Client management",
+        "PDF export",
+        "Email support",
       ];
-    case 'essentials':
+    case "essentials":
       return [
-        'Up to 3 team members',
-        'Unlimited monthly invoices',
-        'Everything in Simple Start',
-        'Multi-currency support',
-        'Recurring invoices',
-        'Advanced reports',
-        'Tax management',
-        'Priority support'
+        "Up to 3 team members",
+        "Unlimited monthly invoices",
+        "Everything in Simple Start",
+        "Multi-currency support",
+        "Recurring invoices",
+        "Advanced reports",
+        "Tax management",
+        "Priority support",
       ];
-    case 'plus':
+    case "plus":
       return [
-        'Up to 10 team members',
-        'Unlimited monthly invoices',
-        'Everything in Essentials',
-        'Custom invoice branding',
-        'Budget tracking',
-        'Cash flow analysis',
-        'Phone & email support',
+        "Up to 10 team members",
+        "Unlimited monthly invoices",
+        "Everything in Essentials",
+        "Custom invoice branding",
+        "Budget tracking",
+        "Cash flow analysis",
+        "Phone & email support",
       ];
     default:
       return [];

@@ -1,21 +1,21 @@
 // src/components/Settings/SettingsLayout.tsx
-import React from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { 
+import React from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
   User,
-  Users, 
-  CreditCard, 
-  Bell, 
-  Shield, 
+  Users,
+  CreditCard,
+  Bell,
+  Shield,
   Globe,
   ChevronLeft,
   Zap,
   Percent,
-  Activity
-} from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useData } from '../../contexts/DataContext';
-import { useTeamPermissions } from '../../hooks/useTeamPermissions';
+  Activity,
+} from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useData } from "../../contexts/DataContext";
+import { useTeamPermissions } from "../../hooks/useTeamPermissions";
 
 export const SettingsLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -24,37 +24,40 @@ export const SettingsLayout: React.FC = () => {
   const { isOwner, canManageTeam } = useTeamPermissions();
 
   const settingsNav = [
-    { path: 'profile', label: 'Profile', icon: User },
-    { path: 'team', label: 'Team', icon: Users },
-    { path: 'subscription', label: 'Subscription & Billing', icon: CreditCard },
-    { path: 'tax', label: 'Tax Settings', icon: Percent },
-    { path: 'currency', label: 'Currency', icon: Globe },
+    { path: "profile", label: "Profile", icon: User },
+    { path: "team", label: "Team", icon: Users },
+    { path: "subscription", label: "Subscription & Billing", icon: CreditCard },
+    { path: "tax", label: "Tax Settings", icon: Percent },
+    { path: "currency", label: "Currency", icon: Globe },
     // Invoice settings removed - it's accessed from Invoice Form
-    { path: 'notifications', label: 'Notifications', icon: Bell },
-    { path: 'security', label: 'Security', icon: Shield },
+    { path: "notifications", label: "Notifications", icon: Bell },
+    { path: "security", label: "Security", icon: Shield },
     // Show audit logs only for owners and admins
-    ...(isOwner || canManageTeam ? [{ path: 'audit', label: 'Audit Trail', icon: Activity }] : [])
+    ...(isOwner || canManageTeam
+      ? [{ path: "audit", label: "Audit Trail", icon: Activity }]
+      : []),
   ];
 
   // Get display name from subscription
-  const currentPlan = subscription?.plan ? 
-    subscription.plan.split('_').map((word: string) => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ') : 
-    'Loading...';
+  const currentPlan = subscription?.plan
+    ? subscription.plan
+        .split("_")
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    : "Loading...";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header with back button */}
       <div className="mb-8">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate("/dashboard")}
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
         >
           <ChevronLeft className="h-5 w-5 mr-1" />
           Back to Dashboard
         </button>
-        
+
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="mt-1 text-sm text-gray-600">
           Manage your account settings and preferences
@@ -83,7 +86,7 @@ export const SettingsLayout: React.FC = () => {
           <nav className="space-y-1">
             {settingsNav.map((item) => {
               const Icon = item.icon;
-              
+
               return (
                 <NavLink
                   key={item.path}
@@ -91,8 +94,8 @@ export const SettingsLayout: React.FC = () => {
                   className={({ isActive }) =>
                     `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`
                   }
                 >
@@ -105,12 +108,14 @@ export const SettingsLayout: React.FC = () => {
 
           {/* Help Section */}
           <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">Need Help?</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-2">
+              Need Help?
+            </h3>
             <p className="text-sm text-gray-600 mb-3">
               Check out our documentation or contact support.
             </p>
             <a
-              href="mailto:support@accubooks.com"
+              href="mailto:support@SmartCFO.com"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
               Contact Support →

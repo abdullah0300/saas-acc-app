@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Mail, 
-  Lock, 
-  Loader, 
-  Eye, 
-  EyeOff, 
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  Mail,
+  Lock,
+  Loader,
+  Eye,
+  EyeOff,
   ChevronRight,
   Calculator,
   TrendingUp,
@@ -21,26 +21,26 @@ import {
   Building2,
   Sparkles,
   Shield,
-  CheckCircle
-} from 'lucide-react';
+  CheckCircle,
+} from "lucide-react";
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       await signIn(email, password);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -50,10 +50,26 @@ export const Login: React.FC = () => {
 
   // Features for the side panel
   const features = [
-    { icon: TrendingUp, title: "Track Growth", description: "Monitor your financial progress" },
-    { icon: Receipt, title: "Smart Invoicing", description: "Create professional invoices" },
-    { icon: PieChart, title: "Real-time Analytics", description: "Insights at your fingertips" },
-    { icon: Shield, title: "Bank-level Security", description: "Your data is always protected" }
+    {
+      icon: TrendingUp,
+      title: "Track Growth",
+      description: "Monitor your financial progress",
+    },
+    {
+      icon: Receipt,
+      title: "Smart Invoicing",
+      description: "Create professional invoices",
+    },
+    {
+      icon: PieChart,
+      title: "Real-time Analytics",
+      description: "Insights at your fingertips",
+    },
+    {
+      icon: Shield,
+      title: "Bank-level Security",
+      description: "Your data is always protected",
+    },
   ];
 
   return (
@@ -64,7 +80,7 @@ export const Login: React.FC = () => {
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float"></div>
           <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float-delayed"></div>
-          
+
           {/* Floating Icons */}
           <div className="absolute top-20 right-20 text-indigo-200 animate-spin-slow">
             <Calculator className="h-12 w-12" />
@@ -87,7 +103,9 @@ export const Login: React.FC = () => {
               <Wallet className="h-8 w-8 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
-            <p className="mt-2 text-gray-600">Sign in to manage your finances</p>
+            <p className="mt-2 text-gray-600">
+              Sign in to manage your finances
+            </p>
           </div>
 
           {/* Login Form Card */}
@@ -95,8 +113,16 @@ export const Login: React.FC = () => {
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start animate-shake">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  <svg
+                    className="h-5 w-5 text-red-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </div>
                 <p className="ml-3 text-sm">{error}</p>
@@ -105,7 +131,10 @@ export const Login: React.FC = () => {
 
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Email address
                 </label>
                 <div className="relative">
@@ -125,7 +154,10 @@ export const Login: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -146,7 +178,11 @@ export const Login: React.FC = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -159,13 +195,19 @@ export const Login: React.FC = () => {
                     type="checkbox"
                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                  <label
+                    htmlFor="remember-me"
+                    className="ml-2 block text-sm text-gray-700"
+                  >
                     Remember me
                   </label>
                 </div>
 
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                  <a
+                    href="#"
+                    className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+                  >
                     Forgot password?
                   </a>
                 </div>
@@ -196,7 +238,9 @@ export const Login: React.FC = () => {
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">New to AccuBooks?</span>
+                  <span className="px-4 bg-white text-gray-500">
+                    New to SmartCFO?
+                  </span>
                 </div>
               </div>
 
@@ -232,9 +276,12 @@ export const Login: React.FC = () => {
       <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-12 items-center justify-center relative overflow-hidden">
         {/* Animated Background Pattern */}
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          ></div>
         </div>
 
         <div className="relative max-w-lg">
@@ -245,15 +292,21 @@ export const Login: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-white/20 backdrop-blur rounded-xl p-4 text-center">
                   <BarChart3 className="h-8 w-8 text-white mx-auto mb-2" />
-                  <p className="text-white text-sm font-medium">Real-time Reports</p>
+                  <p className="text-white text-sm font-medium">
+                    Real-time Reports
+                  </p>
                 </div>
                 <div className="bg-white/20 backdrop-blur rounded-xl p-4 text-center">
                   <CreditCard className="h-8 w-8 text-white mx-auto mb-2" />
-                  <p className="text-white text-sm font-medium">Easy Payments</p>
+                  <p className="text-white text-sm font-medium">
+                    Easy Payments
+                  </p>
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-5xl font-bold text-white mb-2">$124,847</div>
+                <div className="text-5xl font-bold text-white mb-2">
+                  $124,847
+                </div>
                 <div className="text-white/80 text-sm">Monthly Revenue</div>
                 <div className="mt-4 flex items-center justify-center gap-2 text-green-300">
                   <TrendingUp className="h-5 w-5" />

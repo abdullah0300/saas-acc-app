@@ -1,26 +1,33 @@
 // src/components/Settings/Security/TwoFactorAuth.tsx
-import React, { useState, useEffect } from 'react';
-import { Smartphone, Shield, Copy, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { useAuth } from '../../../contexts/AuthContext';
-import { supabase } from '../../../services/supabaseClient';
-import { auditService } from '../../../services/auditService';
-import { Factor } from '@supabase/supabase-js';
-import QRCode from 'qrcode';
+import React, { useState, useEffect } from "react";
+import {
+  Smartphone,
+  Shield,
+  Copy,
+  CheckCircle,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { useAuth } from "../../../contexts/AuthContext";
+import { supabase } from "../../../services/supabaseClient";
+import { auditService } from "../../../services/auditService";
+import { Factor } from "@supabase/supabase-js";
+import QRCode from "qrcode";
 
 export const TwoFactorAuth: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [factors, setFactors] = useState<Factor[]>([]);
-  const [qrCode, setQrCode] = useState('');
-  const [secret, setSecret] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
+  const [qrCode, setQrCode] = useState("");
+  const [secret, setSecret] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [showEnrollment, setShowEnrollment] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [showDisableMFADialog, setShowDisableMFADialog] = useState(false);
-  const [disableMfaCode, setDisableMfaCode] = useState('');
+  const [disableMfaCode, setDisableMfaCode] = useState("");
   const [disableMfaLoading, setDisableMfaLoading] = useState(false);
 
   useEffect(() => {
@@ -33,23 +40,23 @@ export const TwoFactorAuth: React.FC = () => {
     try {
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) throw error;
-      
+
       // Handle both old and new API response formats
       const factorsList = data?.all || data?.totp || [];
       setFactors(factorsList);
     } catch (err: any) {
-      console.error('Error loading MFA factors:', err);
+      console.error("Error loading MFA factors:", err);
     }
   };
 
   const startEnrollment = async () => {
     setLoading(true);
-    setError('');
-    
+    setError("");
+
     try {
       const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: 'totp',
-        friendlyName: 'AccuBooks App'
+        factorType: "totp",
+        friendlyName: "SmartCFO App",
       });
 
       if (error) throw error;
@@ -66,7 +73,7 @@ export const TwoFactorAuth: React.FC = () => {
       setSecret(data.totp.secret);
       setShowEnrollment(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to start 2FA enrollment');
+      setError(err.message || "Failed to start 2FA enrollment");
     } finally {
       setLoading(false);
     }
@@ -74,26 +81,27 @@ export const TwoFactorAuth: React.FC = () => {
 
   const verifyAndEnable = async () => {
     if (!verificationCode || verificationCode.length !== 6) {
-      setError('Please enter a 6-digit code');
+      setError("Please enter a 6-digit code");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       // First, we need to create a challenge
-      const unverifiedFactor = factors.find(f => f.status === 'unverified');
+      const unverifiedFactor = factors.find((f) => f.status === "unverified");
       if (!unverifiedFactor) {
-        setError('No unverified factor found. Please start enrollment again.');
+        setError("No unverified factor found. Please start enrollment again.");
         setLoading(false);
         return;
       }
 
       // Create a challenge for the factor
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: unverifiedFactor.id
-      });
+      const { data: challengeData, error: challengeError } =
+        await supabase.auth.mfa.challenge({
+          factorId: unverifiedFactor.id,
+        });
 
       if (challengeError) throw challengeError;
 
@@ -101,7 +109,7 @@ export const TwoFactorAuth: React.FC = () => {
       const { data, error } = await supabase.auth.mfa.verify({
         factorId: unverifiedFactor.id,
         challengeId: challengeData.id,
-        code: verificationCode
+        code: verificationCode,
       });
 
       if (error) throw error;
@@ -110,50 +118,55 @@ export const TwoFactorAuth: React.FC = () => {
       const codes = generateBackupCodes();
       setBackupCodes(codes);
       setShowBackupCodes(true);
-      
+
       // Save backup codes to user settings
       await supabase
-        .from('user_settings')
-        .update({ 
-          mfa_backup_codes: codes.map(code => hashBackupCode(code))
+        .from("user_settings")
+        .update({
+          mfa_backup_codes: codes.map((code) => hashBackupCode(code)),
         })
-        .eq('user_id', user!.id);
+        .eq("user_id", user!.id);
 
       // Log the action
       await auditService.log({
         user_id: user!.id,
-        action: 'settings_updated',
-        entity_type: 'user',
+        action: "settings_updated",
+        entity_type: "user",
         entity_id: user!.id,
-        entity_name: 'Two-Factor Authentication',
-        changes: { 
-          mfa_enabled: { from: false, to: true } 
+        entity_name: "Two-Factor Authentication",
+        changes: {
+          mfa_enabled: { from: false, to: true },
         },
         metadata: {
-          factor_type: 'totp',
-          timestamp: new Date().toISOString()
-        }
+          factor_type: "totp",
+          timestamp: new Date().toISOString(),
+        },
       });
 
-      setSuccess('Two-factor authentication enabled successfully!');
+      setSuccess("Two-factor authentication enabled successfully!");
       setShowEnrollment(false);
       await loadMFAFactors();
     } catch (err: any) {
-      setError(err.message || 'Invalid verification code');
+      setError(err.message || "Invalid verification code");
     } finally {
       setLoading(false);
     }
   };
 
   const disable2FA = async () => {
-    if (!window.confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+    if (
+      !window.confirm(
+        "Are you sure you want to disable two-factor authentication? This will make your account less secure."
+      )
+    ) {
       return;
     }
 
     // Check AAL level first
-    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    
-    if (aalData?.currentLevel !== 'aal2') {
+    const { data: aalData } =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+    if (aalData?.currentLevel !== "aal2") {
       // Need to elevate to AAL2 first
       setShowDisableMFADialog(true);
       return;
@@ -165,47 +178,47 @@ export const TwoFactorAuth: React.FC = () => {
 
   const performDisable2FA = async () => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const factor = factors.find(f => f.status === 'verified');
+      const factor = factors.find((f) => f.status === "verified");
       if (!factor) return;
 
       const { error } = await supabase.auth.mfa.unenroll({
-        factorId: factor.id
+        factorId: factor.id,
       });
 
       if (error) throw error;
 
       // Clear backup codes
       await supabase
-        .from('user_settings')
+        .from("user_settings")
         .update({ mfa_backup_codes: null })
-        .eq('user_id', user!.id);
+        .eq("user_id", user!.id);
 
       // Log the action
       await auditService.log({
         user_id: user!.id,
-        action: 'settings_updated',
-        entity_type: 'user',
+        action: "settings_updated",
+        entity_type: "user",
         entity_id: user!.id,
-        entity_name: 'Two-Factor Authentication',
-        changes: { 
-          mfa_enabled: { from: true, to: false } 
+        entity_name: "Two-Factor Authentication",
+        changes: {
+          mfa_enabled: { from: true, to: false },
         },
         metadata: {
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
 
-      setSuccess('Two-factor authentication disabled');
+      setSuccess("Two-factor authentication disabled");
       await loadMFAFactors();
     } catch (err: any) {
-      if (err.message?.includes('AAL2')) {
-        setError('Please verify your identity first using the button below.');
+      if (err.message?.includes("AAL2")) {
+        setError("Please verify your identity first using the button below.");
         setShowDisableMFADialog(true);
       } else {
-        setError(err.message || 'Failed to disable 2FA');
+        setError(err.message || "Failed to disable 2FA");
       }
     } finally {
       setLoading(false);
@@ -214,25 +227,26 @@ export const TwoFactorAuth: React.FC = () => {
 
   const handleDisableMFAVerification = async () => {
     if (!disableMfaCode || disableMfaCode.length !== 6) {
-      setError('Please enter a 6-digit code');
+      setError("Please enter a 6-digit code");
       return;
     }
 
     setDisableMfaLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const verifiedFactor = factors.find(f => f.status === 'verified');
+      const verifiedFactor = factors.find((f) => f.status === "verified");
       if (!verifiedFactor) {
-        setError('No verified MFA factor found');
+        setError("No verified MFA factor found");
         setDisableMfaLoading(false);
         return;
       }
 
       // Create challenge
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: verifiedFactor.id
-      });
+      const { data: challengeData, error: challengeError } =
+        await supabase.auth.mfa.challenge({
+          factorId: verifiedFactor.id,
+        });
 
       if (challengeError) throw challengeError;
 
@@ -240,19 +254,19 @@ export const TwoFactorAuth: React.FC = () => {
       const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId: verifiedFactor.id,
         challengeId: challengeData.id,
-        code: disableMfaCode
+        code: disableMfaCode,
       });
 
       if (verifyError) throw verifyError;
 
       // Successfully verified - now disable 2FA
       setShowDisableMFADialog(false);
-      setDisableMfaCode('');
-      
+      setDisableMfaCode("");
+
       // Now we have AAL2, proceed with disabling
       await performDisable2FA();
     } catch (err: any) {
-      setError(err.message || 'Invalid MFA code');
+      setError(err.message || "Invalid MFA code");
     } finally {
       setDisableMfaLoading(false);
     }
@@ -261,9 +275,9 @@ export const TwoFactorAuth: React.FC = () => {
   const generateBackupCodes = (): string[] => {
     const codes: string[] = [];
     for (let i = 0; i < 8; i++) {
-      const code = Array.from({ length: 8 }, () => 
+      const code = Array.from({ length: 8 }, () =>
         Math.random().toString(36).charAt(2).toUpperCase()
-      ).join('');
+      ).join("");
       codes.push(code);
     }
     return codes;
@@ -276,11 +290,11 @@ export const TwoFactorAuth: React.FC = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    setSuccess('Copied to clipboard!');
-    setTimeout(() => setSuccess(''), 2000);
+    setSuccess("Copied to clipboard!");
+    setTimeout(() => setSuccess(""), 2000);
   };
 
-  const isEnabled = factors.some(f => f.status === 'verified');
+  const isEnabled = factors.some((f) => f.status === "verified");
 
   return (
     <div className="space-y-6">
@@ -290,16 +304,22 @@ export const TwoFactorAuth: React.FC = () => {
           <div className="flex items-center">
             <Shield className="h-8 w-8 text-blue-600 mr-3" />
             <div>
-              <h3 className="text-lg font-medium text-gray-900">Two-Factor Authentication</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Two-Factor Authentication
+              </h3>
               <p className="text-sm text-gray-600">
                 Add an extra layer of security to your account
               </p>
             </div>
           </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-            isEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-          }`}>
-            {isEnabled ? 'Enabled' : 'Disabled'}
+          <div
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isEnabled
+                ? "bg-green-100 text-green-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {isEnabled ? "Enabled" : "Disabled"}
           </div>
         </div>
 
@@ -320,7 +340,8 @@ export const TwoFactorAuth: React.FC = () => {
         {!isEnabled && !showEnrollment && (
           <div className="space-y-4">
             <p className="text-gray-600">
-              Two-factor authentication adds an extra layer of security by requiring a code from your phone in addition to your password.
+              Two-factor authentication adds an extra layer of security by
+              requiring a code from your phone in addition to your password.
             </p>
             <button
               onClick={startEnrollment}
@@ -341,7 +362,9 @@ export const TwoFactorAuth: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center text-green-600">
               <CheckCircle className="h-5 w-5 mr-2" />
-              <span className="font-medium">Two-factor authentication is active</span>
+              <span className="font-medium">
+                Two-factor authentication is active
+              </span>
             </div>
             <button
               onClick={disable2FA}
@@ -357,21 +380,26 @@ export const TwoFactorAuth: React.FC = () => {
       {/* Enrollment Process */}
       {showEnrollment && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">Set up Two-Factor Authentication</h4>
-          
+          <h4 className="text-lg font-medium text-gray-900 mb-4">
+            Set up Two-Factor Authentication
+          </h4>
+
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <p className="text-sm text-gray-600 mb-4">
-                1. Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                1. Scan this QR code with your authenticator app (Google
+                Authenticator, Authy, etc.)
               </p>
               {qrCode && (
                 <div className="bg-white p-4 border-2 border-gray-300 rounded-lg inline-block">
                   <img src={qrCode} alt="2FA QR Code" className="w-48 h-48" />
                 </div>
               )}
-              
+
               <div className="mt-4">
-                <p className="text-sm text-gray-600 mb-2">Can't scan? Enter this code manually:</p>
+                <p className="text-sm text-gray-600 mb-2">
+                  Can't scan? Enter this code manually:
+                </p>
                 <div className="flex items-center space-x-2">
                   <code className="px-3 py-2 bg-gray-100 rounded text-sm font-mono flex-1">
                     {secret}
@@ -393,12 +421,16 @@ export const TwoFactorAuth: React.FC = () => {
               <input
                 type="text"
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) =>
+                  setVerificationCode(
+                    e.target.value.replace(/\D/g, "").slice(0, 6)
+                  )
+                }
                 placeholder="000000"
                 className="w-full px-4 py-3 text-center text-2xl font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 maxLength={6}
               />
-              
+
               <button
                 onClick={verifyAndEnable}
                 disabled={loading || verificationCode.length !== 6}
@@ -410,9 +442,9 @@ export const TwoFactorAuth: React.FC = () => {
               <button
                 onClick={() => {
                   setShowEnrollment(false);
-                  setQrCode('');
-                  setSecret('');
-                  setVerificationCode('');
+                  setQrCode("");
+                  setSecret("");
+                  setVerificationCode("");
                 }}
                 className="mt-2 w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
@@ -426,14 +458,20 @@ export const TwoFactorAuth: React.FC = () => {
       {/* Backup Codes */}
       {showBackupCodes && backupCodes.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <h4 className="text-lg font-medium text-gray-900 mb-2">Save Your Backup Codes</h4>
+          <h4 className="text-lg font-medium text-gray-900 mb-2">
+            Save Your Backup Codes
+          </h4>
           <p className="text-sm text-gray-600 mb-4">
-            Store these codes in a safe place. You can use them to access your account if you lose your phone.
+            Store these codes in a safe place. You can use them to access your
+            account if you lose your phone.
           </p>
-          
+
           <div className="grid grid-cols-2 gap-2 mb-4">
             {backupCodes.map((code, index) => (
-              <div key={index} className="px-3 py-2 bg-white border border-gray-300 rounded font-mono text-sm">
+              <div
+                key={index}
+                className="px-3 py-2 bg-white border border-gray-300 rounded font-mono text-sm"
+              >
                 {code}
               </div>
             ))}
@@ -441,7 +479,7 @@ export const TwoFactorAuth: React.FC = () => {
 
           <button
             onClick={() => {
-              const codesText = backupCodes.join('\n');
+              const codesText = backupCodes.join("\n");
               copyToClipboard(codesText);
             }}
             className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center"
@@ -459,9 +497,10 @@ export const TwoFactorAuth: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Verify Your Identity
             </h3>
-            
+
             <p className="text-sm text-gray-600 mb-4">
-              Enter the 6-digit code from your authenticator app to disable two-factor authentication.
+              Enter the 6-digit code from your authenticator app to disable
+              two-factor authentication.
             </p>
 
             {error && (
@@ -473,7 +512,9 @@ export const TwoFactorAuth: React.FC = () => {
             <input
               type="text"
               value={disableMfaCode}
-              onChange={(e) => setDisableMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) =>
+                setDisableMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               placeholder="000000"
               className="w-full px-4 py-3 text-center text-2xl font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
               maxLength={6}
@@ -485,13 +526,13 @@ export const TwoFactorAuth: React.FC = () => {
                 disabled={disableMfaLoading || disableMfaCode.length !== 6}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {disableMfaLoading ? 'Verifying...' : 'Verify and Disable 2FA'}
+                {disableMfaLoading ? "Verifying..." : "Verify and Disable 2FA"}
               </button>
               <button
                 onClick={() => {
                   setShowDisableMFADialog(false);
-                  setDisableMfaCode('');
-                  setError('');
+                  setDisableMfaCode("");
+                  setError("");
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
