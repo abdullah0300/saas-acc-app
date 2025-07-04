@@ -219,13 +219,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
-        {/* Backdrop blur effect */}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/95 via-gray-900/90 to-transparent backdrop-blur-xl" />
-        
-        {/* Navigation container */}
-        <div className="relative px-4 py-3 pb-6">
-          <div className="bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-700/50 p-2">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 safe-area-pb">
+        <div className="mx-4 mb-4">
+          <div className="bg-gradient-to-r from-gray-800/95 to-gray-900/95 backdrop-blur-lg rounded-2xl shadow-xl border border-gray-700/30 px-2 py-2">
             <div className="flex items-center justify-around">
               {mobileNavItems.map(({ path, icon: Icon, label }) => {
                 const active = isActive(path);
@@ -234,15 +230,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                   <button
                     key={path}
                     onClick={() => handleNavigation(path)}
-                    className={`relative flex flex-col items-center justify-center p-3 rounded-2xl transition-all duration-300 transform ${
+                    className={`relative flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300 transform ${
                       active 
-                        ? 'scale-110' 
+                        ? 'scale-105' 
                         : 'hover:scale-105 active:scale-95'
                     }`}
                   >
                     {/* Active background with gradient */}
                     {active && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25 animate-pulse" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/25" />
                     )}
                     
                     {/* Icon container */}
@@ -250,9 +246,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                       active ? 'text-white' : 'text-gray-400'
                     }`}>
                       <Icon 
-                        className={`h-6 w-6 transition-all duration-300 ${
+                        className={`h-5 w-5 transition-all duration-300 ${
                           active 
-                            ? 'animate-bounce' 
+                            ? '' 
                             : 'group-hover:scale-110'
                         }`} 
                       />
@@ -267,14 +263,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                       {label}
                     </span>
                     
-                    {/* Active indicator dot */}
-                    {active && (
-                      <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full animate-ping" />
-                    )}
-                    
                     {/* Ripple effect on tap */}
-                    <div className="absolute inset-0 rounded-2xl overflow-hidden">
-                      <div className={`absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl transition-transform duration-300 ${
+                    <div className="absolute inset-0 rounded-xl overflow-hidden">
+                      <div className={`absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl transition-transform duration-300 ${
                         active ? 'scale-100' : 'scale-0'
                       }`} />
                     </div>
@@ -287,7 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       </div>
       
       {/* Mobile bottom padding to prevent content overlap */}
-      <div className="lg:hidden h-20" />
+      {/* <div className="lg:hidden h-16" /> */}
     </>
   );
 };
