@@ -18,6 +18,7 @@ import {
   PiggyBank,
   MoreHorizontal,
   ChevronUp,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { getProfile } from "../../services/database";
@@ -258,14 +259,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           <>
             {/* Backdrop */}
             <div
-              className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-all duration-300"
               onClick={() => setShowMoreDropup(false)}
             />
             
             {/* Dropup Panel */}
-            <div className="fixed bottom-24 left-4 right-4 bg-white rounded-2xl shadow-2xl z-50 border border-gray-200">
-              <div className="p-4">
-                <div className="grid grid-cols-2 gap-3">
+            <div className="fixed bottom-20 left-2 right-2 bg-white/90 backdrop-blur-2xl rounded-3xl shadow-2xl z-50 border border-white/20 overflow-hidden animate-in slide-in-from-bottom-5 duration-300">
+              {/* Gradient top border */}
+              <div className="h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+              
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-4">
                   {moreItems.map(({ path, icon: Icon, label, feature }) => {
                     const active = isActive(path);
                     const hasAccess = !feature || hasFeature(feature as any);
@@ -274,21 +278,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                       <button
                         key={path}
                         onClick={() => handleMoreItemClick(path, feature)}
-                        className={`flex flex-col items-center space-y-2 px-4 py-3 rounded-xl transition-all duration-200 ${
+                        className={`group relative flex flex-col items-center space-y-3 px-4 py-4 rounded-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 ${
                           active
-                            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25"
-                            : "text-gray-600 hover:bg-gray-100"
+                            ? "bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-blue-600 shadow-lg shadow-blue-500/25"
+                            : "text-gray-600 hover:bg-gray-100/50 hover:text-gray-800"
                         }`}
                       >
+                        {/* Glow effect for active item */}
+                        {active && (
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl blur-xl -z-10" />
+                        )}
+                        
                         <div className="relative">
-                          <Icon className="h-6 w-6" />
+                          <Icon className={`h-6 w-6 transition-all duration-300 ${active ? "drop-shadow-lg" : ""}`} />
                           {feature && !hasAccess && (
-                            <Crown className="h-3 w-3 absolute -top-1 -right-1 text-amber-400" />
+                            <Crown className="h-3 w-3 absolute -top-1 -right-1 text-amber-400 animate-pulse" />
+                          )}
+                          {active && (
+                            <div className="absolute -inset-1 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-sm -z-10" />
                           )}
                         </div>
-                        <span className="text-sm font-medium">{label}</span>
+                        
+                        <span className={`text-sm font-medium transition-all duration-300 ${active ? "font-semibold" : ""}`}>
+                          {label}
+                        </span>
+                        
                         {active && hasAccess && (
-                          <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                          <div className="w-1 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse" />
                         )}
                       </button>
                     );
@@ -296,13 +312,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                 </div>
                 
                 {/* Sign out button in dropup */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-6 pt-4 border-t border-gray-200/50">
                   <button
                     onClick={handleSignOut}
                     disabled={isLoggingOut}
-                    className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-300 hover:bg-red-600/10 hover:text-red-400 rounded-xl transition-all duration-200 group"
+                    className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-500 hover:bg-red-50/50 hover:text-red-500 rounded-2xl transition-all duration-300 group"
                   >
-                    <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                    <LogOut className="h-5 w-5 transition-all duration-300 group-hover:scale-110" />
                     <span className="font-medium">
                       {isLoggingOut ? "Signing out..." : "Sign Out"}
                     </span>
@@ -313,68 +329,109 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           </>
         )}
 
-        {/* Bottom Navigation Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30">
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-0.5 rounded-t-3xl">
-            <div className="bg-white rounded-t-3xl">
-              <div className="flex items-center justify-around px-4 py-3">
-                {/* Logo */}
+        {/* Futuristic Bottom Navigation Bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-30">
+          {/* Glow effect */}
+          <div className="absolute inset-0 bg-gradient-to-t from-blue-500/5 via-purple-500/5 to-transparent blur-xl" />
+          
+          {/* Main container */}
+          <div className="relative mx-2 mb-2">
+            {/* Glassmorphism background */}
+            <div className="bg-white/80 backdrop-blur-2xl rounded-3xl border border-white/20 shadow-2xl shadow-black/5 overflow-hidden">
+              {/* Top gradient line */}
+              <div className="h-px bg-gradient-to-r from-transparent via-blue-500/30 via-purple-500/30 to-transparent" />
+              
+              {/* Navigation content */}
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-around">
+                  {/* Main Navigation Items */}
+                  {mainNavItems.map(({ path, icon: Icon, label }) => {
+                    const active = isActive(path);
+                    return (
+                      <button
+                        key={path}
+                        onClick={() => handleNavClick(path)}
+                        className={`group relative flex flex-col items-center space-y-1 px-3 py-2 rounded-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 min-w-0 ${
+                          active
+                            ? "text-blue-600"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        {/* Active background glow */}
+                        {active && (
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl blur-lg -z-10" />
+                        )}
+                        
+                        <div className="relative">
+                          <Icon className={`h-5 w-5 transition-all duration-300 ${active ? "drop-shadow-lg scale-110" : "group-hover:scale-110"}`} />
+                          {active && (
+                            <div className="absolute -inset-1 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-sm -z-10" />
+                          )}
+                        </div>
+                        
+                        <span className={`text-xs font-medium transition-all duration-300 truncate ${active ? "font-semibold" : ""}`}>
+                          {label}
+                        </span>
+                        
+                        {active && (
+                          <div className="w-1 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse" />
+                        )}
+                      </button>
+                    );
+                  })}
 
-
-                {/* Main Navigation Items */}
-                {mainNavItems.map(({ path, icon: Icon, label }) => {
-                  const active = isActive(path);
-                  return (
-                    <button
-                      key={path}
-                      onClick={() => handleNavClick(path)}
-                      className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-0 ${
-                        active
-                          ? "text-blue-600"
-                          : "text-gray-600 hover:text-blue-600"
-                      }`}
-                    >
-                      <Icon className={`h-6 w-6 transition-transform duration-200 ${active ? "scale-110" : "group-hover:scale-110"}`} />
-                      <span className="text-xs font-medium truncate">{label}</span>
-                      {active && (
-                        <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
+                  {/* More Button */}
+                  <button
+                    onClick={handleMoreClick}
+                    className={`group relative flex flex-col items-center space-y-1 px-3 py-2 rounded-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 min-w-0 ${
+                      showMoreDropup || isMoreItemActive
+                        ? "text-blue-600"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {/* Active background glow */}
+                    {(showMoreDropup || isMoreItemActive) && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl blur-lg -z-10" />
+                    )}
+                    
+                    <div className="relative">
+                      {showMoreDropup ? (
+                        <ChevronUp className={`h-5 w-5 transition-all duration-300 ${showMoreDropup ? "rotate-180 scale-110" : ""}`} />
+                      ) : (
+                        <div className="relative">
+                          <MoreHorizontal className="h-5 w-5 transition-all duration-300 group-hover:scale-110" />
+                          {isMoreItemActive && !showMoreDropup && (
+                            <>
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full animate-pulse" />
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full animate-ping" />
+                            </>
+                          )}
+                        </div>
                       )}
-                    </button>
-                  );
-                })}
-
-                {/* More Button */}
-                <button
-                  onClick={handleMoreClick}
-                  className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-0 ${
-                    showMoreDropup || isMoreItemActive
-                      ? "text-blue-600"
-                      : "text-gray-600 hover:text-blue-600"
-                  }`}
-                >
-                  <div className="relative">
-                    {showMoreDropup ? (
-                      <ChevronUp className="h-6 w-6 transition-transform duration-200" />
-                    ) : (
-                      <MoreHorizontal className="h-6 w-6 transition-transform duration-200" />
+                      
+                      {(showMoreDropup || isMoreItemActive) && (
+                        <div className="absolute -inset-1 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-sm -z-10" />
+                      )}
+                    </div>
+                    
+                    <span className={`text-xs font-medium transition-all duration-300 ${(showMoreDropup || isMoreItemActive) ? "font-semibold" : ""}`}>
+                      More
+                    </span>
+                    
+                    {(showMoreDropup || isMoreItemActive) && (
+                      <div className="w-1 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse" />
                     )}
-                    {isMoreItemActive && !showMoreDropup && (
-                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
-                    )}
-                  </div>
-                  <span className="text-xs font-medium">More</span>
-                  {(showMoreDropup || isMoreItemActive) && (
-                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
-                  )}
-                </button>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+          
         </div>
 
-        {/* Bottom padding for content */}
-        {/* <div className="h-20" /> */}
+                    
       </div>
+      
     </>
   );
 };
