@@ -322,7 +322,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-6">
           {/* Floating pill container */}
           <div className="mx-auto max-w-sm">
-            <div className="bg-white/95 backdrop-blur-xl rounded-full shadow-2xl shadow-black/10 border border-white/20 px-2 py-2">
+            <div className="bg-gradient-to-r from-white/95 via-blue-50/90 to-purple-50/90 backdrop-blur-xl rounded-full shadow-2xl shadow-black/15 border border-white/30 px-3 py-3">
               <div className="flex items-center justify-between">
                 {/* Main Navigation Items */}
                 {mainNavItems.map(({ path, icon: Icon, label }) => {
@@ -331,13 +331,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                     <button
                       key={path}
                       onClick={() => handleNavClick(path)}
-                      className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 transform hover:scale-110 active:scale-95 ${
+                      className={`relative flex flex-col items-center justify-center w-14 h-14 rounded-full transition-all duration-300 transform hover:scale-110 active:scale-95 ${
                         active
                           ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25"
-                          : "text-gray-500 hover:text-gray-700 hover:bg-gray-100/50"
+                          : "text-gray-500 hover:text-gray-700 hover:bg-white/60"
                       }`}
                     >
                       <Icon className={`h-5 w-5 transition-all duration-300 ${active ? "drop-shadow-sm" : ""}`} />
+                      
+                      {/* Small label text */}
+                      <span className={`text-xs font-medium mt-0.5 transition-all duration-300 ${
+                        active ? "text-white" : "text-gray-400"
+                      }`}>
+                        {label}
+                      </span>
                       
                       {/* Active indicator dot */}
                       {active && (
@@ -350,10 +357,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                 {/* More Button */}
                 <button
                   onClick={handleMoreClick}
-                  className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 transform hover:scale-110 active:scale-95 ${
+                  className={`relative flex flex-col items-center justify-center w-14 h-14 rounded-full transition-all duration-300 transform hover:scale-110 active:scale-95 ${
                     showMoreDropup || isMoreItemActive
                       ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25"
-                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-100/50"
+                      : "text-gray-500 hover:text-gray-700 hover:bg-white/60"
                   }`}
                 >
                   {showMoreDropup ? (
@@ -367,6 +374,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                     </div>
                   )}
                   
+                  {/* Small label text */}
+                  <span className={`text-xs font-medium mt-0.5 transition-all duration-300 ${
+                    showMoreDropup || isMoreItemActive ? "text-white" : "text-gray-400"
+                  }`}>
+                    More
+                  </span>
+                  
                   {/* Active indicator dot */}
                   {(showMoreDropup || isMoreItemActive) && (
                     <div className="absolute -bottom-1 w-1 h-1 bg-white rounded-full animate-pulse" />
@@ -378,7 +392,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         </div>
 
         {/* Bottom padding for content */}
-        <div className="h-20" />
+        {/* <div className="h-20" /> */}
       </div>
     </>
   );
