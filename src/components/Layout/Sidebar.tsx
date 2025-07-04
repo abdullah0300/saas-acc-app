@@ -1,5 +1,5 @@
 // src/components/Layout/Sidebar.tsx
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Crown, Calculator } from "lucide-react";
 import { useSubscription } from "../../contexts/SubscriptionContext";
@@ -16,6 +16,8 @@ import {
   X,
   Users,
   PiggyBank,
+  MoreHorizontal,
+  ChevronUp,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { getProfile } from "../../services/database";
@@ -33,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const [profile, setProfile] = React.useState<User | null>(null);
   const { hasFeature, showAnticipationModal } = useSubscription();
   const navigate = useNavigate();
+  const [showMoreDropup, setShowMoreDropup] = useState(false);
 
   const menuItems = [
     { path: "/dashboard", icon: Home, label: "Dashboard" },
@@ -50,12 +53,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
-  // Mobile navigation items (filtered to show only 5 main items)
-  const mobileNavItems = [
+  const mainNavItems = [
     { path: "/dashboard", icon: Home, label: "Home" },
     { path: "/income", icon: TrendingUp, label: "Income" },
-    { path: "/expenses", icon: TrendingDown, label: "Expenses" },
-    { path: "/invoices", icon: FileText, label: "Invoices" },
+    { path: "/expenses", icon: TrendingDown, label: "Expense" },
+    { path: "/invoices", icon: FileText, label: "Invoice" },
+  ];
+
+  const moreItems = [
+    { path: "/clients", icon: Users, label: "Clients" },
+    {
+      path: "/budget",
+      icon: PiggyBank,
+      label: "Budget",
+      feature: "budget_tracking",
+    },
+    { path: "/reports", icon: BarChart3, label: "Reports" },
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -88,22 +101,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     }
   };
 
-  const handleNavigation = (path: string, feature?: string, label?: string) => {
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    setShowMoreDropup(false);
+  };
+
+  const handleMoreClick = () => {
+    setShowMoreDropup(!showMoreDropup);
+  };
+
+  const handleMoreItemClick = (path: string, feature?: string) => {
     if (feature && !hasFeature(feature as any)) {
       showAnticipationModal("feature", {
-        featureName: label,
+        featureName: moreItems.find(item => item.path === path)?.label || "Feature",
       });
     } else {
       navigate(path);
-      if (window.innerWidth < 1024) {
-        onToggle();
-      }
     }
+    setShowMoreDropup(false);
   };
+
+  const isMoreItemActive = moreItems.some(item => isActive(item.path));
 
   return (
     <>
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar - Keep Original */}
       <div className="hidden lg:block">
         {/* Mobile backdrop */}
         {isOpen && (
@@ -125,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-white font-bold text-xl">A</span>
+                    <span className="text-white font-bold text-xl">S</span>
                   </div>
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                     SmartCFO
@@ -170,7 +192,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                 return (
                   <button
                     key={path}
-                    onClick={() => handleNavigation(path, feature, label)}
+                    onClick={() => {
+                      if (feature && !hasAccess) {
+                        showAnticipationModal("feature", {
+                          featureName: label,
+                        });
+                      } else {
+                        navigate(path);
+                        if (window.innerWidth < 1024) {
+                          onToggle();
+                        }
+                      }
+                    }}
                     className={`w-full group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                       active
                         ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25"
@@ -219,66 +252,129 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 safe-area-pb">
-        <div className="mx-4 mb-4">
-          <div className="bg-gradient-to-r from-gray-800/95 to-gray-900/95 backdrop-blur-lg rounded-2xl shadow-xl border border-gray-700/30 px-2 py-2">
-            <div className="flex items-center justify-around">
-              {mobileNavItems.map(({ path, icon: Icon, label }) => {
-                const active = isActive(path);
+      <div className="lg:hidden">
+        {/* More Items Dropup */}
+        {showMoreDropup && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-40"
+              onClick={() => setShowMoreDropup(false)}
+            />
+            
+            {/* Dropup Panel */}
+            <div className="fixed bottom-24 left-4 right-4 bg-white rounded-2xl shadow-2xl z-50 border border-gray-200">
+              <div className="p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {moreItems.map(({ path, icon: Icon, label, feature }) => {
+                    const active = isActive(path);
+                    const hasAccess = !feature || hasFeature(feature as any);
+
+                    return (
+                      <button
+                        key={path}
+                        onClick={() => handleMoreItemClick(path, feature)}
+                        className={`flex flex-col items-center space-y-2 px-4 py-3 rounded-xl transition-all duration-200 ${
+                          active
+                            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="relative">
+                          <Icon className="h-6 w-6" />
+                          {feature && !hasAccess && (
+                            <Crown className="h-3 w-3 absolute -top-1 -right-1 text-amber-400" />
+                          )}
+                        </div>
+                        <span className="text-sm font-medium">{label}</span>
+                        {active && hasAccess && (
+                          <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
                 
-                return (
+                {/* Sign out button in dropup */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
                   <button
-                    key={path}
-                    onClick={() => handleNavigation(path)}
-                    className={`relative flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300 transform ${
-                      active 
-                        ? 'scale-105' 
-                        : 'hover:scale-105 active:scale-95'
-                    }`}
+                    onClick={handleSignOut}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-300 hover:bg-red-600/10 hover:text-red-400 rounded-xl transition-all duration-200 group"
                   >
-                    {/* Active background with gradient */}
-                    {active && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/25" />
-                    )}
-                    
-                    {/* Icon container */}
-                    <div className={`relative z-10 transition-all duration-300 ${
-                      active ? 'text-white' : 'text-gray-400'
-                    }`}>
-                      <Icon 
-                        className={`h-5 w-5 transition-all duration-300 ${
-                          active 
-                            ? '' 
-                            : 'group-hover:scale-110'
-                        }`} 
-                      />
-                    </div>
-                    
-                    {/* Label */}
-                    <span className={`relative z-10 text-xs font-medium mt-1 transition-all duration-300 ${
-                      active 
-                        ? 'text-white' 
-                        : 'text-gray-400'
-                    }`}>
-                      {label}
+                    <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                    <span className="font-medium">
+                      {isLoggingOut ? "Signing out..." : "Sign Out"}
                     </span>
-                    
-                    {/* Ripple effect on tap */}
-                    <div className="absolute inset-0 rounded-xl overflow-hidden">
-                      <div className={`absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl transition-transform duration-300 ${
-                        active ? 'scale-100' : 'scale-0'
-                      }`} />
-                    </div>
                   </button>
-                );
-              })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Bottom Navigation Bar */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30">
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-0.5 rounded-t-3xl">
+            <div className="bg-white rounded-t-3xl">
+              <div className="flex items-center justify-around px-4 py-3">
+                {/* Logo */}
+
+
+                {/* Main Navigation Items */}
+                {mainNavItems.map(({ path, icon: Icon, label }) => {
+                  const active = isActive(path);
+                  return (
+                    <button
+                      key={path}
+                      onClick={() => handleNavClick(path)}
+                      className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-0 ${
+                        active
+                          ? "text-blue-600"
+                          : "text-gray-600 hover:text-blue-600"
+                      }`}
+                    >
+                      <Icon className={`h-6 w-6 transition-transform duration-200 ${active ? "scale-110" : "group-hover:scale-110"}`} />
+                      <span className="text-xs font-medium truncate">{label}</span>
+                      {active && (
+                        <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* More Button */}
+                <button
+                  onClick={handleMoreClick}
+                  className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-0 ${
+                    showMoreDropup || isMoreItemActive
+                      ? "text-blue-600"
+                      : "text-gray-600 hover:text-blue-600"
+                  }`}
+                >
+                  <div className="relative">
+                    {showMoreDropup ? (
+                      <ChevronUp className="h-6 w-6 transition-transform duration-200" />
+                    ) : (
+                      <MoreHorizontal className="h-6 w-6 transition-transform duration-200" />
+                    )}
+                    {isMoreItemActive && !showMoreDropup && (
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+                    )}
+                  </div>
+                  <span className="text-xs font-medium">More</span>
+                  {(showMoreDropup || isMoreItemActive) && (
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Bottom padding for content */}
+        {/* <div className="h-20" /> */}
       </div>
-      
-      {/* Mobile bottom padding to prevent content overlap */}
-      {/* <div className="lg:hidden h-16" /> */}
     </>
   );
 };
