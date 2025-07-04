@@ -340,7 +340,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                       <Icon className={`h-5 w-5 transition-all duration-300 ${active ? "drop-shadow-sm" : ""}`} />
                       
                       {/* Small label text */}
-                      <span className={`text-xs font-medium mt-0.5 transition-all duration-300 ${
+                      <span className={`text-[10px] font-medium mt-0.5 transition-all duration-300 ${
                         active ? "text-white" : "text-gray-400"
                       }`}>
                         {label}
