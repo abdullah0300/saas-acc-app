@@ -70,3 +70,20 @@ code {
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+@keyframes gradient-x {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradient-x 10s ease infinite;
+}

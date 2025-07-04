@@ -127,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   return (
     <>
       {/* Desktop Sidebar - Keep Original */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block ">
         {/* Mobile backdrop */}
         {isOpen && (
           <div
@@ -322,7 +322,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-6">
           {/* Floating pill container */}
           <div className="mx-auto max-w-sm">
-            <div className="bg-gradient-to-r from-white/95 via-blue-50/90 to-purple-50/90 backdrop-blur-xl rounded-full shadow-2xl shadow-black/15 border border-white/30 px-3 py-3">
+<div className="bg-gradient-to-r from-white via-blue-100 to-purple-200 backdrop-blur-xl rounded-full shadow-2xl shadow-black/15 border border-white/30 px-3 py-3 animated-gradient">
               <div className="flex items-center justify-between">
                 {/* Main Navigation Items */}
                 {mainNavItems.map(({ path, icon: Icon, label }) => {
@@ -391,8 +391,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           </div>
         </div>
 
-        {/* Bottom padding for content */}
-        {/* <div className="h-20" /> */}
       </div>
     </>
   );
