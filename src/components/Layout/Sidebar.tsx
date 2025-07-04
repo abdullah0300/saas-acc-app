@@ -50,6 +50,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { path: "/settings", icon: Settings, label: "Settings" },
   ];
 
+  // Mobile navigation items (filtered to show only 5 main items)
+  const mobileNavItems = [
+    { path: "/dashboard", icon: Home, label: "Home" },
+    { path: "/income", icon: TrendingUp, label: "Income" },
+    { path: "/expenses", icon: TrendingDown, label: "Expenses" },
+    { path: "/invoices", icon: FileText, label: "Invoices" },
+    { path: "/settings", icon: Settings, label: "Settings" },
+  ];
+
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   React.useEffect(() => {
@@ -79,131 +88,206 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     }
   };
 
+  const handleNavigation = (path: string, feature?: string, label?: string) => {
+    if (feature && !hasFeature(feature as any)) {
+      showAnticipationModal("feature", {
+        featureName: label,
+      });
+    } else {
+      navigate(path);
+      if (window.innerWidth < 1024) {
+        onToggle();
+      }
+    }
+  };
+
   return (
     <>
-      {/* Mobile backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
-          onClick={onToggle}
-        />
-      )}
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block">
+        {/* Mobile backdrop */}
+        {isOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+            onClick={onToggle}
+          />
+        )}
 
-      {/* Sidebar */}
-      <div
-        className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white w-72 transform transition-all duration-300 ease-in-out z-50 shadow-2xl ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 lg:w-64`}
-      >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="p-6 border-b border-gray-700/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-xl">A</span>
+        {/* Sidebar */}
+        <div
+          className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white w-72 transform transition-all duration-300 ease-in-out z-50 shadow-2xl ${
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0 lg:w-64`}
+        >
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-700/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <span className="text-white font-bold text-xl">A</span>
+                  </div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    SmartCFO
+                  </h1>
                 </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  SmartCFO
-                </h1>
+                <button
+                  onClick={onToggle}
+                  className="lg:hidden text-gray-400 hover:text-white transition-colors duration-200"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
+            </div>
+
+            {/* User info */}
+            <div className="px-6 py-4 border-b border-gray-700/50">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-medium text-gray-300">
+                    {profile?.company_name?.[0]?.toUpperCase() ||
+                      user?.email?.[0]?.toUpperCase() ||
+                      "U"}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-200 truncate">
+                    {profile?.company_name || user?.email || "User"}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {profile?.company_name ? "Company" : "Account"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+              {menuItems.map(({ path, icon: Icon, label, feature }) => {
+                const active = isActive(path);
+                const hasAccess = !feature || hasFeature(feature as any);
+
+                return (
+                  <button
+                    key={path}
+                    onClick={() => handleNavigation(path, feature, label)}
+                    className={`w-full group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      active
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25"
+                        : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-5 w-5 transition-transform duration-200 ${
+                        active ? "scale-110" : "group-hover:scale-110"
+                      }`}
+                    />
+                    <span className="font-medium">{label}</span>
+                    {feature && !hasAccess && (
+                      <Crown className="h-4 w-4 ml-auto text-amber-400" />
+                    )}
+                    {active && hasAccess && (
+                      <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Sign out button */}
+            <div className="p-4 border-t border-gray-700/50">
               <button
-                onClick={onToggle}
-                className="lg:hidden text-gray-400 hover:text-white transition-colors duration-200"
+                onClick={handleSignOut}
+                disabled={isLoggingOut}
+                className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-300 hover:bg-red-600/10 hover:text-red-400 rounded-xl transition-all duration-200 group"
               >
-                <X className="h-6 w-6" />
+                <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                <span className="font-medium">
+                  {isLoggingOut ? "Signing out..." : "Sign Out"}
+                </span>
               </button>
             </div>
-          </div>
 
-          {/* User info */}
-          <div className="px-6 py-4 border-b border-gray-700/50">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-300">
-                  {profile?.company_name?.[0]?.toUpperCase() ||
-                    user?.email?.[0]?.toUpperCase() ||
-                    "U"}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-200 truncate">
-                  {profile?.company_name || user?.email || "User"}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {profile?.company_name ? "Company" : "Account"}
-                </p>
-              </div>
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-700/50">
+              <p className="text-xs text-center text-gray-500">
+                © 2024 SmartCFO
+              </p>
             </div>
-          </div>
-
-          {/* Navigation */}
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
-            {menuItems.map(({ path, icon: Icon, label, feature }) => {
-              const active = isActive(path);
-              const hasAccess = !feature || hasFeature(feature as any);
-
-              return (
-                <button
-                  key={path}
-                  onClick={() => {
-                    if (feature && !hasAccess) {
-                      showAnticipationModal("feature", {
-                        featureName: label,
-                      });
-                    } else {
-                      navigate(path);
-                      if (window.innerWidth < 1024) {
-                        onToggle();
-                      }
-                    }
-                  }}
-                  className={`w-full group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    active
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25"
-                      : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
-                  }`}
-                >
-                  <Icon
-                    className={`h-5 w-5 transition-transform duration-200 ${
-                      active ? "scale-110" : "group-hover:scale-110"
-                    }`}
-                  />
-                  <span className="font-medium">{label}</span>
-                  {feature && !hasAccess && (
-                    <Crown className="h-4 w-4 ml-auto text-amber-400" />
-                  )}
-                  {active && hasAccess && (
-                    <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Sign out button */}
-          <div className="p-4 border-t border-gray-700/50">
-            <button
-              onClick={handleSignOut}
-              disabled={isLoggingOut}
-              className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-300 hover:bg-red-600/10 hover:text-red-400 rounded-xl transition-all duration-200 group"
-            >
-              <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
-              <span className="font-medium">
-                {isLoggingOut ? "Signing out..." : "Sign Out"}
-              </span>
-            </button>
-          </div>
-
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-700/50">
-            <p className="text-xs text-center text-gray-500">
-              © 2024 SmartCFO
-            </p>
           </div>
         </div>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
+        {/* Backdrop blur effect */}
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/95 via-gray-900/90 to-transparent backdrop-blur-xl" />
+        
+        {/* Navigation container */}
+        <div className="relative px-4 py-3 pb-6">
+          <div className="bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-700/50 p-2">
+            <div className="flex items-center justify-around">
+              {mobileNavItems.map(({ path, icon: Icon, label }) => {
+                const active = isActive(path);
+                
+                return (
+                  <button
+                    key={path}
+                    onClick={() => handleNavigation(path)}
+                    className={`relative flex flex-col items-center justify-center p-3 rounded-2xl transition-all duration-300 transform ${
+                      active 
+                        ? 'scale-110' 
+                        : 'hover:scale-105 active:scale-95'
+                    }`}
+                  >
+                    {/* Active background with gradient */}
+                    {active && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25 animate-pulse" />
+                    )}
+                    
+                    {/* Icon container */}
+                    <div className={`relative z-10 transition-all duration-300 ${
+                      active ? 'text-white' : 'text-gray-400'
+                    }`}>
+                      <Icon 
+                        className={`h-6 w-6 transition-all duration-300 ${
+                          active 
+                            ? 'animate-bounce' 
+                            : 'group-hover:scale-110'
+                        }`} 
+                      />
+                    </div>
+                    
+                    {/* Label */}
+                    <span className={`relative z-10 text-xs font-medium mt-1 transition-all duration-300 ${
+                      active 
+                        ? 'text-white' 
+                        : 'text-gray-400'
+                    }`}>
+                      {label}
+                    </span>
+                    
+                    {/* Active indicator dot */}
+                    {active && (
+                      <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+                    )}
+                    
+                    {/* Ripple effect on tap */}
+                    <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                      <div className={`absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl transition-transform duration-300 ${
+                        active ? 'scale-100' : 'scale-0'
+                      }`} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Mobile bottom padding to prevent content overlap */}
+      <div className="lg:hidden h-20" />
     </>
   );
 };
