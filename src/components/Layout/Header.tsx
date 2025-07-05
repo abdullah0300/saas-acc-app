@@ -3,6 +3,9 @@ import React from 'react';
 import { Menu, Bell, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationBell } from '../Notifications/NotificationBell';
+import {ProfileSettings} from '../Settings/ProfileSettings';
+import { Link } from 'react-router-dom';
+
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -33,15 +36,17 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         
         {/* Mobile: Futuristic Header Design */}
         <div className="flex items-center space-x-3 lg:hidden">
-          {/* Notification Bell - Mobile (Functional) */}
+           {/* Profile Button - Mobile */}
+          <Link to="../../settings/profile "
+          className="relative p-2 rounded-full bg-gradient-to-r from-purple-300 to-pink-300 hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl">
+            <User className="h-5 w-5 text-white" />
+          </Link>
+
           <div className="relative rounded-full bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl [&>button]:p-2 [&>button]:bg-transparent [&>button]:hover:bg-transparent [&_svg]:h-5 [&_svg]:w-5 [&_svg]:text-white">
             <NotificationBell />
           </div>
           
-          {/* Profile Button - Mobile */}
-          <button className="relative p-2 rounded-full bg-gradient-to-r from-purple-300 to-pink-300 hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl">
-            <User className="h-5 w-5 text-white" />
-          </button>
+         
         </div>
         
         {/* Desktop: Original Design */}
