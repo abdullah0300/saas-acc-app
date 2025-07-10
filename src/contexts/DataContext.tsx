@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseClient';
 import { subscriptionService } from '../services/subscriptionService';
 import { getEffectiveUserId } from '../services/database';
 import { getIncomes, getExpenses, getInvoices, getClients, getCategories } from '../services/database';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 interface DataContextType {
   subscription: any;
@@ -156,9 +157,14 @@ await loadBusinessData();
 
   setBusinessDataLoading(true);
   try {
-    const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories] = await Promise.all([
-  getIncomes(userIdToUse),
-  getExpenses(userIdToUse), 
+    // Get current month date range
+const currentDate = new Date();
+const startOfCurrentMonth = format(startOfMonth(currentDate), 'yyyy-MM-dd');
+const endOfCurrentMonth = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+
+const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories] = await Promise.all([
+  getIncomes(userIdToUse, startOfCurrentMonth, endOfCurrentMonth), // ADD DATE FILTER
+  getExpenses(userIdToUse, startOfCurrentMonth, endOfCurrentMonth), // ADD DATE FILTER
   getInvoices(userIdToUse),
   getClients(userIdToUse),
   getCategories(userIdToUse, 'income'),
