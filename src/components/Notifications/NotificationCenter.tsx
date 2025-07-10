@@ -1,6 +1,7 @@
 // src/components/Notifications/NotificationCenter.tsx
 
 import React, { useState, useEffect } from 'react';
+import { useSettings } from '../../contexts/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   Bell, 
@@ -34,6 +35,26 @@ export const NotificationCenter: React.FC = () => {
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [selectedNotifications, setSelectedNotifications] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+  const { formatCurrency, baseCurrency } = useSettings();
+
+const formatNotificationMessage = (notification: any) => {
+  let message = notification.message;
+  
+  if (notification.metadata?.amount !== undefined) {
+    const amount = notification.metadata.amount;
+    const currency = notification.metadata.currency || baseCurrency;
+    message = message.replace(/\$[\d,]+\.?\d*/g, () => {
+      return formatCurrency(amount, currency);
+    });
+  } else {
+    message = message.replace(/\$[\d,]+\.?\d*/g, (match: string) => {
+      const amount = parseFloat(match.replace(/[$,]/g, ''));
+      return formatCurrency(amount, baseCurrency);
+    });
+  }
+  
+  return message;
+};
 
   // Filter notifications
   const filteredNotifications = notifications.filter(notification => {
@@ -335,7 +356,7 @@ export const NotificationCenter: React.FC = () => {
                                   {notification.title}
                                 </p>
                                 <p className="text-sm text-gray-600 mt-1">
-                                  {notification.message}
+                                  {formatNotificationMessage(notification)}
                                 </p>
                                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                                   <span className="flex items-center gap-1">

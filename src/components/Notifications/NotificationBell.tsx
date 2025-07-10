@@ -7,13 +7,34 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import { notificationConfig } from '../../types';
 import * as Icons from 'lucide-react';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export const NotificationBell: React.FC = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+const { formatCurrency, baseCurrency } = useSettings();
 
+// Helper function to format notification messages with proper currency
+const formatNotificationMessage = (notification: any) => {
+  let message = notification.message;
+  
+  if (notification.metadata?.amount !== undefined) {
+    const amount = notification.metadata.amount;
+    const currency = notification.metadata.currency || baseCurrency;
+    message = message.replace(/\$[\d,]+\.?\d*/g, () => {
+      return formatCurrency(amount, currency);
+    });
+  } else {
+    message = message.replace(/\$[\d,]+\.?\d*/g, (match: string) => {
+      const amount = parseFloat(match.replace(/[$,]/g, ''));
+      return formatCurrency(amount, baseCurrency);
+    });
+  }
+  
+  return message;
+};
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -111,7 +132,7 @@ export const NotificationBell: React.FC = () => {
                               {notification.title}
                             </p>
                             <p className="text-sm text-gray-600 mt-0.5 line-clamp-2">
-                              {notification.message}
+                              {formatNotificationMessage(notification)}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-gray-500">

@@ -5,6 +5,7 @@ import { getIncomes, getExpenses, getProfile } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { Income, Expense, User } from '../../types';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export const ProfitLossReport: React.FC = () => {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export const ProfitLossReport: React.FC = () => {
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const { formatCurrency } = useSettings();
 
   useEffect(() => {
     if (user) {
@@ -63,7 +65,7 @@ export const ProfitLossReport: React.FC = () => {
         csv += `${income.date},"${income.description}","${category}",${income.amount}\n`;
       });
     });
-    csv += `\nTotal Income,,,$${totalIncome.toFixed(2)}\n\n`;
+    csv += `\nTotal Income,,,${formatCurrency(totalIncome)}\n\n`;
 
     csv += 'EXPENSES\n';
     csv += 'Date,Description,Category,Vendor,Amount\n';
@@ -72,8 +74,8 @@ export const ProfitLossReport: React.FC = () => {
         csv += `${expense.date},"${expense.description}","${category}","${expense.vendor || ''}",${expense.amount}\n`;
       });
     });
-    csv += `\nTotal Expenses,,,,$${totalExpenses.toFixed(2)}\n`;
-    csv += `\nNet Profit,,,,$${netProfit.toFixed(2)}\n`;
+    csv += `\nTotal Expenses,,,,${formatCurrency(totalExpenses)}\n`;
+    csv += `\nNet Profit,,,,${formatCurrency(netProfit)}\n`;
 
     // Download CSV
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -184,13 +186,13 @@ export const ProfitLossReport: React.FC = () => {
                     <tr key={income.id}>
                       <td className="py-1 text-gray-600">{format(new Date(income.date), 'MMM dd')}</td>
                       <td className="py-1 text-gray-600">{income.description}</td>
-                      <td className="py-1 text-right text-gray-900">${income.amount.toFixed(2)}</td>
+                      <td className="py-1 text-right text-gray-900">{formatCurrency(income.amount)}</td>
                     </tr>
                   ))}
                   <tr className="font-medium">
                     <td colSpan={2} className="pt-2 text-gray-700">Subtotal {category}</td>
                     <td className="pt-2 text-right text-gray-900">
-                      ${items.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}
+                      {formatCurrency(items.reduce((sum, item) => sum + item.amount, 0))}
                     </td>
                   </tr>
                 </tbody>
@@ -200,7 +202,7 @@ export const ProfitLossReport: React.FC = () => {
           <div className="mt-4 pt-4 border-t">
             <div className="flex justify-between font-semibold text-lg">
               <span>Total Income</span>
-              <span className="text-green-600">${totalIncome.toFixed(2)}</span>
+              <span className="text-green-600">{formatCurrency(totalIncome)}</span>
             </div>
           </div>
         </div>
@@ -217,13 +219,13 @@ export const ProfitLossReport: React.FC = () => {
                     <tr key={expense.id}>
                       <td className="py-1 text-gray-600">{format(new Date(expense.date), 'MMM dd')}</td>
                       <td className="py-1 text-gray-600">{expense.description}</td>
-                      <td className="py-1 text-right text-gray-900">${expense.amount.toFixed(2)}</td>
+                      <td className="py-1 text-right text-gray-900">{formatCurrency(expense.amount)}</td>
                     </tr>
                   ))}
                   <tr className="font-medium">
                     <td colSpan={2} className="pt-2 text-gray-700">Subtotal {category}</td>
                     <td className="pt-2 text-right text-gray-900">
-                      ${items.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}
+                      {formatCurrency(items.reduce((sum, item) => sum + item.amount, 0))}
                     </td>
                   </tr>
                 </tbody>
@@ -233,7 +235,7 @@ export const ProfitLossReport: React.FC = () => {
           <div className="mt-4 pt-4 border-t">
             <div className="flex justify-between font-semibold text-lg">
               <span>Total Expenses</span>
-              <span className="text-red-600">${totalExpenses.toFixed(2)}</span>
+              <span className="text-red-600">{formatCurrency(totalExpenses)}</span>
             </div>
           </div>
         </div>
@@ -243,7 +245,7 @@ export const ProfitLossReport: React.FC = () => {
           <div className="flex justify-between text-xl font-bold">
             <span>NET PROFIT</span>
             <span className={netProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
-              ${netProfit.toFixed(2)}
+              {formatCurrency(Math.abs(netProfit))}
             </span>
           </div>
         </div>
