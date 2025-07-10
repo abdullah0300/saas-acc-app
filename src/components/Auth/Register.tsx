@@ -234,7 +234,7 @@ export const Register: React.FC = () => {
         throw new Error(`This invitation is for ${inviteDetails.email}`);
       }
 
-      // Skip state validation for invited users
+      // Only validate state for non-invited users
       if (!inviteDetails && hasStates && !formData.state) {
         throw new Error("Please select a state/province");
       }
@@ -357,6 +357,57 @@ export const Register: React.FC = () => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+
+              {/* Country and State fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="country"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Country
+                  </label>
+                  <select
+                    id="country"
+                    name="country"
+                    required
+                    value={formData.country}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none"
+                  >
+                    {countries.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {hasStates && (
+                  <div>
+                    <label
+                      htmlFor="state"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      State/Province
+                    </label>
+                    <select
+                      id="state"
+                      name="state"
+                      required
+                      value={formData.state}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none"
+                    >
+                      <option value="">Select state/province</option>
+                      {selectedCountry?.states?.map((state) => (
+                        <option key={state.code} value={state.code}>
+                          {state.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Password */}
