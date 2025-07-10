@@ -1,3 +1,4 @@
+// src/components/Auth/Register.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { registrationService } from "../../services/registrationService";
@@ -234,8 +235,7 @@ export const Register: React.FC = () => {
         throw new Error(`This invitation is for ${inviteDetails.email}`);
       }
 
-      // Only validate state for non-invited users
-      if (!inviteDetails && hasStates && !formData.state) {
+      if (hasStates && !formData.state) {
         throw new Error("Please select a state/province");
       }
 
@@ -289,169 +289,6 @@ export const Register: React.FC = () => {
           <p className="mt-4 text-gray-600 font-medium">
             Checking invitation...
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  // If this is a team member registration, show simplified form
-  if (inviteDetails) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                <Users className="h-8 w-8 text-blue-600" />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900">Join {inviteDetails.teamName}</h2>
-              <p className="text-gray-600 mt-2">
-                You've been invited as a {inviteDetails.role} to join the team
-              </p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email (read-only) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  readOnly
-                  className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-600"
-                />
-              </div>
-
-              {/* Name fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Country and State fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="country"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Country
-                  </label>
-                  <select
-                    id="country"
-                    name="country"
-                    required
-                    value={formData.country}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none"
-                  >
-                    {countries.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {hasStates && (
-                  <div>
-                    <label
-                      htmlFor="state"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      State/Province
-                    </label>
-                    <select
-                      id="state"
-                      name="state"
-                      required
-                      value={formData.state}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none"
-                    >
-                      <option value="">Select state/province</option>
-                      {selectedCountry?.states?.map((state) => (
-                        <option key={state.code} value={state.code}>
-                          {state.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit button */}
-              <div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all transform hover:scale-[1.02]"
-                >
-                  {loading ? "Creating Account..." : "Join Team"}
-                </button>
-              </div>
-            </form>
-
-            <p className="text-center text-sm text-gray-600 mt-6">
-              Already have an account?{" "}
-              <Link to="/login" className="text-blue-600 hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </div>
         </div>
       </div>
     );
@@ -665,7 +502,7 @@ export const Register: React.FC = () => {
               )}
 
               {/* Step 2: Personal Information */}
-              {currentStep === 2 && !inviteDetails && (
+              {(currentStep === 2 || inviteDetails) && !inviteDetails && (
                 <div className="space-y-6 animate-fadeIn">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
@@ -809,7 +646,7 @@ export const Register: React.FC = () => {
               )}
 
               {/* Step 3: Plan Selection */}
-              {currentStep === 3 && !inviteDetails && (
+              {(currentStep === 3 || inviteDetails) && !inviteDetails && (
                 <div className="space-y-6 animate-fadeIn">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
@@ -1027,6 +864,71 @@ export const Register: React.FC = () => {
                 </div>
               )}
 
+              {/* For invited users - simplified form */}
+              {inviteDetails && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label
+                        htmlFor="firstName"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        required
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                        placeholder="John"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="lastName"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        required
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      {loading ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5 mr-3" />
+                          Joining team...
+                        </>
+                      ) : (
+                        <>
+                          Join Team
+                          <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              )}
+
               {/* Sign In Link */}
               <p className="text-center text-sm text-gray-600">
                 Already have an account?{" "}
@@ -1038,27 +940,27 @@ export const Register: React.FC = () => {
                 </Link>
               </p>
             </form>
+          </div>
 
-            {/* Trust Indicators */}
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500 mb-4">
-                Join 10,000+ businesses managing their finances with SmartCFO
-              </p>
-              <div className="flex justify-center items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
-                  <span className="text-sm text-gray-600">30-day free trial</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-emerald-600" />
-                  <span className="text-sm text-gray-600">
-                    No credit card required
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Gift className="h-5 w-5 text-emerald-600" />
-                  <span className="text-sm text-gray-600">Cancel anytime</span>
-                </div>
+          {/* Trust Indicators */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-500 mb-4">
+              Join 10,000+ businesses managing their finances with SmartCFO
+            </p>
+            <div className="flex justify-center items-center gap-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+                <span className="text-sm text-gray-600">30-day free trial</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-emerald-600" />
+                <span className="text-sm text-gray-600">
+                  No credit card required
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-emerald-600" />
+                <span className="text-sm text-gray-600">Cancel anytime</span>
               </div>
             </div>
           </div>
@@ -1128,7 +1030,7 @@ export const Register: React.FC = () => {
             <h3 className="text-3xl font-bold text-white text-center mb-8">
               Everything you need to succeed
             </h3>
-            {features.map((feature: { icon: React.ComponentType<any>; title: string; description: string }, index: number) => (
+            {features.map((feature, index) => (
               <div key={index} className="flex items-start gap-4 text-white">
                 <div className="flex-shrink-0 p-3 bg-white/20 backdrop-blur rounded-xl">
                   <feature.icon className="h-6 w-6" />
