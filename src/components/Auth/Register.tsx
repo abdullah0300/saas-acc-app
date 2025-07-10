@@ -217,45 +217,46 @@ export const Register: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  // Update only this part in your handleSubmit function in src/components/Auth/Register.tsx
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      if (formData.password !== formData.confirmPassword) {
-        throw new Error("Passwords do not match");
-      }
-
-      if (formData.password.length < 6) {
-        throw new Error("Password must be at least 6 characters");
-      }
-
-      if (inviteDetails && formData.email !== inviteDetails.email) {
-        throw new Error(`This invitation is for ${inviteDetails.email}`);
-      }
-
-      if (hasStates && !formData.state) {
-        throw new Error("Please select a state/province");
-      }
-
-      const result = await registrationService.register({
-        ...formData,
-        inviteCode: inviteCode || undefined,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || "Registration failed");
-      }
-
-      navigate("/dashboard");
-    } catch (err: any) {
-      console.error("Registration error:", err);
-      setError(err.message || "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
+  try {
+    if (formData.password !== formData.confirmPassword) {
+      throw new Error("Passwords do not match");
     }
-  };
+
+    if (formData.password.length < 6) {
+      throw new Error("Password must be at least 6 characters");
+    }
+
+    if (inviteDetails && formData.email !== inviteDetails.email) {
+      throw new Error(`This invitation is for ${inviteDetails.email}`);
+    }
+
+    if (!inviteDetails && hasStates && !formData.state) {
+      throw new Error("Please select a state/province");
+    }
+
+    const result = await registrationService.register({
+      ...formData,
+      inviteCode: inviteCode || undefined,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || "Registration failed");
+    }
+
+    navigate("/dashboard");
+  } catch (err: any) {
+    console.error("Registration error:", err);
+    setError(err.message || "Registration failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
