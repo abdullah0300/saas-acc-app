@@ -106,13 +106,16 @@ export const ClientList: React.FC = () => {
   ): ClientWithMetrics[] => {
     return clientList.map(client => {
       const clientInvoices = invoiceList.filter(inv => inv.client_id === client.id);
-      const clientIncomes = incomeList.filter(inc => 
-        clientInvoices.some(inv => inv.id === inc.reference_number)
-      );
+      const clientIncomes = incomeList.filter(inc => inc.client_id === client.id);
       
-      const totalRevenue = clientInvoices
-        .filter(inv => inv.status === 'paid')
-        .reduce((sum, inv) => sum + inv.total, 0);
+      const invoiceRevenue = clientInvoices
+  .filter(inv => inv.status === 'paid')
+  .reduce((sum, inv) => sum + inv.total, 0);
+
+const directIncomeRevenue = clientIncomes
+  .reduce((sum, inc) => sum + inc.amount, 0);
+
+const totalRevenue = invoiceRevenue + directIncomeRevenue;
       
       const pendingAmount = clientInvoices
         .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
@@ -136,23 +139,31 @@ export const ClientList: React.FC = () => {
         : 0;
       
       // Get last activity
-      const allDates = [
-        ...clientInvoices.map(inv => inv.date),
-        client.created_at
-      ];
+      // Get last activity - include both invoices and direct income
+const allDates = [
+  ...clientInvoices.map(inv => inv.date),
+  ...clientIncomes.map(inc => inc.date), // ADD THIS LINE
+  client.created_at
+];
       const lastActivityDate = allDates.sort((a, b) => 
         new Date(b).getTime() - new Date(a).getTime()
       )[0];
       
       // Determine status
-      let status: 'active' | 'inactive' | 'overdue' = 'inactive';
-      if (clientInvoices.some(inv => inv.status === 'overdue')) {
-        status = 'overdue';
-      } else if (clientInvoices.some(inv => 
-        new Date(inv.date) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-      )) {
-        status = 'active';
-      }
+      // Determine status - include both invoices and direct income
+let status: 'active' | 'inactive' | 'overdue' = 'inactive';
+if (clientInvoices.some(inv => inv.status === 'overdue')) {
+  status = 'overdue';
+} else if (
+  clientInvoices.some(inv => 
+    new Date(inv.date) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+  ) || 
+  clientIncomes.some(inc => 
+    new Date(inc.date) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+  )
+) {
+  status = 'active';
+}
       
       return {
         ...client,

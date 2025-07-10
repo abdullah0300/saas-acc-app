@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 export interface Subscription {
   id: string;
   user_id: string;
-  plan: 'simple_start' | 'essentials' | 'plus';
+  plan: 'simple_start' |  'plus';
   interval: 'monthly' | 'yearly';
   status: string;
   trial_end: string;
@@ -14,7 +14,6 @@ export interface Subscription {
 // Plan limits configuration
 const PLAN_USER_LIMITS = {
   simple_start: 1,
-  essentials: 3,
   plus: 10
 };
 
@@ -139,7 +138,6 @@ class SubscriptionService {
     const currentPlan = plan || this.getCurrentPlan();
     const displayNames: Record<string, string> = {
       simple_start: 'Simple Start',
-      essentials: 'Essentials',
       plus: 'Plus'
     };
     return displayNames[currentPlan] || 'Simple Start';

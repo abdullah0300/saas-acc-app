@@ -131,8 +131,6 @@ export const SubscriptionPlans: React.FC = () => {
     switch (planId) {
       case "simple_start":
         return Star;
-      case "essentials":
-        return Zap;
       case "plus":
         return Rocket;
       default:
@@ -278,7 +276,7 @@ export const SubscriptionPlans: React.FC = () => {
       </div>
 
       {/* Plans grid */}
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="grid md:grid-cols-2 gap-8">
         {plans.map((plan) => {
           const Icon = getPlanIcon(plan.id);
           const trialExpired = subscription?.trial_end
@@ -296,7 +294,7 @@ export const SubscriptionPlans: React.FC = () => {
           );
           const price =
             billingInterval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-          const isPopular = plan.id === "essentials";
+          const isPopular = plan.id === "plus";
 
           return (
             <div
@@ -442,27 +440,17 @@ function getHighlightedFeatures(plan: PlanType): string[] {
     case "simple_start":
       return [
         "Single user access",
-        "Up to 50 monthly invoices",
+        "Up to 20 monthly invoices", 
         "Income & expense tracking",
         "Basic financial reports",
         "Client management",
         "PDF export",
         "Email support",
       ];
-    case "essentials":
-      return [
-        "Up to 3 team members",
-        "Unlimited monthly invoices",
-        "Everything in Simple Start",
-        "Multi-currency support",
-        "Recurring invoices",
-        "Advanced reports",
-        "Tax management",
-        "Priority support",
-      ];
+   
     case "plus":
       return [
-        "Up to 10 team members",
+        "Up to 5 team members",
         "Unlimited monthly invoices",
         "Everything in Essentials",
         "Custom invoice branding",

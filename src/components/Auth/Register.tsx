@@ -65,50 +65,28 @@ const PLANS: Plan[] = [
     icon: Star,
     features: [
       "Single user access",
-      "Up to 50 monthly invoices",
+      "Up to 20 monthly invoices",
       "Income & expense tracking",
       "Basic financial reports",
       "Client management",
       "PDF export",
       "Email support",
     ],
-    highlighted: ["Single user access", "Up to 50 monthly invoices"],
+    highlighted: ["Single user access", "Up to 20 monthly invoices"],
     limits: {
       users: 1,
-      monthlyInvoices: 50,
+      monthlyInvoices: 20,
     },
   },
-  {
-    id: "essentials",
-    name: "Essentials",
-    monthlyPrice: 25,
-    yearlyPrice: 240, // 20% off
-    icon: Zap,
-    popular: true,
-    features: [
-      "Up to 3 team members",
-      "Unlimited monthly invoices",
-      "Everything in Simple Start",
-      "Multi-currency support",
-      "Recurring invoices",
-      "Advanced reports",
-      "Tax management",
-      "Priority support",
-    ],
-    highlighted: ["Up to 3 team members", "Unlimited monthly invoices"],
-    limits: {
-      users: 3,
-      monthlyInvoices: -1,
-    },
-  },
+  
   {
     id: "plus",
     name: "Plus",
-    monthlyPrice: 45,
-    yearlyPrice: 432, // 20% off
+    monthlyPrice: 25,
+    yearlyPrice: 240, // 20% off
     icon: Rocket,
     features: [
-      "Up to 10 team members",
+      "Up to 5 team members",
       "Unlimited monthly invoices",
       "Everything in Essentials",
       "Custom invoice branding",
@@ -118,9 +96,9 @@ const PLANS: Plan[] = [
       "Audit trail",
       "Team permissions",
     ],
-    highlighted: ["Up to 10 team members", "Phone & email support"],
+    highlighted: ["Up to 5 team members", "Phone & email support"],
     limits: {
-      users: 10,
+      users: 5,
       monthlyInvoices: -1,
     },
   },
@@ -702,7 +680,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </div>
 
                   {/* Plans Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl mx-auto">
                     {PLANS.map((plan) => {
                       const isSelected = formData.plan === plan.id;
                       const Icon = plan.icon;

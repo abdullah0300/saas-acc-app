@@ -319,7 +319,7 @@ export const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
        {/* Subscription Status Bar */}
-        {subscription && (
+        {/* {subscription && (
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -343,7 +343,7 @@ export const Dashboard: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Header with Quick Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">

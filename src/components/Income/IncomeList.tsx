@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Client } from '../../types';
+import { getClients } from '../../services/database';
 import { 
   Plus, 
   Search, 
@@ -39,14 +41,32 @@ export const IncomeList: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
+  const [clientFilter, setClientFilter] = useState('');
+  const [clients, setClients] = useState<Client[]>([]);
+const [clientSearch, setClientSearch] = useState('');
 
   useEffect(() => {
     loadData();
+    loadClients();
   }, [user, dateRange]);
 
   useEffect(() => {
-    filterAndSortIncomes();
-  }, [searchTerm, selectedCategory, sortBy, sortOrder, incomes]);
+  filterAndSortIncomes();
+}, [searchTerm, selectedCategory, sortBy, sortOrder, incomes, clientFilter, clientSearch]); // ADD clientFilter, clientSearch
+
+  const loadClients = async () => {
+  if (!user) return;
+  
+  try {
+    const data = await getClients(user.id);
+    setClients(data);
+  } catch (err: any) {
+    console.error('Error loading clients:', err);
+  }
+};  
+
+
+
 
   const loadData = async () => {
     if (!user) return;
@@ -100,35 +120,52 @@ export const IncomeList: React.FC = () => {
   };
 
   const filterAndSortIncomes = () => {
-    let filtered = [...incomes];
-    
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(income =>
-        income.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        income.category?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        income.reference_number?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  let filtered = [...incomes];
+  
+  // Search filter
+  if (searchTerm) {
+    filtered = filtered.filter(income =>
+      income.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      income.category?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      income.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      income.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) // ADD THIS LINE
+    );
+  }
+  
+  // Category filter
+  if (selectedCategory !== 'all') {
+    filtered = filtered.filter(income => income.category_id === selectedCategory);
+  }
+  
+  // ADD CLIENT FILTERING
+  if (clientFilter) {
+    if (clientFilter === 'no-client') {
+      filtered = filtered.filter(income => !income.client_id);
+    } else {
+      filtered = filtered.filter(income => income.client_id === clientFilter);
     }
-    
-    // Category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(income => income.category_id === selectedCategory);
+  }
+  
+  // ADD CLIENT SEARCH
+  if (clientSearch) {
+    filtered = filtered.filter(income => 
+      income.client?.name.toLowerCase().includes(clientSearch.toLowerCase())
+    );
+  }
+  
+  // Sort (existing code stays the same)
+  filtered.sort((a, b) => {
+    if (sortBy === 'date') {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    } else {
+      return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount;
     }
-    
-    // Sort
-    filtered.sort((a, b) => {
-      if (sortBy === 'date') {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-      } else {
-        return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount;
-      }
-    });
-    
-    setFilteredIncomes(filtered);
-  };
+  });
+  
+  setFilteredIncomes(filtered);
+};
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this income record?')) return;
@@ -147,6 +184,7 @@ export const IncomeList: React.FC = () => {
       format(parseISO(income.date), 'yyyy-MM-dd'),
       income.description,
       income.category?.name || 'Uncategorized',
+      income.client?.name || 'No client',
       income.amount.toString(),
       income.reference_number || ''
     ]);
@@ -271,60 +309,81 @@ export const IncomeList: React.FC = () => {
           </div>
           
           {/* Advanced Filters */}
-          {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                <select
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="today">Today</option>
-                  <option value="this-week">This Week</option>
-                  <option value="this-month">This Month</option>
-                  <option value="last-month">Last Month</option>
-                  <option value="this-year">This Year</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="all">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-                <div className="flex gap-2">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'date' | 'amount')}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="date">Date</option>
-                    <option value="amount">Amount</option>
-                  </select>
-                  <button
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
-                  >
-                    <ArrowUpDown className="h-5 w-5 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+{showFilters && (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+    {/* Date Range */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+      <select
+        value={dateRange}
+        onChange={(e) => setDateRange(e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="today">Today</option>
+        <option value="this-week">This Week</option>
+        <option value="this-month">This Month</option>
+        <option value="last-month">Last Month</option>
+        <option value="this-year">This Year</option>
+      </select>
+    </div>
+    
+    {/* Category */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+      <select
+        value={selectedCategory}
+        onChange={(e) => setSelectedCategory(e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="all">All Categories</option>
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* Client */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
+      <select
+        value={clientFilter}
+        onChange={(e) => setClientFilter(e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">All Clients</option>
+        <option value="no-client">No Client</option>
+        {clients.map((client) => (
+          <option key={client.id} value={client.id}>
+            {client.name}
+          </option>
+        ))}
+      </select>
+    </div>
+    
+    {/* Sort */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+      <div className="flex gap-2">
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'date' | 'amount')}
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="date">Date</option>
+          <option value="amount">Amount</option>
+        </select>
+        <button
+          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+        >
+          <ArrowUpDown className="h-4 w-4 text-gray-600" />
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         </div>
       </div>
 
@@ -342,6 +401,9 @@ export const IncomeList: React.FC = () => {
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Category
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Client
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Reference
@@ -372,6 +434,24 @@ export const IncomeList: React.FC = () => {
                         {income.category?.name || 'Uncategorized'}
                       </span>
                     </td>
+                    {/* Client Column - ADD THIS */}
+<td className="px-6 py-4 whitespace-nowrap">
+  {income.client ? (
+    <div className="flex items-center">
+      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white text-xs font-medium mr-3">
+        {income.client.name.charAt(0).toUpperCase()}
+      </div>
+      <div>
+        <div className="text-sm font-medium text-gray-900">{income.client.name}</div>
+        {income.client.email && (
+          <div className="text-xs text-gray-500">{income.client.email}</div>
+        )}
+      </div>
+    </div>
+  ) : (
+    <span className="text-sm text-gray-400 italic">No client</span>
+  )}
+</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {income.reference_number || '-'}
                     </td>
@@ -400,7 +480,7 @@ export const IncomeList: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center">
                       <DollarSign className="h-12 w-12 text-gray-300 mb-4" />
                       <p className="text-gray-500 text-lg">No income records found</p>

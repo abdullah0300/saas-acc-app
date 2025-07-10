@@ -57,6 +57,7 @@ export interface Income {
   tax_amount?: number;
   total_with_tax?: number;
   client_id?: string;
+  client?: Client;
 }
 
 export interface Expense {

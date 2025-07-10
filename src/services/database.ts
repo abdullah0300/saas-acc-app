@@ -126,11 +126,12 @@ export const getIncomes = async (userId: string, startDate?: string, endDate?: s
   const effectiveUserId = await getEffectiveUserId(userId);
   
   let query = supabase
-    .from('income')
-    .select(`
-      *,
-      category:categories(*)
-    `)
+  .from('income')
+  .select(`
+    *,
+    category:categories(*),
+    client:clients(*)
+  `)
     .eq('user_id', effectiveUserId)
     .order('date', { ascending: false });
 
@@ -150,13 +151,16 @@ export const createIncome = async (income: Omit<Income, 'id' | 'created_at' | 'u
   const effectiveUserId = await getEffectiveUserId(income.user_id);
   
   const { data, error } = await supabase
-    .from('income')
-    .insert([{
-      ...income,
-      user_id: effectiveUserId,
-      category_id: income.category_id || null,
-      reference_number: income.reference_number || null
-    }])
+  .from('income')
+  .insert([{
+    ...income,
+    user_id: effectiveUserId,
+    category_id: income.category_id || null,
+    client_id: income.client_id || null, // ADD THIS LINE
+    reference_number: income.reference_number || null,
+    tax_rate: income.tax_rate || null, // ADD THIS LINE
+    tax_amount: income.tax_amount || null // ADD THIS LINE
+  }])
     .select()
     .single();
   
@@ -166,9 +170,12 @@ export const createIncome = async (income: Omit<Income, 'id' | 'created_at' | 'u
 
 export const updateIncome = async (id: string, updates: Partial<Income>) => {
   const updateData: any = { ...updates };
-  if ('category_id' in updates) updateData.category_id = updates.category_id || null;
-  if ('reference_number' in updates) updateData.reference_number = updates.reference_number || null;
-  
+if ('category_id' in updates) updateData.category_id = updates.category_id || null;
+if ('client_id' in updates) updateData.client_id = updates.client_id || null; // ADD THIS LINE
+if ('reference_number' in updates) updateData.reference_number = updates.reference_number || null;
+if ('tax_rate' in updates) updateData.tax_rate = updates.tax_rate || null; // ADD THIS LINE
+if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount || null; // ADD THIS LINE
+
   const { data, error } = await supabase
     .from('income')
     .update(updateData)

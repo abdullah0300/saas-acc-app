@@ -1,6 +1,6 @@
 // src/config/subscriptionConfig.ts
 
-export type PlanType = 'simple_start' | 'essentials' | 'plus';
+export type PlanType = 'simple_start' | 'plus';
 export type BillingInterval = 'monthly' | 'yearly';
 
 export interface PlanLimits {
@@ -20,7 +20,7 @@ export interface PlanFeatures {
   export_pdf: boolean;
   email_support: boolean;
   
-  // Essentials+ features
+  // Advanced features (Plus only)
   multi_currency: boolean;
   recurring_invoices: boolean;
   invoice_templates: boolean;
@@ -28,8 +28,6 @@ export interface PlanFeatures {
   tax_management: boolean;
   priority_support: boolean;
   advanced_exports: boolean;
-  
-  // Plus+ features
   unlimited_invoices: boolean;
   custom_invoice_branding: boolean;
   advanced_tax_reports: boolean;
@@ -67,12 +65,12 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
     trialDays: 30,
     limits: {
       users: 1,
-      monthlyInvoices: 50,
+      monthlyInvoices: 20, // CHANGED FROM 50 TO 20
       totalClients: -1, // unlimited
       totalInvoices: -1  // unlimited storage
     },
     features: {
-      // Basic features
+      // Basic features only
       income_expense_tracking: true,
       basic_reports: true,
       invoice_creation: true,
@@ -80,7 +78,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       category_management: true,
       export_pdf: true,
       email_support: true,
-      advanced_exports: false,
+      
       // Advanced features - not available
       multi_currency: false,
       recurring_invoices: false,
@@ -88,54 +86,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       advanced_reports: false,
       tax_management: false,
       priority_support: false,
-      unlimited_invoices: false,
-      custom_invoice_branding: false,
-      advanced_tax_reports: false,
-      profit_loss_statements: false,
-      cash_flow_analysis: false,
-      budget_tracking: false,
-      phone_support: false,
-      api_access: false,
-      audit_trail: false,
-      team_permissions: false,
-      dedicated_support: false
-    }
-  },
-  
-  essentials: {
-    id: 'essentials',
-    name: 'essentials',
-    displayName: 'Essentials',
-    description: 'Great for small businesses with a team',
-    monthlyPrice: 25,
-    yearlyPrice: 240, // 20% discount
-    trialDays: 30,
-    limits: {
-      users: 3,
-      monthlyInvoices: -1,  // CHANGED FROM 200 TO UNLIMITED
-      totalClients: -1,
-      totalInvoices: -1
-    },
-    features: {
-      // All basic features
-      income_expense_tracking: true,
-      basic_reports: true,
-      invoice_creation: true,
-      client_management: true,
-      category_management: true,
-      export_pdf: true,
-      email_support: true,
-      advanced_exports: true,
-
-      // Essentials features
-      multi_currency: true,
-      recurring_invoices: true,
-      invoice_templates: true,
-      advanced_reports: true,
-      tax_management: true,
-      priority_support: true,
-      
-      // Plus features - not available
+      advanced_exports: false,
       unlimited_invoices: false,
       custom_invoice_branding: false,
       advanced_tax_reports: false,
@@ -154,12 +105,12 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
     id: 'plus',
     name: 'plus',
     displayName: 'Plus',
-    description: 'For growing businesses that need more',
-    monthlyPrice: 45,
-    yearlyPrice: 432, // 20% discount
+    description: 'Complete business solution with all features',
+    monthlyPrice: 25, // CHANGED FROM 45 TO 25
+    yearlyPrice: 240, // 20% discount (25 * 12 * 0.8)
     trialDays: 30,
     limits: {
-      users: 10,
+      users: 5, // unlimited users
       monthlyInvoices: -1, // unlimited
       totalClients: -1,
       totalInvoices: -1
@@ -187,11 +138,10 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       budget_tracking: true,
       phone_support: true,
       advanced_exports: true,
-      api_access: false,
+      api_access: true,
       audit_trail: true,
       team_permissions: true,
-      dedicated_support: false
-      
+      dedicated_support: true
     }
   }
 };
@@ -237,13 +187,9 @@ export const STRIPE_PRICE_IDS = {
     monthly: 'price_1RcoIWGO7FUbyUUTISN9YYXC',
     yearly: 'price_1RcoIWGO7FUbyUUTE4NsZ1Kk'
   },
-  essentials: {
-    monthly: 'price_1RcoJoGO7FUbyUUTKJY7puAN',
-    yearly: 'price_1RcoJoGO7FUbyUUT46R68hkS'
-  },
   plus: {
-    monthly: 'price_1RcoLUGO7FUbyUUTNtBKEIHe',
-    yearly: 'price_1RcoLUGO7FUbyUUTYFuP5QvE'
+    monthly: 'price_1RcoLUGO7FUbyUUTNtBKEIHe', // You may need to create a new price for $25
+    yearly: 'price_1RcoLUGO7FUbyUUTYFuP5QvE'   // You may need to create a new price for $240
   }
 };
 

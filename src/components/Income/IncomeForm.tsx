@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { AddCategoryModal } from '../Common/AddCategoryModal';
+import { getClients, createClient } from '../../services/database';
+import { Client } from '../../types';
+import { Plus, X } from 'lucide-react';
 import { 
   createIncome, 
   updateIncome, 
@@ -23,6 +26,7 @@ export const IncomeForm: React.FC = () => {
     amount: '',
     description: '',
     category_id: '',
+    client_id: '',
     date: new Date().toISOString().split('T')[0],
     reference_number: '',
     tax_rate: defaultTaxRate.toString(), // Added tax_rate
@@ -31,9 +35,19 @@ export const IncomeForm: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [clients, setClients] = useState<Client[]>([]);
+const [showClientModal, setShowClientModal] = useState(false);
+const [newClientData, setNewClientData] = useState({
+  name: '',
+  email: '',
+  phone: '',
+  address: ''
+});
+const [isAddingClient, setIsAddingClient] = useState(false);
 
   useEffect(() => {
     loadCategories();
+    loadClients();
     if (isEdit && id) {
       loadIncome();
     }
@@ -52,6 +66,17 @@ export const IncomeForm: React.FC = () => {
     }
   };
 
+  const loadClients = async () => {
+  if (!user) return;
+  
+  try {
+    const data = await getClients(user.id);
+    setClients(data);
+  } catch (err: any) {
+    setError(err.message);
+  }
+};
+
   const loadIncome = async () => {
     if (!user || !id) return;
     
@@ -64,6 +89,7 @@ export const IncomeForm: React.FC = () => {
           amount: income.amount.toString(),
           description: income.description,
           category_id: income.category_id || '',
+          client_id: income.client_id || '',
           date: income.date,
           reference_number: income.reference_number || '',
           tax_rate: defaultTaxRate.toString(), // Set default tax rate
@@ -75,6 +101,36 @@ export const IncomeForm: React.FC = () => {
     }
   };
 
+  const handleCreateClient = async () => {
+  if (!user || !newClientData.name.trim()) return;
+  
+  setIsAddingClient(true);
+  
+  try {
+    const client = await createClient({
+      user_id: user.id,
+      name: newClientData.name.trim(),
+      email: newClientData.email || undefined,
+      phone: newClientData.phone || undefined,
+      address: newClientData.address || undefined
+    });
+    
+    // Add to clients list
+    setClients([...clients, client]);
+    
+    // Select the new client
+    setFormData({ ...formData, client_id: client.id });
+    
+    // Close modal and reset
+    setShowClientModal(false);
+    setNewClientData({ name: '', email: '', phone: '', address: '' });
+  } catch (err: any) {
+    setError('Error creating client: ' + err.message);
+  } finally {
+    setIsAddingClient(false);
+  }
+};
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -84,13 +140,16 @@ export const IncomeForm: React.FC = () => {
 
     try {
       const incomeData = {
-        user_id: user.id,
-        amount: parseFloat(formData.amount),
-        description: formData.description,
-        category_id: formData.category_id || undefined,
-        date: formData.date,
-        reference_number: formData.reference_number || undefined
-      };
+  user_id: user.id,
+  amount: parseFloat(formData.amount),
+  description: formData.description,
+  category_id: formData.category_id || undefined,
+  client_id: formData.client_id || undefined, // ADD THIS LINE
+  date: formData.date,
+  reference_number: formData.reference_number || undefined,
+  tax_rate: parseFloat(formData.tax_rate) || undefined, // ADD THIS LINE
+  tax_amount: parseFloat(formData.tax_amount) || undefined // ADD THIS LINE
+};
 
       if (isEdit && id) {
         await updateIncome(id, incomeData);
@@ -251,6 +310,38 @@ export const IncomeForm: React.FC = () => {
             </div>
           </div>
 
+          {/* Client Selection - ADD THIS ENTIRE BLOCK */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Client
+  </label>
+  <div className="flex gap-2">
+    <select
+      value={formData.client_id}
+      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      <option value="">Select a client (optional)</option>
+      {clients.map((client) => (
+        <option key={client.id} value={client.id}>
+          {client.name}
+        </option>
+      ))}
+    </select>
+    {/* // In your client selection field, update the button: */}
+<button
+  type="button"
+  onClick={() => {
+    console.log('Button clicked!'); // Add this for debugging
+    setShowClientModal(true);
+  }}
+  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+>
+  <Plus className="h-4 w-4" />
+</button>
+  </div>
+</div>
+
           <div className="flex justify-end space-x-4">
             <button
               type="button"
@@ -289,6 +380,104 @@ export const IncomeForm: React.FC = () => {
     }
   }}
 />
+{/* Client Creation Modal - ADD THIS ENTIRE BLOCK */}
+{showClientModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg max-w-md w-full">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Add New Client</h3>
+          <button
+            onClick={() => {
+              setShowClientModal(false);
+              setNewClientData({ name: '', email: '', phone: '', address: '' });
+            }}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      
+      <div className="px-6 py-4">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Client Name *
+            </label>
+            <input
+              type="text"
+              value={newClientData.name}
+              onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Client name"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={newClientData.email}
+              onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="client@example.com"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone
+            </label>
+            <input
+              type="tel"
+              value={newClientData.phone}
+              onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="+1 (555) 123-4567"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Address
+            </label>
+            <textarea
+              value={newClientData.address}
+              onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Street address..."
+            />
+          </div>
+        </div>
+      </div>
+      
+      <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+        <button
+          onClick={() => {
+            setShowClientModal(false);
+            setNewClientData({ name: '', email: '', phone: '', address: '' });
+          }}
+          className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleCreateClient}
+          disabled={!newClientData.name.trim() || isAddingClient}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isAddingClient ? 'Creating...' : 'Create Client'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };
