@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { subscriptionService } from '../services/subscriptionService';
 import { getEffectiveUserId } from '../services/database';
+import { getIncomes, getExpenses, getInvoices, getClients, getCategories } from '../services/database';
 
 interface DataContextType {
   subscription: any;
@@ -13,6 +14,20 @@ interface DataContextType {
   isLoading: boolean;
   error: string | null;
   refreshData: () => Promise<void>;
+  // Business data
+  businessData: {
+    incomes: any[];
+    expenses: any[];
+    invoices: any[];
+    clients: any[];
+    categories: { income: any[]; expense: any[] };
+  };
+  businessDataLoading: boolean;
+  refreshBusinessData: () => Promise<void>;
+  addIncomeToCache: (income: any) => void;
+  addExpenseToCache: (expense: any) => void;
+  addInvoiceToCache: (invoice: any) => void;
+  addClientToCache: (client: any) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -33,6 +48,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [effectiveUserId, setEffectiveUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Business data state
+const [businessData, setBusinessData] = useState<{
+  incomes: any[];
+  expenses: any[];
+  invoices: any[];
+  clients: any[];
+  categories: { income: any[]; expense: any[] };
+}>({
+  incomes: [],
+  expenses: [],
+  invoices: [],
+  clients: [],
+  categories: { income: [], expense: [] }
+});
+
+const [businessDataLoading, setBusinessDataLoading] = useState(false);
   
   const loadingRef = useRef(false);
   const lastLoadTime = useRef(0);
@@ -75,6 +106,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTeamId(actualTeamId);
       setEffectiveUserId(effectiveId);
       lastLoadTime.current = Date.now();
+      // Load business data after user data is loaded
+await loadBusinessData();
       
       console.log('User data loaded:', {
         userId: user.id,
@@ -82,6 +115,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         teamId: actualTeamId,
         effectiveUserId: effectiveId
       });
+      
+      // Load business data after user data is loaded
+      if (effectiveId) {
+  loadBusinessData(effectiveId);
+}
       
     } catch (err: any) {
       console.error('Error loading user data:', err);
@@ -112,16 +150,84 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadUserData();
   };
 
+  const loadBusinessData = async (userId?: string) => {
+  const userIdToUse = userId || effectiveUserId;
+  if (!userIdToUse || businessDataLoading) return;
+
+  setBusinessDataLoading(true);
+  try {
+    const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories] = await Promise.all([
+  getIncomes(userIdToUse),
+  getExpenses(userIdToUse), 
+  getInvoices(userIdToUse),
+  getClients(userIdToUse),
+  getCategories(userIdToUse, 'income'),
+  getCategories(userIdToUse, 'expense')
+]);
+    
+    setBusinessData({
+      incomes,
+      expenses, 
+      invoices,
+      clients,
+      categories: { income: incomeCategories, expense: expenseCategories }
+    });
+  } catch (err) {
+    console.error('Error loading business data:', err);
+  } finally {
+    setBusinessDataLoading(false);
+  }
+};
+
+const refreshBusinessData = async () => {
+  await loadBusinessData();
+};
+
+const addIncomeToCache = (newIncome: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    incomes: [newIncome, ...prev.incomes]
+  }));
+};
+
+const addExpenseToCache = (newExpense: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    expenses: [newExpense, ...prev.expenses]
+  }));
+};
+
+const addInvoiceToCache = (newInvoice: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    invoices: [newInvoice, ...prev.invoices]
+  }));
+};
+
+const addClientToCache = (newClient: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    clients: [newClient, ...prev.clients]
+  }));
+};
+
   return (
-    <DataContext.Provider value={{
-      subscription,
-      userRole,
-      teamId,
-      effectiveUserId,
-      isLoading,
-      error,
-      refreshData
-    }}>
+  <DataContext.Provider value={{
+    subscription,
+    userRole,
+    teamId,
+    effectiveUserId,
+    isLoading,
+    error,
+    refreshData,
+    businessData,
+    businessDataLoading,
+    refreshBusinessData,
+    addIncomeToCache,
+    addExpenseToCache,
+    addInvoiceToCache,
+    addClientToCache
+  }}>
       {children}
     </DataContext.Provider>
   );

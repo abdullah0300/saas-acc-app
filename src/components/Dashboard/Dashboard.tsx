@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -93,22 +94,46 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, loading: settingsLoading } = useSettings();
   const { limits, usage } = useSubscription();
-  const [stats, setStats] = useState<any>(null);
-  const [monthlyData, setMonthlyData] = useState<any[]>([]);
-  const [categoryData, setCategoryData] = useState<any>({ expense: [], income: [] });
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [recentClients, setRecentClients] = useState<Client[]>([]);
-  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+  
   const [subscription, setSubscription] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { businessData, businessDataLoading } = useData();
+const { incomes, expenses, invoices, clients } = businessData;
 
-  useEffect(() => {
-    if (user) {
-      loadDashboardData();
-      loadSubscription();
-    }
-  }, [user]);
+ // Calculate stats from cached data
+const stats = {
+  totalIncome: incomes.reduce((sum, income) => sum + income.amount, 0),
+  totalExpenses: expenses.reduce((sum, expense) => sum + expense.amount, 0),
+  netProfit: incomes.reduce((sum, income) => sum + income.amount, 0) - expenses.reduce((sum, expense) => sum + expense.amount, 0),
+  pendingInvoices: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').length,
+  totalPending: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').reduce((sum, inv) => sum + inv.total, 0),
+  overdueInvoices: invoices.filter(inv => inv.status === 'overdue').length,
+  recentTransactions: [...incomes.slice(0, 5), ...expenses.slice(0, 5)]
+};
+
+const monthlyData: any[] = [
+  { month: 'Jan', income: 0, expenses: 0, profit: 0 },
+  { month: 'Feb', income: 0, expenses: 0, profit: 0 },
+  { month: 'Mar', income: 0, expenses: 0, profit: 0 },
+  { month: 'Apr', income: 0, expenses: 0, profit: 0 },
+  { month: 'May', income: 0, expenses: 0, profit: 0 },
+  { month: 'Jun', income: 0, expenses: 0, profit: 0 }
+]; // Placeholder data for now
+
+const categoryData: any = { 
+  income: incomes.slice(0, 5).map(income => ({
+    name: income.category?.name || 'Uncategorized',
+    value: income.amount
+  })), 
+  expense: expenses.slice(0, 5).map(expense => ({
+    name: expense.category?.name || 'Uncategorized', 
+    value: expense.amount
+  }))
+};
+const recentActivity = [...incomes.slice(0, 3), ...expenses.slice(0, 3)];
+const recentClients = clients.slice(0, 5);
+const recentInvoices = invoices.slice(0, 5);
+const loading = businessDataLoading;
 
   const loadSubscription = async () => {
     if (!user) return;
@@ -126,118 +151,16 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const loadDashboardData = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      
-      const startDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-      const sixMonthsAgo = format(subMonths(new Date(), 5), 'yyyy-MM-dd');
-      
-      const [dashStats, allIncomes, allExpenses, invoices, clients] = await Promise.all([
-        getDashboardStats(user.id, startDate, endDate),
-        getIncomes(user.id, sixMonthsAgo, endDate),
-        getExpenses(user.id, sixMonthsAgo, endDate),
-        getInvoices(user.id),
-        getClients(user.id)
-      ]);
-      
-      const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
-      const averageInvoiceValue = invoices.length > 0 
-        ? invoices.reduce((sum, inv) => sum + inv.total, 0) / invoices.length 
-        : 0;
-      
-      setStats({
-        ...dashStats,
-        totalClients: clients.length,
-        overdueInvoices: overdueInvoices.length,
-        averageInvoiceValue: Math.round(averageInvoiceValue)
-      });
-      
-      processMonthlyData(allIncomes, allExpenses);
-      processCategoryData(allIncomes, allExpenses);
-      processRecentActivity(dashStats.recentTransactions);
-      setRecentClients(clients.slice(0, 4));
-      setRecentInvoices(invoices.slice(0, 4));
-      
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const processMonthlyData = (incomes: Income[], expenses: Expense[]) => {
-    const monthlyMap = new Map();
-    
-    for (let i = 5; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
-      const monthKey = format(date, 'MMM');
-      monthlyMap.set(monthKey, { month: monthKey, income: 0, expenses: 0, profit: 0 });
-    }
-    
-    incomes.forEach(income => {
-      const monthKey = format(parseISO(income.date), 'MMM');
-      if (monthlyMap.has(monthKey)) {
-        monthlyMap.get(monthKey).income += income.amount;
-      }
-    });
-    
-    expenses.forEach(expense => {
-      const monthKey = format(parseISO(expense.date), 'MMM');
-      if (monthlyMap.has(monthKey)) {
-        monthlyMap.get(monthKey).expenses += expense.amount;
-      }
-    });
-    
-    const data = Array.from(monthlyMap.values());
-    data.forEach(item => {
-      item.profit = item.income - item.expenses;
-    });
-    
-    setMonthlyData(data);
-  };
-
-  const processCategoryData = (incomes: Income[], expenses: Expense[]) => {
-    const incomeByCategory = incomes.reduce((acc, income) => {
-      const category = income.category?.name || 'Uncategorized';
-      acc[category] = (acc[category] || 0) + income.amount;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const expenseByCategory = expenses.reduce((acc, expense) => {
-      const category = expense.category?.name || 'Uncategorized';
-      acc[category] = (acc[category] || 0) + expense.amount;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const incomeData = Object.entries(incomeByCategory)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-    
-    const expenseData = Object.entries(expenseByCategory)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-    
-    setCategoryData({ income: incomeData, expense: expenseData });
-  };
-
-  const processRecentActivity = (transactions: any[]) => {
-    setRecentActivity(transactions.slice(0, 5));
-  };
+ 
 
   const calculateGrowth = () => {
-    if (monthlyData.length < 2) return 0;
-    const currentMonth = monthlyData[monthlyData.length - 1];
-    const previousMonth = monthlyData[monthlyData.length - 2];
-    if (previousMonth.income === 0) return 0;
-    const growthPercentage = ((currentMonth.income - previousMonth.income) / previousMonth.income * 100);
-    return Math.round(growthPercentage * 10) / 10;
-  };
+  if (monthlyData.length < 2) return 0;
+  const currentMonth = monthlyData[monthlyData.length - 1];
+  const previousMonth = monthlyData[monthlyData.length - 2];
+  if (!previousMonth?.income || previousMonth.income === 0) return 0;
+  const growthPercentage = ((currentMonth.income - previousMonth.income) / previousMonth.income * 100);
+  return Math.round(growthPercentage * 10) / 10;
+};
 
   const getPlanColor = (plan: string) => {
     switch (plan) {

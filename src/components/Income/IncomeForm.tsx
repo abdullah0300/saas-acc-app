@@ -5,6 +5,7 @@ import { AddCategoryModal } from '../Common/AddCategoryModal';
 import { getClients, createClient } from '../../services/database';
 import { Client } from '../../types';
 import { Plus, X } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 import { 
   createIncome, 
   updateIncome, 
@@ -18,6 +19,7 @@ import { Category } from '../../types';
 export const IncomeForm: React.FC = () => {
   const { user } = useAuth();
   const { taxRates, defaultTaxRate } = useSettings(); // Added taxRates and defaultTaxRate
+  const { addIncomeToCache } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -152,12 +154,16 @@ const [isAddingClient, setIsAddingClient] = useState(false);
 };
 
       if (isEdit && id) {
-        await updateIncome(id, incomeData);
-      } else {
-        await createIncome(incomeData);
-      }
+  await updateIncome(id, incomeData);
+} else {
+  const newIncome = await createIncome(incomeData);
+  
+  // Add to cache instantly!
+  addIncomeToCache(newIncome);
+}
 
-      navigate('/income');
+navigate('/income');
+
     } catch (err: any) {
       setError(err.message);
     } finally {
