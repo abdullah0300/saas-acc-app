@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useData } from '../../contexts/DataContext';
 // Add this import with your other imports
 import { pdfService } from '../../services/pdfService';
 import { SendEmailDialog } from './SendEmailDialog'; // ADD THIS IMPORT
 import { emailService } from '../../services/emailService'; // ADD THIS IMPORT
 import { useSettings } from '../../contexts/SettingsContext'; // ADD THIS IMPORT
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   ArrowLeft, 
   Download, 
@@ -47,6 +49,8 @@ export const InvoiceView: React.FC = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const { formatCurrency } = useSettings(); // ADD THIS
+  const { refreshBusinessData } = useData();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const invoiceRef = useRef<HTMLDivElement>(null);
   
@@ -114,16 +118,36 @@ export const InvoiceView: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: Invoice['status']) => {
-    if (!invoice || !user) return;
+ const handleStatusChange = async (newStatus: Invoice['status']) => {
+  if (!invoice || !user) return;
 
-    try {
-      await updateInvoice(invoice.id, { status: newStatus });
-      setInvoice({ ...invoice, status: newStatus });
-    } catch (err: any) {
-      alert('Error updating status: ' + err.message);
-    }
-  };
+  try {
+    // Update the database first
+    await updateInvoice(invoice.id, { status: newStatus });
+    
+    // Update local state immediately for UI responsiveness
+    setInvoice({ ...invoice, status: newStatus });
+    
+    // CRITICAL: Invalidate React Query caches with EXACT query keys
+    queryClient.invalidateQueries({ 
+      queryKey: ['invoices', user.id] // ✅ This must match InvoiceList exactly
+    });
+    queryClient.invalidateQueries({ 
+      queryKey: ['invoice', invoice.id] // ✅ If you have individual invoice cache
+    });
+    
+    // Update DataContext cache for dashboard
+    await refreshBusinessData();
+    
+    // Optional: Force a refetch to ensure consistency
+    await queryClient.refetchQueries({ 
+      queryKey: ['invoices', user.id] 
+    });
+    
+  } catch (err: any) {
+    alert('Error updating status: ' + err.message);
+  }
+};
 
   const handleDownloadPDF = async () => {
     if (!invoice || generatingPdf) return;

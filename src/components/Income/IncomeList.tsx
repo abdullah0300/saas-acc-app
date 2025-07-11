@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Client } from '../../types';
 import { getClients } from '../../services/database';
+import { useData } from '../../contexts/DataContext';
+import { SkeletonTable } from '../Common/Loading';
 import { 
   Plus, 
   Search, 
@@ -28,10 +30,11 @@ import { Income, Category } from '../../types';
 export const IncomeList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency } = useSettings(); // Added formatCurrency
-  const [incomes, setIncomes] = useState<Income[]>([]);
-  const [filteredIncomes, setFilteredIncomes] = useState<Income[]>([]);
+// Remove local incomes state - we'll use cached data instead
+const { businessData, businessDataLoading, refreshBusinessData } = useData();
+const { incomes } = businessData;  const [filteredIncomes, setFilteredIncomes] = useState<Income[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+const loading = businessDataLoading;
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   
@@ -46,9 +49,9 @@ export const IncomeList: React.FC = () => {
 const [clientSearch, setClientSearch] = useState('');
 
   useEffect(() => {
-    loadData();
-    loadClients();
-  }, [user, dateRange]);
+  // Data is already loaded by DataContext, just filter when dateRange changes
+  filterAndSortIncomes();
+}, [user, dateRange, incomes]); // Added incomes dependency
 
   useEffect(() => {
   filterAndSortIncomes();
@@ -68,56 +71,7 @@ const [clientSearch, setClientSearch] = useState('');
 
 
 
-  const loadData = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      
-      // Calculate date range
-      let startDate, endDate;
-      const now = new Date();
-      
-      switch (dateRange) {
-        case 'today':
-          startDate = format(now, 'yyyy-MM-dd');
-          endDate = format(now, 'yyyy-MM-dd');
-          break;
-        case 'this-week':
-          startDate = format(subMonths(now, 0.25), 'yyyy-MM-dd');
-          endDate = format(now, 'yyyy-MM-dd');
-          break;
-        case 'this-month':
-          startDate = format(startOfMonth(now), 'yyyy-MM-dd');
-          endDate = format(endOfMonth(now), 'yyyy-MM-dd');
-          break;
-        case 'last-month':
-          startDate = format(startOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
-          endDate = format(endOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
-          break;
-        case 'this-year':
-          startDate = format(new Date(now.getFullYear(), 0, 1), 'yyyy-MM-dd');
-          endDate = format(now, 'yyyy-MM-dd');
-          break;
-        default:
-          startDate = format(startOfMonth(now), 'yyyy-MM-dd');
-          endDate = format(endOfMonth(now), 'yyyy-MM-dd');
-      }
-      
-      const [incomeData, categoryData] = await Promise.all([
-        getIncomes(user.id, startDate, endDate),
-        getCategories(user.id, 'income')
-      ]);
-      
-      setIncomes(incomeData);
-      setCategories(categoryData);
-      setFilteredIncomes(incomeData);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
 
   const filterAndSortIncomes = () => {
   let filtered = [...incomes];
@@ -168,15 +122,15 @@ const [clientSearch, setClientSearch] = useState('');
 };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this income record?')) return;
-    
-    try {
-      await deleteIncome(id);
-      await loadData();
-    } catch (err: any) {
-      alert('Error deleting income: ' + err.message);
-    }
-  };
+  if (!window.confirm('Are you sure you want to delete this income record?')) return;
+  
+  try {
+    await deleteIncome(id);
+    await refreshBusinessData(); // ✅ Refresh cache instead
+  } catch (err: any) {
+    alert('Error deleting income: ' + err.message);
+  }
+};
 
   const exportToCSV = () => {
     const headers = ['Date', 'Description', 'Category', 'Amount', 'Reference'];
@@ -204,13 +158,7 @@ const [clientSearch, setClientSearch] = useState('');
   const totalIncome = filteredIncomes.reduce((sum, income) => sum + income.amount, 0);
   const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes.length : 0;
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  if (loading) return <SkeletonTable rows={10} columns={6} hasActions={true} />;
 
   return (
     <div className="space-y-6">

@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { UsageLimitGate } from '../Subscription/FeatureGate';
+import { useData } from '../../contexts/DataContext';
 import { 
   createInvoice, 
   updateInvoice, 
@@ -67,6 +68,8 @@ export const InvoiceForm: React.FC = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const queryClient = useQueryClient();
+  const { addClientToCache } = useData();
+  const { addInvoiceToCache } = useData();
   const { formatCurrency } = useSettings();
 
   // Form state
@@ -287,34 +290,37 @@ export const InvoiceForm: React.FC = () => {
 
   // Handle client creation
   const handleCreateClient = async () => {
-    if (!user || !newClientData.name.trim()) return;
+  if (!user || !newClientData.name.trim()) return;
+  
+  setIsAddingClient(true);
+  
+  try {
+    const client = await createClient({
+      user_id: user.id,
+      name: newClientData.name.trim(),
+      email: newClientData.email || undefined,
+      phone: newClientData.phone || undefined,
+      address: newClientData.address || undefined
+    });
     
-    setIsAddingClient(true);
+    // Refresh React Query clients cache
+    queryClient.invalidateQueries({ queryKey: ['clients'] });
     
-    try {
-      const client = await createClient({
-        user_id: user.id,
-        name: newClientData.name.trim(),
-        email: newClientData.email || undefined,
-        phone: newClientData.phone || undefined,
-        address: newClientData.address || undefined
-      });
-      
-      // Refresh clients list
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      
-      // Select the new client
-      setFormData(prev => ({ ...prev, client_id: client.id }));
-      
-      // Close modal and reset
-      setShowClientModal(false);
-      setNewClientData({ name: '', email: '', phone: '', address: '' });
-    } catch (err: any) {
-      alert('Error creating client: ' + err.message);
-    } finally {
-      setIsAddingClient(false);
-    }
-  };
+    // Add to DataContext cache
+    addClientToCache(client); // ✅ Add this line
+    
+    // Select the new client
+    setFormData(prev => ({ ...prev, client_id: client.id }));
+    
+    // Close modal and reset
+    setShowClientModal(false);
+    setNewClientData({ name: '', email: '', phone: '', address: '' });
+  } catch (err: any) {
+    alert('Error creating client: ' + err.message);
+  } finally {
+    setIsAddingClient(false);
+  }
+};
 
   // Create invoice mutation
   const createInvoiceMutation = useMutation({
@@ -415,10 +421,10 @@ export const InvoiceForm: React.FC = () => {
           .insert([recurringData]);
       }
 
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['recurring-invoices'] });
-       queryClient.invalidateQueries({ queryKey: ['nextInvoiceNumber'] }); // ADD THIS LINE
+       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+  queryClient.invalidateQueries({ queryKey: ['recurring-invoices'] });
+  queryClient.invalidateQueries({ queryKey: ['nextInvoiceNumber'] });
+  addInvoiceToCache(newInvoice); // ✅ Add to DataContext cache
 
       
       navigate('/invoices');

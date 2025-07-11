@@ -19,7 +19,7 @@ import { Category } from '../../types';
 export const IncomeForm: React.FC = () => {
   const { user } = useAuth();
   const { taxRates, defaultTaxRate } = useSettings(); // Added taxRates and defaultTaxRate
-  const { addIncomeToCache } = useData();
+  const { addIncomeToCache, addClientToCache } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -117,8 +117,11 @@ const [isAddingClient, setIsAddingClient] = useState(false);
       address: newClientData.address || undefined
     });
     
-    // Add to clients list
+    // Add to local clients list
     setClients([...clients, client]);
+    
+    // Add to global cache
+    addClientToCache(client); // ✅ Add this line
     
     // Select the new client
     setFormData({ ...formData, client_id: client.id });

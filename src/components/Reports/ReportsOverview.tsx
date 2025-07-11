@@ -5,6 +5,7 @@ import { ExportService } from '../../services/exportService';
 import { Crown } from 'lucide-react';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
+import { SkeletonReport } from '../Common/Loading';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -65,6 +66,7 @@ import { supabase } from '../../services/supabaseClient';
 import { InsightsEngine, Insight } from '../../services/insightsService';
 import { InsightsPanel } from './InsightsPanel';
 import { ExportDropdown } from './ExportDropdown';
+
 
 // Types
 interface MonthlyData {
@@ -165,6 +167,10 @@ const [showAllInsights, setShowAllInsights] = useState(false);
   loadReportData();
 }, [user, period]);
 
+// Set the currency formatter for insights
+useEffect(() => {
+  InsightsEngine.setCurrencyFormatter(formatCurrency);
+}, [formatCurrency]);
 
 const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
 
@@ -786,15 +792,8 @@ const getDateRangeForPeriod = () => {
   ];
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Analyzing your financial data...</p>
-        </div>
-      </div>
-    );
-  }
+  return <SkeletonReport />;
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
@@ -1044,60 +1043,13 @@ const getDateRangeForPeriod = () => {
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           </div>
         </div>
-{/* Smart Insights Panel */}
+
+        {/* Smart Insights Panel */}
         <InsightsPanel 
           insights={insights} 
           onDismiss={handleDismissInsight}
           loading={loadingInsights}
         />
-
-         {/* Insights Panel */}
-        {/* <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
-              <AlertCircle className="h-6 w-6" />
-            </div>
-            <h2 className="text-xl font-bold">Key Insights & Recommendations</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {kpiMetrics.profitMargin < 20 && (
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <p className="font-semibold mb-2">Low Profit Margin</p>
-                <p className="text-sm text-white/80">
-                  Your profit margin is {kpiMetrics.profitMargin.toFixed(1)}%. Consider reducing expenses or increasing prices to improve profitability.
-                </p>
-              </div>
-            )}
-            
-            {kpiMetrics.collectionRate < 80 && (
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <p className="font-semibold mb-2">Collection Rate Alert</p>
-                <p className="text-sm text-white/80">
-                  Only {kpiMetrics.collectionRate.toFixed(0)}% of invoices are collected. Follow up on outstanding invoices to improve cash flow.
-                </p>
-              </div>
-            )}
-            
-            {kpiMetrics.avgDaysToPayment > 30 && (
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <p className="font-semibold mb-2">Slow Payment Cycle</p>
-                <p className="text-sm text-white/80">
-                  Clients take {kpiMetrics.avgDaysToPayment.toFixed(0)} days to pay on average. Consider offering early payment discounts.
-                </p>
-              </div>
-            )}
-            
-            {kpiMetrics.expenseGrowth > kpiMetrics.revenueGrowth && (
-              <div className="bg-white/10 backdrop-blur rounded-xl p-4">
-                <p className="font-semibold mb-2">Expense Growth Warning</p>
-                <p className="text-sm text-white/80">
-                  Expenses growing faster than revenue. Review spending in top categories to control costs.
-                </p>
-              </div>
-            )}
-          </div>
-        </div> */}
 
         {/* Main Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

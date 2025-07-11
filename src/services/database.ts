@@ -156,12 +156,16 @@ export const createIncome = async (income: Omit<Income, 'id' | 'created_at' | 'u
     ...income,
     user_id: effectiveUserId,
     category_id: income.category_id || null,
-    client_id: income.client_id || null, // ADD THIS LINE
+    client_id: income.client_id || null,
     reference_number: income.reference_number || null,
-    tax_rate: income.tax_rate || null, // ADD THIS LINE
-    tax_amount: income.tax_amount || null // ADD THIS LINE
+    tax_rate: income.tax_rate || null,
+    tax_amount: income.tax_amount || null
   }])
-    .select()
+    .select(`
+      *,
+      category:categories(*),
+      client:clients(*)
+    `) // ✅ Include related data
     .single();
   
   if (error) throw error;
@@ -234,7 +238,11 @@ export const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' |
       vendor: expense.vendor || null,
       receipt_url: expense.receipt_url || null
     }])
-    .select()
+    .select(`
+      *,
+      category:categories(*),
+      vendor_detail:vendors(*)
+    `) // ✅ Include related data
     .single();
   
   if (error) throw error;
@@ -293,7 +301,7 @@ export const createClient = async (client: Omit<Client, 'id' | 'created_at'>) =>
       phone: client.phone || null,
       address: client.address || null
     }])
-    .select()
+    .select('*') // ✅ Explicit select
     .single();
   
   if (error) throw error;
@@ -844,4 +852,75 @@ export const checkCategoryExists = async (
     .single();
     
   return !!data;
+};
+
+// Budget functions
+export const getBudgets = async (userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  const { data, error } = await supabase
+    .from('budgets')
+    .select(`
+      *,
+      category:categories(name, type)
+    `)
+    .eq('user_id', effectiveUserId)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data || [];
+};
+
+export const createBudget = async (budget: {
+  user_id: string;
+  category_id: string;
+  amount: number;
+  period: 'monthly' | 'quarterly' | 'yearly';
+  start_date: string;
+}) => {
+  const effectiveUserId = await getEffectiveUserId(budget.user_id);
+  
+  const { data, error } = await supabase
+    .from('budgets')
+    .insert([{
+      ...budget,
+      user_id: effectiveUserId
+    }])
+    .select(`
+      *,
+      category:categories(name, type)
+    `)
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const updateBudget = async (id: string, updates: {
+  category_id?: string;
+  amount?: number;
+  period?: 'monthly' | 'quarterly' | 'yearly';
+  start_date?: string;
+}) => {
+  const { data, error } = await supabase
+    .from('budgets')
+    .update(updates)
+    .eq('id', id)
+    .select(`
+      *,
+      category:categories(name, type)
+    `)
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const deleteBudget = async (id: string) => {
+  const { error } = await supabase
+    .from('budgets')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
 };

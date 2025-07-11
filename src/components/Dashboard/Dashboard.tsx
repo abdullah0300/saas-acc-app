@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
+import { SkeletonCard } from '../Common/Loading';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -218,12 +219,30 @@ const loading = businessDataLoading;
   };
 
   if (loading || settingsLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+  return (
+    <div className="p-4 md:p-6 bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen">
+      <div className="mb-8">
+        <div className="w-48 h-8 bg-gray-200 rounded animate-pulse mb-2" />
+        <div className="w-64 h-4 bg-gray-200 rounded animate-pulse" />
       </div>
-    );
-  }
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <SkeletonCard count={4} />
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="w-32 h-6 bg-gray-200 rounded animate-pulse mb-4" />
+          <div className="h-64 bg-gray-100 rounded animate-pulse" />
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="w-28 h-6 bg-gray-200 rounded animate-pulse mb-4" />
+          <div className="h-64 bg-gray-100 rounded animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
   if (error) {
     return (
@@ -426,48 +445,55 @@ const loading = businessDataLoading;
           <FeatureGate feature="budget_tracking" className="h-full">
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Overview</h3>
-              <div className="h-72">
-                {categoryData.expense.length > 0 ? (
-                  <>
-                    <ResponsiveContainer width="100%" height="70%">
-                      <RePieChart>
-                        <Pie
-                          data={categoryData.expense}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={90}
-                          paddingAngle={4}
-                          dataKey="value"
-                        >
-                          {categoryData.expense.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                      </RePieChart>
-                    </ResponsiveContainer>
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      {categoryData.expense.map((cat: any, index: number) => (
-                        <div key={cat.name} className="flex items-center gap-3">
-                          <div 
-                            className="w-4 h-4 rounded-lg" 
-                            style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{cat.name}</p>
-                            <p className="text-xs text-gray-500">{formatCurrency(cat.value)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500">
-                    No expense data available
-                  </div>
-                )}
+              <div className="h-72 flex flex-col">
+  {categoryData.expense.length > 0 ? (
+    <>
+      {/* Chart Container - Fixed Height */}
+      <div className="flex-shrink-0" style={{ height: '200px' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <RePieChart>
+            <Pie
+              data={categoryData.expense}
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={80}
+              paddingAngle={4}
+              dataKey="value"
+            >
+              {categoryData.expense.map((entry: any, index: number) => (
+                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value: any) => formatCurrency(value)} />
+          </RePieChart>
+        </ResponsiveContainer>
+      </div>
+      
+      {/* Legend Container - Scrollable if needed */}
+      <div className="flex-1 mt-4 overflow-y-auto">
+        <div className="grid grid-cols-2 gap-2 max-h-full">
+          {categoryData.expense.map((cat: any, index: number) => (
+            <div key={cat.name} className="flex items-center gap-2 min-h-0">
+              <div
+                className="w-3 h-3 rounded-sm flex-shrink-0"
+                style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-gray-900 truncate">{cat.name}</p>
+                <p className="text-xs text-gray-500">{formatCurrency(cat.value)}</p>
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  ) : (
+    <div className="h-full flex items-center justify-center text-gray-500">
+      No expense data available
+    </div>
+  )}
+</div>
             </div>
           </FeatureGate>
         </div>

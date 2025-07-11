@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useData } from '../../contexts/DataContext';
 import { ArrowLeft, Save, Upload, Plus, X } from 'lucide-react';
 import { 
   getVendors, 
@@ -18,6 +19,7 @@ import { AddCategoryModal } from '../Common/AddCategoryModal';
 export const ExpenseForm: React.FC = () => {
   const { user } = useAuth();
   const { taxRates, defaultTaxRate } = useSettings();
+  const { addExpenseToCache } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -198,12 +200,14 @@ const loadVendors = async () => {
       };
 
       if (isEdit && id) {
-        await updateExpense(id, expenseData);
-      } else {
-        await createExpense(expenseData);
-      }
+  await updateExpense(id, expenseData);
+} else {
+  const newExpense = await createExpense(expenseData);
+  addExpenseToCache(newExpense); // ✅ Add to cache
+}
 
-      navigate('/expenses');
+navigate('/expenses');
+
     } catch (err: any) {
       setError(err.message);
     } finally {

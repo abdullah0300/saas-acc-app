@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { subscriptionService } from '../services/subscriptionService';
 import { getEffectiveUserId } from '../services/database';
-import { getIncomes, getExpenses, getInvoices, getClients, getCategories } from '../services/database';
+import { getIncomes, getExpenses, getInvoices, getClients, getCategories, getBudgets } from '../services/database';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 interface DataContextType {
@@ -22,6 +22,7 @@ interface DataContextType {
     invoices: any[];
     clients: any[];
     categories: { income: any[]; expense: any[] };
+    budgets: any[]; 
   };
   businessDataLoading: boolean;
   refreshBusinessData: () => Promise<void>;
@@ -29,6 +30,9 @@ interface DataContextType {
   addExpenseToCache: (expense: any) => void;
   addInvoiceToCache: (invoice: any) => void;
   addClientToCache: (client: any) => void;
+  addBudgetToCache: (budget: any) => void; // ✅ Add this
+  updateBudgetInCache: (id: string, budget: any) => void; // ✅ Add this
+  removeBudgetFromCache: (id: string) => void; // ✅ Add this
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -56,12 +60,14 @@ const [businessData, setBusinessData] = useState<{
   invoices: any[];
   clients: any[];
   categories: { income: any[]; expense: any[] };
+  budgets: any[];
 }>({
   incomes: [],
   expenses: [],
   invoices: [],
   clients: [],
-  categories: { income: [], expense: [] }
+  categories: { income: [], expense: [] },
+  budgets: []
 });
 
 const [businessDataLoading, setBusinessDataLoading] = useState(false);
@@ -150,6 +156,28 @@ await loadBusinessData();
     lastLoadTime.current = 0;
     await loadUserData();
   };
+  const addBudgetToCache = (newBudget: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    budgets: [newBudget, ...prev.budgets]
+  }));
+};
+
+const updateBudgetInCache = (id: string, updatedBudget: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    budgets: prev.budgets.map(budget => 
+      budget.id === id ? updatedBudget : budget
+    )
+  }));
+};
+
+const removeBudgetFromCache = (id: string) => {
+  setBusinessData(prev => ({
+    ...prev,
+    budgets: prev.budgets.filter(budget => budget.id !== id)
+  }));
+};
 
   const loadBusinessData = async (userId?: string) => {
   const userIdToUse = userId || effectiveUserId;
@@ -162,13 +190,13 @@ const currentDate = new Date();
 const startOfCurrentMonth = format(startOfMonth(currentDate), 'yyyy-MM-dd');
 const endOfCurrentMonth = format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
-const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories] = await Promise.all([
-  getIncomes(userIdToUse, startOfCurrentMonth, endOfCurrentMonth), // ADD DATE FILTER
+const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories, budgetData] = await Promise.all([  getIncomes(userIdToUse, startOfCurrentMonth, endOfCurrentMonth), // ADD DATE FILTER
   getExpenses(userIdToUse, startOfCurrentMonth, endOfCurrentMonth), // ADD DATE FILTER
   getInvoices(userIdToUse),
   getClients(userIdToUse),
   getCategories(userIdToUse, 'income'),
-  getCategories(userIdToUse, 'expense')
+  getCategories(userIdToUse, 'expense'),
+  getBudgets(userIdToUse)
 ]);
     
     setBusinessData({
@@ -176,7 +204,8 @@ const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories
       expenses, 
       invoices,
       clients,
-      categories: { income: incomeCategories, expense: expenseCategories }
+      categories: { income: incomeCategories, expense: expenseCategories },
+      budgets: budgetData 
     });
   } catch (err) {
     console.error('Error loading business data:', err);
@@ -184,6 +213,7 @@ const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories
     setBusinessDataLoading(false);
   }
 };
+
 
 const refreshBusinessData = async () => {
   await loadBusinessData();
@@ -232,7 +262,10 @@ const addClientToCache = (newClient: any) => {
     addIncomeToCache,
     addExpenseToCache,
     addInvoiceToCache,
-    addClientToCache
+    addClientToCache,
+    addBudgetToCache,
+    updateBudgetInCache,
+    removeBudgetFromCache
   }}>
       {children}
     </DataContext.Provider>

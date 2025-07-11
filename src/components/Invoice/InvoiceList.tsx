@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { DeleteInvoiceWarning } from './DeleteInvoiceWarning';
+import { useData } from '../../contexts/DataContext';
+import { SkeletonTable } from '../Common/Loading';
 import { 
   Plus, 
   Search, 
@@ -47,6 +50,7 @@ export const InvoiceList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
   const queryClient = useQueryClient();
+  const { refreshBusinessData } = useData();
   
   // State for filters and UI
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +59,8 @@ export const InvoiceList: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'dueDate'>('date');
+  const [showDeleteWarning, setShowDeleteWarning] = useState(false);
+const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 
   // Fetch invoices with React Query
   const { data: invoices = [], isLoading, error } = useQuery({
@@ -103,27 +109,29 @@ export const InvoiceList: React.FC = () => {
   }, [recurringData]);
 
   // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: deleteInvoice,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    },
-    onError: (error: any) => {
-      alert('Error deleting invoice: ' + error.message);
-    }
-  });
+ const deleteMutation = useMutation({
+  mutationFn: deleteInvoice,
+  onSuccess: async () => {
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    await refreshBusinessData(); // ✅ Refresh DataContext cache
+  },
+  onError: (error: any) => {
+    alert('Error deleting invoice: ' + error.message);
+  }
+});
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Invoice> }) => 
-      updateInvoice(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    },
-    onError: (error: any) => {
-      alert('Error updating invoice: ' + error.message);
-    }
-  });
+  mutationFn: ({ id, updates }: { id: string; updates: Partial<Invoice> }) => 
+    updateInvoice(id, updates),
+  onSuccess: async () => {
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    await refreshBusinessData(); // ✅ Refresh DataContext cache
+  },
+  onError: (error: any) => {
+    alert('Error updating invoice: ' + error.message);
+  }
+});
 
   // Filter and sort invoices
   const filteredInvoices = React.useMemo(() => {
@@ -180,9 +188,36 @@ export const InvoiceList: React.FC = () => {
   }, [invoices]);
 
   const handleDelete = (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this invoice?')) return;
-    deleteMutation.mutate(id);
-  };
+  const invoice = invoices.find(inv => inv.id === id);
+  if (!invoice) return;
+
+  // Check if user has disabled warnings for paid invoices
+  const hideWarning = localStorage.getItem('hideInvoiceDeleteWarning') === 'true';
+  
+  // Show warning for paid invoices (unless user disabled it)
+  if (invoice.status === 'paid' && !hideWarning) {
+    setInvoiceToDelete(invoice);
+    setShowDeleteWarning(true);
+  } else {
+    // Show simple confirmation for unpaid invoices or if warning is disabled
+    if (window.confirm('Are you sure you want to delete this invoice?')) {
+      deleteMutation.mutate(id);
+    }
+  }
+};
+
+const handleConfirmDelete = () => {
+  if (invoiceToDelete) {
+    deleteMutation.mutate(invoiceToDelete.id);
+  }
+  setShowDeleteWarning(false);
+  setInvoiceToDelete(null);
+};
+
+const handleCancelDelete = () => {
+  setShowDeleteWarning(false);
+  setInvoiceToDelete(null);
+};
 
   const handleStatusChange = (id: string, status: InvoiceStatus) => {
     updateMutation.mutate({ id, updates: { status } });
@@ -377,16 +412,7 @@ export const InvoiceList: React.FC = () => {
     return differenceInDays(parseISO(dueDate), new Date());
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading invoices...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <SkeletonTable rows={8} columns={7} hasActions={true} />;
 
   if (error) {
     return (
@@ -793,6 +819,14 @@ export const InvoiceList: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Delete Warning Dialog */}
+<DeleteInvoiceWarning
+  isOpen={showDeleteWarning}
+  invoiceNumber={invoiceToDelete?.invoice_number || ''}
+  invoiceStatus={invoiceToDelete?.status || ''}
+  onConfirm={handleConfirmDelete}
+  onCancel={handleCancelDelete}
+/>
     </div>
   );
 };

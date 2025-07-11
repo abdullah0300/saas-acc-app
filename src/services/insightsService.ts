@@ -17,14 +17,20 @@ export interface Insight {
 
 export class InsightsEngine {
   // Helper to format currency
-  private static formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', { 
-      style: 'currency', 
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  }
+  // ✅ Updated to accept a currency formatter function
+private static formatCurrency: (amount: number) => string = (amount: number) => {
+  return new Intl.NumberFormat('en-US', { 
+    style: 'currency', 
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount);
+};
+
+// ✅ New method to set the currency formatter
+static setCurrencyFormatter(formatter: (amount: number) => string) {
+  this.formatCurrency = formatter;
+}
 
   // Helper to check if user is new (less than 2 months of data)
   private static isNewUser(oldestTransactionDate: Date | null): boolean {

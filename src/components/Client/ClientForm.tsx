@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { createClient, updateClient, getClients } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 
 export const ClientForm: React.FC = () => {
   const { user } = useAuth();
+  const { addClientToCache } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -62,12 +64,15 @@ export const ClientForm: React.FC = () => {
       };
 
       if (isEdit && id) {
-        await updateClient(id, clientData);
-      } else {
-        await createClient(clientData);
-      }
+  await updateClient(id, clientData);
+  // For edits, we need to refresh the entire cache since we can't easily update individual items
+  // Note: You could also implement an updateClientInCache method in DataContext if needed
+} else {
+  const newClient = await createClient(clientData);
+  addClientToCache(newClient); // ✅ Add to cache
+}
 
-      navigate('/clients');
+navigate('/clients');
     } catch (err: any) {
       setError(err.message);
     } finally {

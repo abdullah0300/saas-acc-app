@@ -25,7 +25,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { supabase } from '../../services/supabaseClient';
-import { getCategories, getIncomes, getExpenses } from '../../services/database';
+import { getIncomes, getExpenses, createBudget, updateBudget, deleteBudget } from '../../services/database';
+import { useData } from '../../contexts/DataContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 interface Budget {
@@ -70,12 +71,13 @@ const calculatePercentage = (actual: number, budgeted: number): number => {
 export const BudgetPlanning: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, baseCurrency } = useSettings(); // Added useSettings hook
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
+  const { businessData, businessDataLoading, addBudgetToCache, updateBudgetInCache, removeBudgetFromCache } = useData();
+const { budgets, categories } = businessData;
+const allCategories = [...categories.income, ...categories.expense];
+const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
+const loading = businessDataLoading;
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [chartError, setChartError] = useState(false);
   
@@ -87,56 +89,25 @@ export const BudgetPlanning: React.FC = () => {
   });
 
   useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
+  if (user && budgets.length >= 0) {
+    loadBudgetProgress();
+  }
+}, [user, budgets]); // Now depends on cached budgets
 
-  const loadData = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      setError('');
-      setChartError(false);
-      
-      // Load categories
-      const [incomeCategories, expenseCategories] = await Promise.all([
-        getCategories(user.id, 'income'),
-        getCategories(user.id, 'expense')
-      ]);
-      
-      setCategories([...incomeCategories, ...expenseCategories]);
-      
-      // Load budgets
-      const { data: budgetData, error: budgetError } = await supabase
-        .from('budgets')
-        .select(`
-          *,
-          category:categories(name, type)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (budgetError) {
-        console.error('Budget error:', budgetError);
-        setBudgets([]);
-        setBudgetProgress([]);
-      } else {
-        const validBudgets = (budgetData || []).filter(b => b && b.amount > 0);
-        setBudgets(validBudgets);
-        await calculateBudgetProgress(validBudgets);
-      }
-      
-    } catch (err: any) {
-      console.error('Error loading budget data:', err);
-      setError('Failed to load budget data. Please try again.');
-      setBudgets([]);
-      setBudgetProgress([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadBudgetProgress = async () => {
+  if (!user || !budgets.length) {
+    setBudgetProgress([]);
+    return;
+  }
+  
+  try {
+    await calculateBudgetProgress(budgets);
+  } catch (err: any) {
+    console.error('Error calculating budget progress:', err);
+    setError('Failed to calculate budget progress.');
+    setBudgetProgress([]);
+  }
+};
 
   const calculateBudgetProgress = async (budgetList: Budget[]) => {
     if (!user || !budgetList || budgetList.length === 0) {
@@ -191,45 +162,37 @@ export const BudgetPlanning: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
+  e.preventDefault();
+  if (!user) return;
+  
+  const amount = safeParseNumber(formData.amount);
+  if (amount <= 0) {
+    alert('Please enter a valid budget amount greater than 0');
+    return;
+  }
+  
+  try {
+    const budgetData = {
+      user_id: user.id,
+      category_id: formData.category_id,
+      amount: amount,
+      period: formData.period,
+      start_date: formData.start_date
+    };
     
-    const amount = safeParseNumber(formData.amount);
-    if (amount <= 0) {
-      alert('Please enter a valid budget amount greater than 0');
-      return;
+    if (editingBudget) {
+      const updatedBudget = await updateBudget(editingBudget.id, budgetData);
+      updateBudgetInCache(editingBudget.id, updatedBudget); // ✅ Update cache
+    } else {
+      const newBudget = await createBudget(budgetData);
+      addBudgetToCache(newBudget); // ✅ Add to cache
     }
     
-    try {
-      const budgetData = {
-        user_id: user.id,
-        category_id: formData.category_id,
-        amount: amount,
-        period: formData.period,
-        start_date: formData.start_date
-      };
-      
-      if (editingBudget) {
-        const { error } = await supabase
-          .from('budgets')
-          .update(budgetData)
-          .eq('id', editingBudget.id);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('budgets')
-          .insert([budgetData]);
-        
-        if (error) throw error;
-      }
-      
-      await loadData();
-      resetForm();
-    } catch (err: any) {
-      alert('Error saving budget: ' + err.message);
-    }
-  };
+    resetForm();
+  } catch (err: any) {
+    alert('Error saving budget: ' + err.message);
+  }
+};
 
   const handleEdit = (budget: Budget) => {
     setEditingBudget(budget);
@@ -243,20 +206,15 @@ export const BudgetPlanning: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this budget?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('budgets')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      await loadData();
-    } catch (err: any) {
-      alert('Error deleting budget: ' + err.message);
-    }
-  };
+  if (!window.confirm('Are you sure you want to delete this budget?')) return;
+  
+  try {
+    await deleteBudget(id);
+    removeBudgetFromCache(id); // ✅ Remove from cache
+  } catch (err: any) {
+    alert('Error deleting budget: ' + err.message);
+  }
+};
 
   const resetForm = () => {
     setFormData({
@@ -335,7 +293,7 @@ export const BudgetPlanning: React.FC = () => {
         <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <p className="text-red-600 mb-4">{error}</p>
         <button 
-          onClick={loadData}
+          onClick={loadBudgetProgress}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           Try Again
@@ -552,18 +510,18 @@ export const BudgetPlanning: React.FC = () => {
                   Category *
                 </label>
                 <select
-                  value={formData.category_id}
-                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select category</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name} ({category.type})
-                    </option>
-                  ))}
-                </select>
+  value={formData.category_id}
+  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+  required
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  <option value="">Select category</option>
+  {allCategories.map(category => (
+    <option key={category.id} value={category.id}>
+      {category.name} ({category.type})
+    </option>
+  ))}
+</select>
               </div>
               
               <div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useData } from '../../contexts/DataContext';
 import { 
   Plus, 
   Search, 
@@ -43,17 +44,19 @@ interface ClientWithMetrics extends Client {
 export const ClientList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency } = useSettings();
-  const [clients, setClients] = useState<ClientWithMetrics[]>([]);
   const [filteredClients, setFilteredClients] = useState<ClientWithMetrics[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'overdue'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'revenue' | 'recent'>('recent');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const { businessData, businessDataLoading, refreshBusinessData } = useData();
+const { clients: rawClients } = businessData;
+const [clients, setClients] = useState<ClientWithMetrics[]>([]);
+const loading = businessDataLoading;
 
   // Stats
   const [stats, setStats] = useState({
@@ -64,40 +67,39 @@ export const ClientList: React.FC = () => {
   });
 
   useEffect(() => {
-    loadAllData();
-  }, [user]);
+  if (rawClients.length > 0) {
+    processClientData();
+  }
+}, [user, rawClients]); // Now depends on cached data
 
   useEffect(() => {
     filterAndSortClients();
   }, [searchTerm, statusFilter, sortBy, clients]);
 
-  const loadAllData = async () => {
-    if (!user) return;
+  const processClientData = async () => {
+  if (!user || !rawClients.length) return;
+  
+  try {
+    // We don't need setLoading anymore since we use businessDataLoading
+    // setLoading(true); // ❌ Remove this
     
-    try {
-      setLoading(true);
-      const [clientData, invoiceData, incomeData] = await Promise.all([
-        getClients(user.id),
-        getInvoices(user.id),
-        getIncomes(user.id)
-      ]);
-      
-      setInvoices(invoiceData);
-      setIncomes(incomeData);
-      
-      // Process clients with metrics
-      const enrichedClients = processClientMetrics(clientData, invoiceData, incomeData);
-      setClients(enrichedClients);
-      setFilteredClients(enrichedClients);
-      
-      // Calculate stats
-      calculateStats(enrichedClients);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Load additional data needed for metrics
+    const [invoiceList, incomeList] = await Promise.all([
+      getInvoices(user.id),
+      getIncomes(user.id)
+    ]);
+    
+    // Process client metrics using existing function
+    const enrichedClients = processClientMetrics(rawClients, invoiceList, incomeList);
+    setClients(enrichedClients);
+    
+    // Calculate stats
+    calculateStats(enrichedClients);
+  } catch (err: any) {
+    setError(err.message);
+  }
+  // No finally block needed since we're not managing loading state
+};
 
   const processClientMetrics = (
     clientList: Client[], 
@@ -227,15 +229,15 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this client? All associated data will be preserved.')) return;
-    
-    try {
-      await deleteClient(id);
-      await loadAllData();
-    } catch (err: any) {
-      alert('Error deleting client: ' + err.message);
-    }
-  };
+  if (!window.confirm('Are you sure you want to delete this client? All associated data will be preserved.')) return;
+  
+  try {
+    await deleteClient(id);
+    await refreshBusinessData(); // ✅ Refresh cache instead
+  } catch (err: any) {
+    alert('Error deleting client: ' + err.message);
+  }
+};
 
   const exportClients = () => {
     const headers = ['Name', 'Email', 'Phone', 'Total Revenue', 'Invoices', 'Status', 'Last Activity'];

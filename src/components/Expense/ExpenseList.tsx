@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
+import { useData } from '../../contexts/DataContext';
 import { 
   Plus, 
   Search, 
@@ -26,10 +27,10 @@ import { Expense, Category } from '../../types';
 export const ExpenseList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency } = useSettings(); // Added formatCurrency
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
+const { businessData, businessDataLoading, refreshBusinessData } = useData();
+const { expenses } = businessData;  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+const loading = businessDataLoading;
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   
@@ -41,63 +42,14 @@ export const ExpenseList: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, [user, dateRange]);
+  filterAndSortExpenses();
+}, [user, dateRange, expenses]);
 
   useEffect(() => {
     filterAndSortExpenses();
   }, [searchTerm, selectedCategory, sortBy, sortOrder, expenses]);
 
-  const loadData = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      
-      // Calculate date range
-      let startDate, endDate;
-      const now = new Date();
-      
-      switch (dateRange) {
-        case 'today':
-          startDate = format(now, 'yyyy-MM-dd');
-          endDate = format(now, 'yyyy-MM-dd');
-          break;
-        case 'this-week':
-          startDate = format(subMonths(now, 0.25), 'yyyy-MM-dd');
-          endDate = format(now, 'yyyy-MM-dd');
-          break;
-        case 'this-month':
-          startDate = format(startOfMonth(now), 'yyyy-MM-dd');
-          endDate = format(endOfMonth(now), 'yyyy-MM-dd');
-          break;
-        case 'last-month':
-          startDate = format(startOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
-          endDate = format(endOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
-          break;
-        case 'this-year':
-          startDate = format(new Date(now.getFullYear(), 0, 1), 'yyyy-MM-dd');
-          endDate = format(now, 'yyyy-MM-dd');
-          break;
-        default:
-          startDate = format(startOfMonth(now), 'yyyy-MM-dd');
-          endDate = format(endOfMonth(now), 'yyyy-MM-dd');
-      }
-      
-      const [expenseData, categoryData] = await Promise.all([
-        getExpenses(user.id, startDate, endDate),
-        getCategories(user.id, 'expense')
-      ]);
-      
-      setExpenses(expenseData);
-      setCategories(categoryData);
-      setFilteredExpenses(expenseData);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+ 
 
   const filterAndSortExpenses = () => {
     let filtered = [...expenses];
@@ -131,15 +83,15 @@ export const ExpenseList: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this expense record?')) return;
-    
-    try {
-      await deleteExpense(id);
-      await loadData();
-    } catch (err: any) {
-      alert('Error deleting expense: ' + err.message);
-    }
-  };
+  if (!window.confirm('Are you sure you want to delete this expense record?')) return;
+  
+  try {
+    await deleteExpense(id);
+    await refreshBusinessData(); // ✅ Refresh cache instead
+  } catch (err: any) {
+    alert('Error deleting expense: ' + err.message);
+  }
+};
 
   const exportToCSV = () => {
     const headers = ['Date', 'Description', 'Vendor', 'Category', 'Amount', 'Receipt'];
