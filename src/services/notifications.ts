@@ -209,3 +209,64 @@ export const getNotificationStats = async (userId: string) => {
 
   return stats;
 };
+// Add this function to src/services/notifications.ts
+export const createWelcomeNotification = async (userId: string, userDetails: {
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  companyName?: string;
+}) => {
+  try {
+    const userName = userDetails.firstName ? 
+      `${userDetails.firstName}${userDetails.lastName ? ' ' + userDetails.lastName : ''}` : 
+      userDetails.email.split('@')[0];
+
+    // Create the welcome notification
+    const { data: notification, error: notificationError } = await supabase
+      .from('notifications')
+      .insert([{
+        user_id: userId,
+        type: 'welcome',
+        title: `Welcome to Smart CFO, ${userName}! 🎉`,
+        message: `We're thrilled to have you on board! Your Smart CFO account is ready, and we're here to help you take control of your finances with intelligent insights and streamlined financial management.`,
+        action_url: '/dashboard',
+        action_label: 'Explore Dashboard',
+        metadata: {
+          user_name: userName,
+          company_name: userDetails.companyName,
+          email: userDetails.email,
+          welcome_step: 'account_created'
+        },
+        priority: 'normal',
+        is_read: false
+      }])
+      .select()
+      .single();
+
+    if (notificationError) {
+      console.error('Error creating welcome notification:', notificationError);
+      return;
+    }
+
+    // Queue the welcome email to be sent
+    const { error: queueError } = await supabase
+      .from('notification_email_queue')
+      .insert([{
+        notification_id: notification.id,
+        status: 'pending',
+        attempts: 0,
+        created_at: new Date().toISOString()
+      }]);
+
+    if (queueError) {
+      console.error('Error queueing welcome email:', queueError);
+    }
+
+    // Process email queue immediately for welcome emails
+    await processEmailQueue();
+
+    console.log('Welcome notification created and email queued successfully');
+  } catch (error) {
+    console.error('Error in createWelcomeNotification:', error);
+  }
+};

@@ -165,6 +165,7 @@ export interface InvoiceSettings {
 
 // Notification types
 export type NotificationType = 
+  | 'welcome'
   | 'invoice_sent' 
   | 'invoice_viewed' 
   | 'invoice_generated'
@@ -226,6 +227,7 @@ export const notificationConfig: Record<NotificationType, {
   color: string;
   bgColor: string;
 }> = {
+  welcome: { icon: 'Heart', color: 'text-pink-600', bgColor: 'bg-pink-100' },  // ADD THIS LINE
   invoice_sent: { icon: 'Send', color: 'text-blue-600', bgColor: 'bg-blue-100' },
   invoice_viewed: { icon: 'Eye', color: 'text-indigo-600', bgColor: 'bg-indigo-100' },
   invoice_paid: { icon: 'CheckCircle', color: 'text-green-600', bgColor: 'bg-green-100' },

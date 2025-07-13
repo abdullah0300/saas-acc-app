@@ -11,6 +11,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { Login } from './components/Auth/Login';
 import { Register } from './components/Auth/Register';
+import { ResetPassword } from './components/Auth/ResetPassword';
 import { Layout } from './components/Layout/Layout';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { IncomeList } from './components/Income/IncomeList';
@@ -75,6 +76,7 @@ function App() {
             <Route path="/invoices/:id/public" element={<PublicInvoiceView />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             
             {/* Protected routes */}
             <Route element={

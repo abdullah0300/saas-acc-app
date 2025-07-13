@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../services/supabaseClient";
 import {
   Mail,
   Lock,
@@ -32,6 +33,30 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const [showForgotModal, setShowForgotModal] = useState(false);
+const [resetEmail, setResetEmail] = useState('');
+const [resetLoading, setResetLoading] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setResetLoading(true);
+  
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+  redirectTo: `${process.env.REACT_APP_SITE_URL || window.location.origin}/reset-password`,
+});
+    
+    if (error) throw error;
+    
+    alert('Password reset email sent! Check your inbox.');
+    setShowForgotModal(false);
+    setResetEmail('');
+  } catch (error: any) {  // Fix error type
+    alert('Error: ' + error.message);
+  } finally {
+    setResetLoading(false);
+  }
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +125,7 @@ export const Login: React.FC = () => {
           {/* Logo and Title */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
-              <Wallet className="h-8 w-8 text-white" />
+              <img src="https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717" className="h-8 w-8 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
             <p className="mt-2 text-gray-600">
@@ -204,13 +229,14 @@ export const Login: React.FC = () => {
                 </div>
 
                 <div className="text-sm">
-                  <a
-                    href="#"
-                    className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
+  <button
+    type="button"
+    onClick={() => setShowForgotModal(true)}
+    className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors bg-transparent border-none p-0 cursor-pointer"
+  >
+    Forgot password?
+  </button>
+</div>
               </div>
 
               <button
@@ -375,6 +401,68 @@ export const Login: React.FC = () => {
           animation: shake 0.5s ease-in-out;
         }
       `}</style>
+      {/* Forgot Password Modal */}
+{showForgotModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+      <div className="text-center mb-6">
+        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
+          <Mail className="h-6 w-6 text-indigo-600" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900">Reset Password</h3>
+        <p className="text-sm text-gray-600 mt-2">
+          Enter your email and we'll send you a link to reset your password
+        </p>
+      </div>
+
+      <form onSubmit={handleForgotPassword}>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email Address
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Enter your email address"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowForgotModal(false);
+              setResetEmail('');
+            }}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={resetLoading}
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:shadow-lg transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            {resetLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                Sending...
+              </div>
+            ) : (
+              'Send Reset Link'
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
     </div>
   );
 };

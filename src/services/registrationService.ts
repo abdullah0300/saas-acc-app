@@ -147,12 +147,28 @@ export class RegistrationService {
         }
       }
 
-      return {
-        success: true,
-        user: authData.user,
-        teamId: teamId || authData.user.id,
-        isTeamMember
-      };
+      // ... other code ...
+
+// 6. Send welcome email
+try {
+  const { createWelcomeNotification } = await import('../services/notifications');
+  await createWelcomeNotification(authData.user.id, {
+    firstName: data.firstName,
+    lastName: data.lastName,
+    email: data.email,
+    companyName: data.companyName
+  });
+} catch (welcomeError) {
+  console.error('Welcome email error (non-critical):', welcomeError);
+  // Don't fail registration if welcome email fails
+}
+
+return {
+  success: true,
+  user: authData.user,
+  teamId: teamId || authData.user.id,
+  isTeamMember
+};
 
     } catch (err: any) {
       console.error('Registration error:', err);

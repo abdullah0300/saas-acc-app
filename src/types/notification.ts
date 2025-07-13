@@ -1,5 +1,6 @@
 // src/types/notification.ts
 
+
 export type NotificationType = 
   | 'invoice_sent' 
   | 'invoice_viewed' 
@@ -63,3 +64,4 @@ export const notificationConfig: Record<NotificationType, {
   system_update: { icon: 'Info', color: 'text-blue-600', bgColor: 'bg-blue-100' },
   feature_announcement: { icon: 'Sparkles', color: 'text-purple-600', bgColor: 'bg-purple-100' }
 };
+
