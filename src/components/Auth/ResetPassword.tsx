@@ -9,6 +9,8 @@ export const ResetPassword: React.FC = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
 
   useEffect(() => {
     // Handle the auth callback
@@ -18,6 +20,11 @@ export const ResetPassword: React.FC = () => {
       }
     });
   }, []);
+
+  // Add to ResetPassword component states
+
+// Update handleSubmit in ResetPassword
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +101,18 @@ export const ResetPassword: React.FC = () => {
           </button>
         </form>
       </div>
+      {/* Success Message */}
+{showSuccessMessage && (
+  <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-center">
+    <div className="flex items-center justify-center mb-2">
+      <svg className="h-6 w-6 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span className="font-medium">Password Updated Successfully!</span>
+    </div>
+    <p className="text-sm">Redirecting you to login...</p>
+  </div>
+)}
     </div>
   );
 };

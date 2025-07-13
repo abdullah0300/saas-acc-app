@@ -36,6 +36,8 @@ export const Login: React.FC = () => {
   const [showForgotModal, setShowForgotModal] = useState(false);
 const [resetEmail, setResetEmail] = useState('');
 const [resetLoading, setResetLoading] = useState(false);
+const [showSuccessMessage, setShowSuccessMessage] = useState(false); // ADD THIS
+const [successMessage, setSuccessMessage] = useState(''); // ADD THIS
 
   const handleForgotPassword = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -43,15 +45,21 @@ const [resetLoading, setResetLoading] = useState(false);
   
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-  redirectTo: `${process.env.REACT_APP_SITE_URL || window.location.origin}/reset-password`,
-});
+      redirectTo: `${process.env.REACT_APP_SITE_URL || window.location.origin}/reset-password`,
+    });
     
     if (error) throw error;
     
-    alert('Password reset email sent! Check your inbox.');
+    // Show success message instead of alert
+    setSuccessMessage('Password reset email sent! Check your inbox.');
+    setShowSuccessMessage(true);
     setShowForgotModal(false);
     setResetEmail('');
-  } catch (error: any) {  // Fix error type
+    
+    // Hide success message after 5 seconds
+    setTimeout(() => setShowSuccessMessage(false), 5000);
+  } catch (error: any) {
+    // Keep alert for errors or create error state
     alert('Error: ' + error.message);
   } finally {
     setResetLoading(false);
@@ -460,6 +468,34 @@ const [resetLoading, setResetLoading] = useState(false);
           </button>
         </div>
       </form>
+    </div>
+  </div>
+)}
+{/* Success Message Toast */}
+{showSuccessMessage && (
+  <div className="fixed top-4 right-4 z-50 transform transition-all duration-300 ease-in-out">
+    <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-lg max-w-sm">
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div className="ml-3">
+          <h3 className="text-sm font-medium text-green-800">Email Sent!</h3>
+          <p className="text-sm text-green-700 mt-1">{successMessage}</p>
+        </div>
+        <div className="ml-auto pl-3">
+          <button
+            onClick={() => setShowSuccessMessage(false)}
+            className="text-green-400 hover:text-green-600 transition-colors"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 )}
