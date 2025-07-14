@@ -4,6 +4,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { createClient, updateClient, getClients } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { COUNTRY_CODES } from '../../utils/phoneUtils'; // ← ADD THIS IMPORT
 
 export const ClientForm: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export const ClientForm: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    phone_country_code: '+1',
     address: ''
   });
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,7 @@ export const ClientForm: React.FC = () => {
           name: client.name,
           email: client.email || '',
           phone: client.phone || '',
+          phone_country_code: client.phone_country_code || '+1', // ← ADD THIS LINE
           address: client.address || ''
         });
       }
@@ -60,6 +63,7 @@ export const ClientForm: React.FC = () => {
         name: formData.name,
         email: formData.email || undefined,
         phone: formData.phone || undefined,
+        phone_country_code: formData.phone_country_code, // ← ADD THIS LINE
         address: formData.address || undefined
       };
 
@@ -131,17 +135,35 @@ navigate('/clients');
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone
-            </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="+1 (555) 123-4567"
-            />
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Country Code
+              </label>
+              <select
+                value={formData.phone_country_code}
+                onChange={(e) => setFormData({ ...formData, phone_country_code: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              >
+                {COUNTRY_CODES.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.flag} {country.code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder="1234567890 (without country code)"
+              />
+            </div>
           </div>
 
           <div>

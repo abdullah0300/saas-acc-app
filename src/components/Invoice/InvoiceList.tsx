@@ -39,6 +39,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { format, addDays, differenceInDays, parseISO } from 'date-fns';
 import { Invoice, InvoiceStatus } from '../../types';
 import { supabase } from '../../services/supabaseClient';
+import { formatPhoneForWhatsApp } from '../../utils/phoneUtils';
 
 interface RecurringInvoice {
   id: string;
@@ -389,63 +390,65 @@ const handleCancelDelete = () => {
       if (error) throw error;
       alert('Invoice sent via email successfully!');
     } else if (method === 'whatsapp') {
-      // Check if client has phone number
-      if (!invoice.client?.phone) {
-        alert('Client phone number is required to send via WhatsApp');
-        return;
-      }
+  // Check if client has phone number
+  if (!invoice.client?.phone) {
+    alert('Client phone number is required to send via WhatsApp');
+    return;
+  }
 
-      // Format phone number (remove special characters, ensure country code)
-      let phoneNumber = invoice.client.phone.replace(/[\s\-\(\)]/g, '');
-      
-      // Add country code if not present
-      if (!phoneNumber.startsWith('+')) {
-        // Get country code from user settings if available
-        const countryCode = settingsData?.country_code || '+1';
-        phoneNumber = countryCode + phoneNumber;
-      }
+  try {
+    // Use the new utility function with client's country code
+    const phoneNumber = formatPhoneForWhatsApp(
+      invoice.client.phone, 
+      invoice.client.phone_country_code
+    );
 
-      // Build line items summary if available
-      let itemsSummary = '';
-      if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
-        itemsSummary = '\n📋 *ITEMS:*\n';
-        fullInvoiceData.items.forEach((item: any) => {
-          itemsSummary += `• ${item.description} - ${formatCurrency(item.amount)}\n`;
-        });
-      }
-
-      // Professional invoice message format with company info
-      const message = encodeURIComponent(
-        `🏢 *${companyName}*\n` +
-        (companyAddress ? `📍 ${companyAddress}\n` : '') +
-        (companyPhone ? `☎️ ${companyPhone}\n` : '') +
-        `━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📄 *INVOICE*\n\n` +
-        `*To:* ${invoice.client?.name}\n` +
-        (invoice.client?.address ? `${invoice.client.address}\n` : '') +
-        `\n*Invoice #:* ${invoice.invoice_number}\n` +
-        `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
-        `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
-        itemsSummary +
-        `\n━━━━━━━━━━━━━━━━━━━━\n` +
-        `*Subtotal:* ${formatCurrency(invoice.subtotal)}\n` +
-        (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount)}\n` : '') +
-        `💰 *TOTAL DUE:* ${formatCurrency(invoice.total)}\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📱 *View Full Invoice:*\n` +
-        `${window.location.origin}/invoices/${invoice.id}/view\n\n` +
-        `💳 *Payment Options:*\n` +
-        `• Bank Transfer\n` +
-        `• Credit/Debit Card\n` +
-        `• PayPal\n` +
-        (settingsData?.payment_instructions ? 
-          `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
-        `Thank you for your business! 🙏\n\n` +
-        `_Please save this number to receive future updates._`
-      );
-      
-      window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+    // Build line items summary if available
+    let itemsSummary = '';
+    if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
+      itemsSummary = '\n📋 *ITEMS:*\n';
+      fullInvoiceData.items.forEach((item: any) => {
+        itemsSummary += `• ${item.description} - ${formatCurrency(item.amount)}\n`;
+      });
     }
+
+    // Professional invoice message format with company info
+    const message = encodeURIComponent(
+      `🏢 *${companyName}*\n` +
+      (companyAddress ? `📍 ${companyAddress}\n` : '') +
+      (companyPhone ? `☎️ ${companyPhone}\n` : '') +
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `📄 *INVOICE*\n\n` +
+      `*To:* ${invoice.client?.name}\n` +
+      (invoice.client?.address ? `${invoice.client.address}\n` : '') +
+      `\n*Invoice #:* ${invoice.invoice_number}\n` +
+      `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
+      `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
+      itemsSummary +
+      `\n━━━━━━━━━━━━━━━━━━━━\n` +
+      `*Subtotal:* ${formatCurrency(invoice.subtotal)}\n` +
+      (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount)}\n` : '') +
+      `💰 *TOTAL DUE:* ${formatCurrency(invoice.total)}\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `📱 *View Full Invoice:*\n` +
+      `${window.location.origin}/invoices/${invoice.id}/view\n\n` +
+      `💳 *Payment Options:*\n` +
+      `• Bank Transfer\n` +
+      `• Credit/Debit Card\n` +
+      `• PayPal\n` +
+      (settingsData?.payment_instructions ? 
+        `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
+      `Thank you for your business! 🙏\n\n` +
+      `_Please save this number to receive future updates._`
+    );
+    
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+    
+  } catch (error: any) {
+    alert(`Error: ${error.message}\nPlease update the client's country code.`);
+    return;
+  }
+}
     
     // Update invoice status to 'sent' if it was draft
     if (invoice.status === 'draft') {

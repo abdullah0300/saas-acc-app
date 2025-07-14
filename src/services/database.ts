@@ -299,6 +299,7 @@ export const createClient = async (client: Omit<Client, 'id' | 'created_at'>) =>
       user_id: effectiveUserId,
       email: client.email || null,
       phone: client.phone || null,
+      phone_country_code: client.phone_country_code || null,
       address: client.address || null
     }])
     .select('*') // ✅ Explicit select

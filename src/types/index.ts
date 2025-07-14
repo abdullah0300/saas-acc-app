@@ -89,6 +89,7 @@ export interface Client {
   name: string;
   email?: string;
   phone?: string;
+  phone_country_code?: string; // ← ADD THIS LINE
   address?: string;
   created_at: string;
 }

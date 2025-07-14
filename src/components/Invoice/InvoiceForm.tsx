@@ -10,6 +10,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { UsageLimitGate } from '../Subscription/FeatureGate';
 import { useData } from '../../contexts/DataContext';
+import { COUNTRY_CODES } from '../../utils/phoneUtils';
 import { 
   createInvoice, 
   updateInvoice, 
@@ -97,6 +98,7 @@ export const InvoiceForm: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    phone_country_code: '+1',
     address: ''
   });
   const [isAddingClient, setIsAddingClient] = useState(false);
@@ -300,6 +302,7 @@ export const InvoiceForm: React.FC = () => {
       name: newClientData.name.trim(),
       email: newClientData.email || undefined,
       phone: newClientData.phone || undefined,
+      phone_country_code: newClientData.phone_country_code,
       address: newClientData.address || undefined
     });
     
@@ -314,7 +317,7 @@ export const InvoiceForm: React.FC = () => {
     
     // Close modal and reset
     setShowClientModal(false);
-    setNewClientData({ name: '', email: '', phone: '', address: '' });
+    setNewClientData({ name: '', email: '', phone: '', phone_country_code: '+1', address: '' }); // ← UPDATE THIS LINE
   } catch (err: any) {
     alert('Error creating client: ' + err.message);
   } finally {
@@ -1015,7 +1018,7 @@ export const InvoiceForm: React.FC = () => {
                 <button
                   onClick={() => {
                     setShowClientModal(false);
-                    setNewClientData({ name: '', email: '', phone: '', address: '' });
+                    setNewClientData({ name: '', email: '', phone: '', phone_country_code: '+1', address: '' });
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -1053,18 +1056,36 @@ export const InvoiceForm: React.FC = () => {
                   />
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={newClientData.phone}
-                    onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="+1 (555) 123-4567"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Country Code
+    </label>
+    <select
+      value={newClientData.phone_country_code}
+      onChange={(e) => setNewClientData({ ...newClientData, phone_country_code: e.target.value })}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      {COUNTRY_CODES.map((country) => (
+        <option key={country.code} value={country.code}>
+          {country.flag} {country.code}
+        </option>
+      ))}
+    </select>
+  </div>
+  <div className="md:col-span-3">
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Phone
+    </label>
+    <input
+      type="tel"
+      value={newClientData.phone}
+      onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      placeholder="1234567890 (without country code)"
+    />
+  </div>
+</div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1085,7 +1106,7 @@ export const InvoiceForm: React.FC = () => {
               <button
                 onClick={() => {
                   setShowClientModal(false);
-                  setNewClientData({ name: '', email: '', phone: '', address: '' });
+                  setNewClientData({ name: '', email: '', phone: '', phone_country_code: '+1', address: '' });
                 }}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
               >
