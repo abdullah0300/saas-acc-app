@@ -30,7 +30,8 @@ import {
   Users,
   AlertCircle,
   TrendingUp,
-  Activity
+  Activity,
+  X
 } from 'lucide-react';
 import { getInvoices, deleteInvoice, updateInvoice } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -61,6 +62,13 @@ export const InvoiceList: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'dueDate'>('date');
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
 const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+// Pagination states
+const [currentPage, setCurrentPage] = useState(1);
+const [itemsPerPage] = useState(50); // 50 items per page
+
+// Bulk selection states
+const [selectedItems, setSelectedItems] = useState<string[]>([]);
+const [selectAll, setSelectAll] = useState(false);
 
   // Fetch invoices with React Query
   const { data: invoices = [], isLoading, error } = useQuery({
@@ -169,6 +177,113 @@ const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
 
     return filtered;
   }, [invoices, searchTerm, statusFilter, typeFilter, sortBy, recurringInvoices]);
+
+
+  // ADD THIS RIGHT AFTER filteredInvoices useMemo:
+
+// Pagination logic
+const getPaginatedInvoices = () => {
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  return filteredInvoices.slice(startIndex, endIndex);
+};
+
+const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+const paginatedInvoices = getPaginatedInvoices();
+
+// Selection helper functions
+const handleSelectAll = (checked: boolean) => {
+  setSelectAll(checked);
+  if (checked) {
+    const currentPageIds = paginatedInvoices.map(invoice => invoice.id);
+    setSelectedItems(currentPageIds);
+  } else {
+    setSelectedItems([]);
+  }
+};
+
+const handleSelectItem = (invoiceId: string, checked: boolean) => {
+  if (checked) {
+    setSelectedItems(prev => [...prev, invoiceId]);
+  } else {
+    setSelectedItems(prev => prev.filter(id => id !== invoiceId));
+    setSelectAll(false);
+  }
+};
+
+const clearSelections = () => {
+  setSelectedItems([]);
+  setSelectAll(false);
+};
+
+// Reset pagination when filters change
+React.useEffect(() => {
+  setCurrentPage(1);
+  clearSelections();
+}, [searchTerm, statusFilter, typeFilter, sortBy]);
+
+
+// ADD THESE BULK OPERATION FUNCTIONS:
+
+// Bulk delete function
+const handleBulkDelete = async () => {
+  if (selectedItems.length === 0) return;
+  
+  const confirmed = window.confirm(
+    `Are you sure you want to delete ${selectedItems.length} invoice(s)? This action cannot be undone.`
+  );
+  
+  if (!confirmed) return;
+  
+  try {
+    // Delete each selected item
+    await Promise.all(
+      selectedItems.map(id => deleteMutation.mutateAsync(id))
+    );
+    
+    clearSelections();
+    alert(`Successfully deleted ${selectedItems.length} invoice(s)`);
+  } catch (error) {
+    console.error('Error deleting invoices:', error);
+    alert('Error deleting some records. Please try again.');
+  }
+};
+
+// Bulk export function
+const handleBulkExport = () => {
+  if (selectedItems.length === 0) {
+    alert('Please select items to export');
+    return;
+  }
+  
+  const selectedInvoices = filteredInvoices.filter(invoice => 
+    selectedItems.includes(invoice.id)
+  );
+  
+  const headers = ['Invoice #', 'Date', 'Due Date', 'Client', 'Amount', 'Status', 'Type'];
+  const csvData = selectedInvoices.map(invoice => [
+    invoice.invoice_number,
+    format(parseISO(invoice.date), 'yyyy-MM-dd'),
+    format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
+    invoice.client?.name || 'No client',
+    invoice.total.toString(),
+    invoice.status,
+    recurringInvoices.has(invoice.id) ? 'Recurring' : 'One-time'
+  ]);
+  
+  const csvContent = [
+    headers.join(','),
+    ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `selected-invoices-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+  link.click();
+  
+  alert(`Exported ${selectedItems.length} invoice(s)`);
+};
 
   // Calculate stats
   const stats = React.useMemo(() => {
@@ -583,10 +698,56 @@ const handleCancelDelete = () => {
 
         {/* Invoice Table */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* ADD THIS BULK ACTION TOOLBAR: */}
+        {selectedItems.length > 0 && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="text-sm text-indigo-700 font-medium">
+                  {selectedItems.length} invoice(s) selected
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleBulkExport}
+                  className="inline-flex items-center px-3 py-2 border border-indigo-300 shadow-sm text-sm leading-4 font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Selected
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected
+                </button>
+                <button
+                  onClick={clearSelections}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Invoice Table */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden"></div>
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="relative w-12 px-6 sm:w-16 sm:px-8">
+                    <input
+                      type="checkbox"
+                      className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                      checked={selectAll}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Invoice
                   </th>
@@ -614,14 +775,22 @@ const handleCancelDelete = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredInvoices.length > 0 ? (
-                  filteredInvoices.map((invoice) => {
+                {paginatedInvoices.length > 0 ? (
+                  paginatedInvoices.map((invoice) => {
                     const isRecurring = recurringInvoices.has(invoice.id);
                     const recurringInfo = isRecurring ? recurringInvoices.get(invoice.id) : null;
                     const daysUntilDue = getDaysUntilDue(invoice.due_date);
                     
                     return (
                       <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="relative w-12 px-6 sm:w-16 sm:px-8">
+                          <input
+                            type="checkbox"
+                            className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                            checked={selectedItems.includes(invoice.id)}
+                            onChange={(e) => handleSelectItem(invoice.id, e.target.checked)}
+                          />
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div>
@@ -792,7 +961,7 @@ const handleCancelDelete = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={9} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center">
                         <FileText className="h-16 w-16 text-gray-300 mb-4" />
                         <p className="text-gray-500 text-lg">No invoices found</p>
@@ -818,8 +987,112 @@ const handleCancelDelete = () => {
             </table>
           </div>
         </div>
+        
+{/* ADD THIS PAGINATION SECTION: */}
+        {filteredInvoices.length > itemsPerPage && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => {
+                  setCurrentPage(Math.max(1, currentPage - 1));
+                  clearSelections();
+                }}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentPage(Math.min(totalPages, currentPage + 1));
+                  clearSelections();
+                }}
+                disabled={currentPage === totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing{' '}
+                  <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> to{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * itemsPerPage, filteredInvoices.length)}
+                  </span> of{' '}
+                  <span className="font-medium">{filteredInvoices.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => {
+                      setCurrentPage(Math.max(1, currentPage - 1));
+                      clearSelections();
+                    }}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  
+                  {/* Page Numbers */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber: number;
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i;
+                    } else {
+                      pageNumber = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => {
+                          setCurrentPage(pageNumber);
+                          clearSelections();
+                        }}
+                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                          currentPage === pageNumber
+                            ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                            : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={() => {
+                      setCurrentPage(Math.min(totalPages, currentPage + 1));
+                      clearSelections();
+                    }}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
       {/* Delete Warning Dialog */}
+     
 <DeleteInvoiceWarning
   isOpen={showDeleteWarning}
   invoiceNumber={invoiceToDelete?.invoice_number || ''}

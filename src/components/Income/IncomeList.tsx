@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Client } from '../../types';
 import { getClients } from '../../services/database';
 import { useData } from '../../contexts/DataContext';
+
 import { SkeletonTable } from '../Common/Loading';
 import { 
   Plus, 
@@ -24,7 +25,7 @@ import {
 import { getIncomes, deleteIncome, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, parseISO, startOfWeek, endOfWeek, startOfYear, endOfYear, } from 'date-fns';
 import { Income, Category } from '../../types';
 
 export const IncomeList: React.FC = () => {
@@ -33,7 +34,8 @@ export const IncomeList: React.FC = () => {
 // Remove local incomes state - we'll use cached data instead
 const { businessData, businessDataLoading, refreshBusinessData } = useData();
 const { incomes } = businessData;  const [filteredIncomes, setFilteredIncomes] = useState<Income[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+const { categories: allCategories } = businessData;
+const categories = allCategories.income; // Use income categories from DataContext
 const loading = businessDataLoading;
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
@@ -47,6 +49,12 @@ const loading = businessDataLoading;
   const [clientFilter, setClientFilter] = useState('');
   const [clients, setClients] = useState<Client[]>([]);
 const [clientSearch, setClientSearch] = useState('');
+// Pagination states
+const [currentPage, setCurrentPage] = useState(1);
+const [itemsPerPage] = useState(50); // 50 items per page
+// Bulk selection states
+const [selectedItems, setSelectedItems] = useState<string[]>([]);
+const [selectAll, setSelectAll] = useState(false);
 
   useEffect(() => {
   // Data is already loaded by DataContext, just filter when dateRange changes
@@ -69,12 +77,111 @@ const [clientSearch, setClientSearch] = useState('');
 };  
 
 
+// ADD THIS FUNCTION:
+const handleBulkDelete = async () => {
+  if (selectedItems.length === 0) return;
+  
+  const confirmed = window.confirm(
+    `Are you sure you want to delete ${selectedItems.length} income record(s)? This action cannot be undone.`
+  );
+  
+  if (!confirmed) return;
+  
+  try {
+    // Delete each selected item
+    await Promise.all(
+      selectedItems.map(id => deleteIncome(id))
+    );
+    
+    // Refresh data and clear selections
+    await refreshBusinessData();
+    clearSelections();
+    
+    alert(`Successfully deleted ${selectedItems.length} income record(s)`);
+  } catch (error) {
+    console.error('Error deleting incomes:', error);
+    alert('Error deleting some records. Please try again.');
+  }
+};
 
+
+
+// ADD THIS FUNCTION:
+const handleBulkExport = () => {
+  if (selectedItems.length === 0) {
+    alert('Please select items to export');
+    return;
+  }
+  
+  const selectedIncomes = filteredIncomes.filter(income => 
+    selectedItems.includes(income.id)
+  );
+  
+  const headers = ['Date', 'Description', 'Category', 'Client', 'Amount', 'Reference'];
+  const csvData = selectedIncomes.map(income => [
+    format(parseISO(income.date), 'yyyy-MM-dd'),
+    income.description,
+    income.category?.name || 'Uncategorized',
+    income.client?.name || 'No client',
+    income.amount.toString(),
+    income.reference_number || ''
+  ]);
+  
+  const csvContent = [
+    headers.join(','),
+    ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `selected-income-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+  link.click();
+  
+  alert(`Exported ${selectedItems.length} income record(s)`);
+};
 
   
 
-  const filterAndSortIncomes = () => {
+ const filterAndSortIncomes = () => {
   let filtered = [...incomes];
+  
+  // Date Range Filter - FIXED VERSION
+  if (dateRange !== 'all') {
+    const now = new Date();
+    filtered = filtered.filter(income => {
+      const incomeDate = parseISO(income.date);
+      
+      switch (dateRange) {
+        case 'today':
+          return format(incomeDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+        
+        case 'this-week':
+          const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday start
+          const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+          return incomeDate >= weekStart && incomeDate <= weekEnd;
+        
+        case 'this-month':
+          const monthStart = startOfMonth(now);
+          const monthEnd = endOfMonth(now);
+          return incomeDate >= monthStart && incomeDate <= monthEnd;
+        
+        case 'last-month':
+          const lastMonth = subMonths(now, 1);
+          const lastMonthStart = startOfMonth(lastMonth);
+          const lastMonthEnd = endOfMonth(lastMonth);
+          return incomeDate >= lastMonthStart && incomeDate <= lastMonthEnd;
+        
+        case 'this-year':
+          const yearStart = startOfYear(now);
+          const yearEnd = endOfYear(now);
+          return incomeDate >= yearStart && incomeDate <= yearEnd;
+        
+        default:
+          return true;
+      }
+    });
+  }
   
   // Search filter
   if (searchTerm) {
@@ -82,7 +189,7 @@ const [clientSearch, setClientSearch] = useState('');
       income.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       income.category?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       income.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      income.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) // ADD THIS LINE
+      income.client?.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
   
@@ -91,7 +198,7 @@ const [clientSearch, setClientSearch] = useState('');
     filtered = filtered.filter(income => income.category_id === selectedCategory);
   }
   
-  // ADD CLIENT FILTERING
+  // Client filtering
   if (clientFilter) {
     if (clientFilter === 'no-client') {
       filtered = filtered.filter(income => !income.client_id);
@@ -100,14 +207,14 @@ const [clientSearch, setClientSearch] = useState('');
     }
   }
   
-  // ADD CLIENT SEARCH
+  // Client search
   if (clientSearch) {
     filtered = filtered.filter(income => 
       income.client?.name.toLowerCase().includes(clientSearch.toLowerCase())
     );
   }
   
-  // Sort (existing code stays the same)
+  // Sort
   filtered.sort((a, b) => {
     if (sortBy === 'date') {
       const dateA = new Date(a.date).getTime();
@@ -119,7 +226,44 @@ const [clientSearch, setClientSearch] = useState('');
   });
   
   setFilteredIncomes(filtered);
+    setCurrentPage(1);
+
 };
+
+// ADD THIS ENTIRE FUNCTION:
+const getPaginatedIncomes = () => {
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  return filteredIncomes.slice(startIndex, endIndex);
+};
+
+// ADD THESE FUNCTIONS:
+const handleSelectAll = (checked: boolean) => {
+  setSelectAll(checked);
+  if (checked) {
+    const currentPageIds = paginatedIncomes.map(income => income.id);
+    setSelectedItems(currentPageIds);
+  } else {
+    setSelectedItems([]);
+  }
+};
+
+const handleSelectItem = (incomeId: string, checked: boolean) => {
+  if (checked) {
+    setSelectedItems(prev => [...prev, incomeId]);
+  } else {
+    setSelectedItems(prev => prev.filter(id => id !== incomeId));
+    setSelectAll(false);
+  }
+};
+
+const clearSelections = () => {
+  setSelectedItems([]);
+  setSelectAll(false);
+};
+
+const totalPages = Math.ceil(filteredIncomes.length / itemsPerPage);
+const paginatedIncomes = getPaginatedIncomes();
 
   const handleDelete = async (id: string) => {
   if (!window.confirm('Are you sure you want to delete this income record?')) return;
@@ -258,7 +402,8 @@ const [clientSearch, setClientSearch] = useState('');
           
           {/* Advanced Filters */}
 {showFilters && (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 pb-32 border-t border-gray-200">
+
     {/* Date Range */}
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
@@ -337,10 +482,53 @@ const [clientSearch, setClientSearch] = useState('');
 
       {/* Income Table */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        {/* ADD THIS BULK ACTION TOOLBAR: */}
+{selectedItems.length > 0 && (
+  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center">
+        <span className="text-sm text-indigo-700 font-medium">
+          {selectedItems.length} item(s) selected
+        </span>
+      </div>
+      <div className="flex items-center space-x-3">
+        <button
+          onClick={handleBulkExport}
+          className="inline-flex items-center px-3 py-2 border border-indigo-300 shadow-sm text-sm leading-4 font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export Selected
+        </button>
+        <button
+          onClick={handleBulkDelete}
+          className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete Selected
+        </button>
+        <button
+          onClick={clearSelections}
+          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        >
+          <X className="h-4 w-4 mr-2" />
+          Clear
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
+                <th scope="col" className="relative w-12 px-6 sm:w-16 sm:px-8">
+      <input
+        type="checkbox"
+        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+        checked={selectAll}
+        onChange={(e) => handleSelectAll(e.target.checked)}
+      />
+    </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Date
                 </th>
@@ -365,9 +553,17 @@ const [clientSearch, setClientSearch] = useState('');
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredIncomes.length > 0 ? (
-                filteredIncomes.map((income) => (
+              {paginatedIncomes.length > 0 ? (
+  paginatedIncomes.map((income: Income) => (
                   <tr key={income.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="relative w-12 px-6 sm:w-16 sm:px-8">
+      <input
+        type="checkbox"
+        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+        checked={selectedItems.includes(income.id)}
+        onChange={(e) => handleSelectItem(income.id, e.target.checked)}
+      />
+    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 text-gray-400 mr-2" />
@@ -441,6 +637,98 @@ const [clientSearch, setClientSearch] = useState('');
           </table>
         </div>
       </div>
+      {/* ADD THIS ENTIRE PAGINATION SECTION: */}
+{filteredIncomes.length > itemsPerPage && (
+  <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6">
+    <div className="flex flex-1 justify-between sm:hidden">
+      <button
+        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+      >
+        Previous
+      </button>
+      <button
+        onClick={() => {
+  setCurrentPage(Math.min(totalPages, currentPage + 1));
+  clearSelections(); // ADD THIS LINE
+}}
+        disabled={currentPage === totalPages}
+        className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+      >
+        Next
+      </button>
+    </div>
+    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm text-gray-700">
+          Showing{' '}
+          <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> to{' '}
+          <span className="font-medium">
+            {Math.min(currentPage * itemsPerPage, filteredIncomes.length)}
+          </span> of{' '}
+          <span className="font-medium">{filteredIncomes.length}</span> results
+        </p>
+      </div>
+      <div>
+        <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+          <button
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
+          >
+            <span className="sr-only">Previous</span>
+            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+            </svg>
+          </button>
+          
+          {/* Page Numbers */}
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNumber: number;
+            if (totalPages <= 5) {
+              pageNumber = i + 1;
+            } else if (currentPage <= 3) {
+              pageNumber = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNumber = totalPages - 4 + i;
+            } else {
+              pageNumber = currentPage - 2 + i;
+            }
+            
+            return (
+              <button
+                key={pageNumber}
+                onClick={() => {
+  setCurrentPage(pageNumber);
+  clearSelections(); // ADD THIS LINE
+}}
+                className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                  currentPage === pageNumber
+                    ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                    : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                }`}
+              >
+                {pageNumber}
+              </button>
+            );
+          })}
+          
+          <button
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100"
+          >
+            <span className="sr-only">Next</span>
+            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

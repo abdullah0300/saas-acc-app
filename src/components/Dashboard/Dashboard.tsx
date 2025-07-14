@@ -101,25 +101,69 @@ export const Dashboard: React.FC = () => {
   const { businessData, businessDataLoading } = useData();
 const { incomes, expenses, invoices, clients } = businessData;
 
- // Calculate stats from cached data
+// Filter for current month data for dashboard stats
+const currentDate = new Date();
+const currentMonthStart = startOfMonth(currentDate);
+const currentMonthEnd = endOfMonth(currentDate);
+
+const currentMonthIncomes = incomes.filter(income => {
+  const incomeDate = parseISO(income.date);
+  return incomeDate >= currentMonthStart && incomeDate <= currentMonthEnd;
+});
+
+const currentMonthExpenses = expenses.filter(expense => {
+  const expenseDate = parseISO(expense.date);
+  return expenseDate >= currentMonthStart && expenseDate <= currentMonthEnd;
+});
+
+// Calculate stats from current month data
 const stats = {
-  totalIncome: incomes.reduce((sum, income) => sum + income.amount, 0),
-  totalExpenses: expenses.reduce((sum, expense) => sum + expense.amount, 0),
-  netProfit: incomes.reduce((sum, income) => sum + income.amount, 0) - expenses.reduce((sum, expense) => sum + expense.amount, 0),
+  totalIncome: currentMonthIncomes.reduce((sum, income) => sum + income.amount, 0),
+  totalExpenses: currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+  netProfit: currentMonthIncomes.reduce((sum, income) => sum + income.amount, 0) - currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0),
   pendingInvoices: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').length,
   totalPending: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').reduce((sum, inv) => sum + inv.total, 0),
   overdueInvoices: invoices.filter(inv => inv.status === 'overdue').length,
-  recentTransactions: [...incomes.slice(0, 5), ...expenses.slice(0, 5)]
+recentTransactions: [
+  ...currentMonthIncomes.slice(0, 3).map(income => ({ ...income, type: 'income' })),
+  ...currentMonthExpenses.slice(0, 3).map(expense => ({ ...expense, type: 'expense' }))
+].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())};
+
+// Generate actual monthly data from the last 6 months
+const generateMonthlyData = () => {
+  const months = [];
+  const now = new Date();
+  
+  for (let i = 5; i >= 0; i--) {
+    const monthDate = subMonths(now, i);
+    const monthStart = startOfMonth(monthDate);
+    const monthEnd = endOfMonth(monthDate);
+    
+    const monthIncomes = incomes.filter(income => {
+      const incomeDate = parseISO(income.date);
+      return incomeDate >= monthStart && incomeDate <= monthEnd;
+    });
+    
+    const monthExpenses = expenses.filter(expense => {
+      const expenseDate = parseISO(expense.date);
+      return expenseDate >= monthStart && expenseDate <= monthEnd;
+    });
+    
+    const income = monthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
+    const expenseTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    
+    months.push({
+      month: format(monthDate, 'MMM'),
+      income,
+      expenses: expenseTotal,
+      profit: income - expenseTotal
+    });
+  }
+  
+  return months;
 };
 
-const monthlyData: any[] = [
-  { month: 'Jan', income: 0, expenses: 0, profit: 0 },
-  { month: 'Feb', income: 0, expenses: 0, profit: 0 },
-  { month: 'Mar', income: 0, expenses: 0, profit: 0 },
-  { month: 'Apr', income: 0, expenses: 0, profit: 0 },
-  { month: 'May', income: 0, expenses: 0, profit: 0 },
-  { month: 'Jun', income: 0, expenses: 0, profit: 0 }
-]; // Placeholder data for now
+const monthlyData = generateMonthlyData();
 
 const categoryData: any = { 
   income: incomes.slice(0, 5).map(income => ({
@@ -131,8 +175,17 @@ const categoryData: any = {
     value: expense.amount
   }))
 };
-const recentActivity = [...incomes.slice(0, 3), ...expenses.slice(0, 3)];
-const recentClients = clients.slice(0, 5);
+// Create recent activity with proper type field
+const recentActivity = [
+  ...currentMonthIncomes.slice(0, 3).map(income => ({ 
+    ...income, 
+    type: 'income' 
+  })),
+  ...currentMonthExpenses.slice(0, 3).map(expense => ({ 
+    ...expense, 
+    type: 'expense' 
+  }))
+].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());const recentClients = clients.slice(0, 5);
 const recentInvoices = invoices.slice(0, 5);
 const loading = businessDataLoading;
 

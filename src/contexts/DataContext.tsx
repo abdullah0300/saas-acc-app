@@ -5,7 +5,7 @@ import { supabase } from '../services/supabaseClient';
 import { subscriptionService } from '../services/subscriptionService';
 import { getEffectiveUserId } from '../services/database';
 import { getIncomes, getExpenses, getInvoices, getClients, getCategories, getBudgets } from '../services/database';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subYears } from 'date-fns';
 
 interface DataContextType {
   subscription: any;
@@ -186,12 +186,14 @@ const removeBudgetFromCache = (id: string) => {
   setBusinessDataLoading(true);
   try {
     // Get current month date range
+// Get 1 year of data for filters and charts
 const currentDate = new Date();
-const startOfCurrentMonth = format(startOfMonth(currentDate), 'yyyy-MM-dd');
-const endOfCurrentMonth = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+const oneYearAgo = format(subYears(currentDate, 1), 'yyyy-MM-dd');
+const endDate = format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
-const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories, budgetData] = await Promise.all([  getIncomes(userIdToUse, startOfCurrentMonth, endOfCurrentMonth), // ADD DATE FILTER
-  getExpenses(userIdToUse, startOfCurrentMonth, endOfCurrentMonth), // ADD DATE FILTER
+const [incomes, expenses, invoices, clients, incomeCategories, expenseCategories, budgetData] = await Promise.all([
+  getIncomes(userIdToUse, oneYearAgo, endDate), // CHANGED: 1 year of data
+  getExpenses(userIdToUse, oneYearAgo, endDate), // CHANGED: 1 year of data
   getInvoices(userIdToUse),
   getClients(userIdToUse),
   getCategories(userIdToUse, 'income'),
