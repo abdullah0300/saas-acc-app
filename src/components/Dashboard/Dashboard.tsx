@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { SkeletonCard } from '../Common/Loading';
+import { DashboardMobile } from './DashboardMobile';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -311,34 +312,13 @@ const loading = businessDataLoading;
     : '0';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
+<>
+    {/* Mobile - Separate Component */}
+    <div className="lg:hidden">
+      <DashboardMobile />
+    </div>
+    <div className=" hidden lg:block min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-       {/* Subscription Status Bar */}
-        {/* {subscription && (
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Crown className="h-6 w-6 text-yellow-500" />
-                <div>
-                  <p className="text-sm text-gray-600">Current Plan</p>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPlanColor(subscription.plan)}`}>
-                    {subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}
-                  </span>
-                </div>
-              </div>
-             
-              
-              {subscription.plan !== 'professional' && (
-                <Link
-                  to="/settings/subscription"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-md text-sm hover:from-purple-700 hover:to-blue-700"
-                >
-                  Upgrade Plan
-                </Link>
-              )}
-            </div>
-          </div>
-        )} */}
 
         {/* Header with Quick Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -695,5 +675,6 @@ const loading = businessDataLoading;
         </div>
       </div>
     </div>
+</>
   );
 };
