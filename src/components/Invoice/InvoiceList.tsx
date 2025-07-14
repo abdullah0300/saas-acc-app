@@ -700,10 +700,10 @@ const handleCancelDelete = () => {
         </div>
 
         {/* Invoice Table */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden ">
           {/* ADD THIS BULK ACTION TOOLBAR: */}
         {selectedItems.length > 0 && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4 ">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-sm text-indigo-700 font-medium">
@@ -738,8 +738,8 @@ const handleCancelDelete = () => {
         )}
 
         {/* Invoice Table */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden"></div>
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden "></div>
+          <div className="overflow-x-auto min-h-[300px]">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
@@ -879,7 +879,7 @@ const handleCancelDelete = () => {
                               </button>
                               
                               {showActionMenu === invoice.id && (
-                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-10 py-1">
+                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-50 py-1 transform -translate-x-2">
                                   {invoice.client?.email && (
                                     <button
                                       onClick={() => {
