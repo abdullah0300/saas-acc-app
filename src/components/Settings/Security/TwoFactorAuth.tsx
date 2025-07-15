@@ -50,34 +50,46 @@ export const TwoFactorAuth: React.FC = () => {
   };
 
   const startEnrollment = async () => {
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
-    try {
-      const { data, error } = await supabase.auth.mfa.enroll({
-        factorType: "totp",
-        friendlyName: "SmartCFO App",
+  try {
+    // Check for existing unverified factors first
+    const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+    const unverifiedFactor = existingFactors?.all?.find(f => f.status === "unverified");
+    
+    if (unverifiedFactor) {
+      // Delete the existing unverified factor to avoid friendly name conflict
+      await supabase.auth.mfa.unenroll({
+        factorId: unverifiedFactor.id,
       });
-
-      if (error) throw error;
-
-      // Store the factor ID for verification
-      if (data.id) {
-        // Refresh factors list after enrollment
-        await loadMFAFactors();
-      }
-
-      // Generate QR code
-      const qrCodeUrl = await QRCode.toDataURL(data.totp.uri);
-      setQrCode(qrCodeUrl);
-      setSecret(data.totp.secret);
-      setShowEnrollment(true);
-    } catch (err: any) {
-      setError(err.message || "Failed to start 2FA enrollment");
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // Now proceed with creating a new factor
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: "totp",
+      friendlyName: "SmartCFO App",
+    });
+
+    if (error) throw error;
+
+    // Store the factor ID for verification
+    if (data.id) {
+      // Refresh factors list after enrollment
+      await loadMFAFactors();
+    }
+
+    // Generate QR code
+    const qrCodeUrl = await QRCode.toDataURL(data.totp.uri);
+    setQrCode(qrCodeUrl);
+    setSecret(data.totp.secret);
+    setShowEnrollment(true);
+  } catch (err: any) {
+    setError(err.message || "Failed to start 2FA enrollment");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const verifyAndEnable = async () => {
     if (!verificationCode || verificationCode.length !== 6) {

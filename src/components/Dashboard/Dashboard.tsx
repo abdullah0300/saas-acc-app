@@ -553,82 +553,82 @@ const loading = businessDataLoading;
 
         {/* Recent Clients and Invoices Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Recent Clients</h2>
-              <Link
-                to="/clients"
-                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
-              >
-                View all
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
+  <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-4">
+    <div className="flex justify-between items-center mb-6 sm:mb-4">
+      <h2 className="text-xl font-bold text-gray-900 sm:text-lg">Recent Clients</h2>
+      <Link
+        to="/clients"
+        className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 sm:text-xs"
+      >
+        View all
+        <ArrowUpRight className="h-4 w-4 sm:h-3 sm:w-3" />
+      </Link>
+    </div>
+    <div className="space-y-4 sm:space-y-3">
+      {recentClients.length > 0 ? (
+        recentClients.map((client: Client) => (
+          <div key={client.id} className="flex items-center justify-between p-4 sm:p-3 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl hover:from-indigo-50 hover:to-purple-50 transition-all">
+            <div className="flex items-center gap-4 sm:gap-3 flex-1 min-w-0">
+              <div className="w-12 h-12 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center text-white font-bold sm:text-sm flex-shrink-0">
+                {client.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-gray-900 sm:text-sm truncate">{client.name}</p>
+                <p className="text-sm text-gray-500 sm:text-xs truncate">{client.email || 'No email'}</p>
+              </div>
             </div>
-            <div className="space-y-4">
-              {recentClients.length > 0 ? (
-                recentClients.map((client: Client) => (
-                  <div key={client.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl hover:from-indigo-50 hover:to-purple-50 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center text-white font-bold">
-                        {client.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{client.name}</p>
-                        <p className="text-sm text-gray-500">{client.email || 'No email'}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {formatCurrency(getClientTotalRevenue(client.id))}
-                      </p>
-                      <p className="text-xs text-gray-500">Total revenue</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-gray-500 py-8">No clients yet</p>
-              )}
+            <div className="text-right flex-shrink-0 ml-2">
+              <p className="text-sm font-semibold text-gray-900 sm:text-xs">
+                {formatCurrency(getClientTotalRevenue(client.id))}
+              </p>
+              <p className="text-xs text-gray-500 sm:text-[10px]">Total revenue</p>
             </div>
           </div>
+        ))
+      ) : (
+        <p className="text-center text-gray-500 py-8 sm:py-6 sm:text-sm">No clients yet</p>
+      )}
+    </div>
+  </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Recent Invoices</h2>
-              <Link
-                to="/invoices"
-                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
-              >
-                View all
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
+  <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-4">
+    <div className="flex justify-between items-center mb-6 sm:mb-4">
+      <h2 className="text-xl font-bold text-gray-900 sm:text-lg">Recent Invoices</h2>
+      <Link
+        to="/invoices"
+        className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 sm:text-xs"
+      >
+        View all
+        <ArrowUpRight className="h-4 w-4 sm:h-3 sm:w-3" />
+      </Link>
+    </div>
+    <div className="space-y-4 sm:space-y-3">
+      {recentInvoices.length > 0 ? (
+        recentInvoices.map((invoice: Invoice) => (
+          <div key={invoice.id} className="flex items-center justify-between p-4 sm:p-3 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl hover:from-indigo-50 hover:to-purple-50 transition-all">
+            <div className="flex items-center gap-4 sm:gap-3 flex-1 min-w-0">
+              <div className="w-12 h-12 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-400 to-orange-400 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Receipt className="h-6 w-6 sm:h-5 sm:w-5 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-gray-900 sm:text-sm truncate">{invoice.invoice_number}</p>
+                <p className="text-sm text-gray-500 sm:text-xs truncate">{invoice.client?.name || 'No client'}</p>
+              </div>
             </div>
-            <div className="space-y-4">
-              {recentInvoices.length > 0 ? (
-                recentInvoices.map((invoice: Invoice) => (
-                  <div key={invoice.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl hover:from-indigo-50 hover:to-purple-50 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-400 rounded-xl flex items-center justify-center">
-                        <Receipt className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{invoice.invoice_number}</p>
-                        <p className="text-sm text-gray-500">{invoice.client?.name || 'No client'}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">{formatCurrency(invoice.total)}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
-                        {invoice.status}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-gray-500 py-8">No invoices yet</p>
-              )}
+            <div className="text-right flex-shrink-0 ml-2">
+              <p className="text-sm font-semibold text-gray-900 sm:text-xs">{formatCurrency(invoice.total)}</p>
+              <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(invoice.status)} sm:text-[10px] sm:px-1.5 sm:py-0.5`}>
+                {invoice.status}
+              </span>
             </div>
           </div>
-        </div>
+        ))
+      ) : (
+        <p className="text-center text-gray-500 py-8 sm:py-6 sm:text-sm">No invoices yet</p>
+      )}
+    </div>
+  </div>
+</div>
 
         {/* Monthly Performance and Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

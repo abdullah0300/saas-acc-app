@@ -279,36 +279,38 @@ const handleBulkExport = () => {
   return (
     <div className="space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-gray-600 mt-1">Track and manage your business expenses</p>
-        </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={exportToCSV}
-            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all"
-          >
-            <Download className="h-4 w-4 mr-2 text-gray-600" />
-            Export
-          </button>
-          <Link
-      to="/vendors"
-      className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
+  <div>
+    <h1 className="text-3xl font-bold text-gray-900 sm:text-2xl">Expenses</h1>
+    <p className="text-gray-600 mt-1 sm:text-sm">Track and manage your business expenses</p>
+  </div>
+         
+  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+    <button
+      onClick={exportToCSV}
+      className="inline-flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all sm:justify-start"
     >
-      <Building2 className="h-5 w-5 mr-2" />
-      Manage Vendors
+      <Download className="h-4 w-4 mr-2 text-gray-600 sm:h-3 sm:w-3" />
+      <span className="sm:text-sm">Export</span>
+    </button>
+    
+    <Link
+      to="/vendors"
+      className="flex items-center justify-center px-4 py-2 text-white bg-gradient-to-r from-blue-600 to-indigo-600 border border-blue-600 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-200 hover:shadow-blue-300 transform hover:scale-105 sm:justify-start"
+    >
+      <Building2 className="h-5 w-5 mr-2 sm:h-4 sm:w-4" />
+      <span className="font-medium sm:text-sm">Manage Vendors</span>
     </Link>
-          <Link
-            to="/expenses/new"
-            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-105 shadow-lg shadow-red-200"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Expense
-          </Link>
-        </div>
-      </div>
+    
+    <Link
+      to="/expenses/new"
+      className="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-105 shadow-lg shadow-red-200 sm:justify-start"
+    >
+      <Plus className="h-4 w-4 mr-2 sm:h-3 sm:w-3" />
+      <span className="font-medium sm:text-sm">Add Expense</span>
+    </Link>
+  </div>
+</div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
