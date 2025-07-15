@@ -1154,56 +1154,55 @@ const getDateRangeForPeriod = () => {
           </div>
 
           {/* Category Performance */}
-          {/* Category Performance - Enhanced */}
-<div className="bg-white rounded-2xl shadow-lg p-6">
-  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+<div className="bg-white rounded-2xl shadow-lg p-6 sm:p-4">
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-2 mb-6 sm:mb-4">
     <div>
-      <h2 className="text-xl font-bold text-gray-900">Category Breakdown</h2>
-      <p className="text-sm text-gray-600 mt-1">Where your money comes from and goes</p>
+      <h2 className="text-xl font-bold text-gray-900 sm:text-lg">Category Breakdown</h2>
+      <p className="text-sm text-gray-600 mt-1 sm:text-xs">Where your money comes from and goes</p>
     </div>
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 w-full sm:w-auto">
       <button
         onClick={() => setCategoryView('income')}
-        className={`text-sm px-4 py-2 rounded-lg font-medium transition-all ${
+        className={`text-sm px-4 py-2 rounded-lg font-medium transition-all flex-1 sm:flex-none sm:text-xs sm:px-3 sm:py-1.5 ${
           categoryView === 'income'
             ? 'bg-emerald-100 text-emerald-700 shadow-sm'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         }`}
       >
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4" />
-          Income
+        <div className="flex items-center justify-center gap-2 sm:gap-1">
+          <TrendingUp className="h-4 w-4 sm:h-3 sm:w-3" />
+          <span>Income</span>
         </div>
       </button>
       <button
         onClick={() => setCategoryView('expense')}
-        className={`text-sm px-4 py-2 rounded-lg font-medium transition-all ${
+        className={`text-sm px-4 py-2 rounded-lg font-medium transition-all flex-1 sm:flex-none sm:text-xs sm:px-3 sm:py-1.5 ${
           categoryView === 'expense'
             ? 'bg-red-100 text-red-700 shadow-sm'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         }`}
       >
-        <div className="flex items-center gap-2">
-          <TrendingDown className="h-4 w-4" />
-          Expenses
+        <div className="flex items-center justify-center gap-2 sm:gap-1">
+          <TrendingDown className="h-4 w-4 sm:h-3 sm:w-3" />
+          <span>Expenses</span>
         </div>
       </button>
     </div>
   </div>
   
   {/* Summary Stats */}
-  <div className="grid grid-cols-2 gap-4 mb-6">
-    <div className={`p-4 rounded-xl ${
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-3 mb-6 sm:mb-4">
+    <div className={`p-4 sm:p-3 rounded-xl ${
       categoryView === 'income' 
         ? 'bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200' 
         : 'bg-gradient-to-br from-red-50 to-pink-50 border border-red-200'
     }`}>
-      <p className={`text-sm font-medium ${
+      <p className={`text-sm font-medium sm:text-xs ${
         categoryView === 'income' ? 'text-emerald-700' : 'text-red-700'
       }`}>
         Total {categoryView === 'income' ? 'Income' : 'Expenses'}
       </p>
-      <p className={`text-2xl font-bold mt-1 ${
+      <p className={`text-2xl font-bold mt-1 sm:text-xl ${
         categoryView === 'income' ? 'text-emerald-900' : 'text-red-900'
       }`}>
         {formatCurrency(
@@ -1213,18 +1212,18 @@ const getDateRangeForPeriod = () => {
         )}
       </p>
     </div>
-    <div className="p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200">
-      <p className="text-sm font-medium text-gray-700">Categories</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">
+    <div className="p-4 sm:p-3 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200">
+      <p className="text-sm font-medium text-gray-700 sm:text-xs">Categories</p>
+      <p className="text-2xl font-bold text-gray-900 mt-1 sm:text-xl">
         {categoryView === 'income' ? categoryData.income.length : categoryData.expense.length}
       </p>
     </div>
   </div>
 
   {/* Chart and Details Container */}
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-4">
     {/* Pie Chart */}
-    <div className="h-64 relative">
+    <div className="h-64 sm:h-48 relative">
       {(categoryView === 'income' ? categoryData.income : categoryData.expense).length > 0 ? (
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -1259,17 +1258,17 @@ const getDateRangeForPeriod = () => {
       ) : (
         <div className="h-full flex items-center justify-center">
           <div className="text-center">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <PieChartIcon className="h-10 w-10 text-gray-400" />
+            <div className="w-20 h-20 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <PieChartIcon className="h-10 w-10 sm:h-8 sm:w-8 text-gray-400" />
             </div>
-            <p className="text-gray-500">No {categoryView} data yet</p>
+            <p className="text-gray-500 sm:text-sm">No {categoryView} data yet</p>
           </div>
         </div>
       )}
     </div>
 
     {/* Category List */}
-    <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+    <div className="space-y-3 sm:space-y-2 max-h-64 sm:max-h-48 overflow-y-auto custom-scrollbar">
       {(categoryView === 'income' ? categoryData.income : categoryData.expense)
         .slice(0, 6)
         .map((category, index) => {
@@ -1277,31 +1276,31 @@ const getDateRangeForPeriod = () => {
           return (
             <div
               key={category.name}
-              className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between p-3 sm:p-2 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex items-center gap-3 sm:gap-2 flex-1 min-w-0">
                 <div
-                  className="w-4 h-4 rounded-full flex-shrink-0"
+                  className="w-4 h-4 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: chartColors[index % chartColors.length] }}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{category.name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="font-medium text-gray-900 truncate sm:text-sm">{category.name}</p>
+                  <p className="text-xs text-gray-500 sm:text-[10px]">
                     {category.count} transaction{category.count !== 1 ? 's' : ''}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-3 sm:gap-2 flex-shrink-0">
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-gray-900 sm:text-sm">
                     {formatCurrency(category.value)}
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 sm:text-[10px]">
                     {category.percentage.toFixed(1)}%
                   </p>
                 </div>
                 {category.trend !== 0 && (
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium sm:text-[10px] sm:px-1.5 sm:py-0.5 ${
                     isPositiveTrend
                       ? categoryView === 'income' 
                         ? 'bg-emerald-100 text-emerald-700'
@@ -1311,11 +1310,11 @@ const getDateRangeForPeriod = () => {
                         : 'bg-emerald-100 text-emerald-700'
                   }`}>
                     {isPositiveTrend ? (
-                      <ArrowUpRight className="h-3 w-3" />
+                      <ArrowUpRight className="h-3 w-3 sm:h-2 sm:w-2" />
                     ) : (
-                      <ArrowDownRight className="h-3 w-3" />
+                      <ArrowDownRight className="h-3 w-3 sm:h-2 sm:w-2" />
                     )}
-                    {Math.abs(category.trend).toFixed(0)}%
+                    <span>{Math.abs(category.trend).toFixed(0)}%</span>
                   </div>
                 )}
               </div>
@@ -1324,7 +1323,7 @@ const getDateRangeForPeriod = () => {
         })}
       
       {(categoryView === 'income' ? categoryData.income : categoryData.expense).length > 6 && (
-        <button className="w-full text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2">
+        <button className="w-full text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2 sm:text-xs sm:py-1">
           View all {(categoryView === 'income' ? categoryData.income : categoryData.expense).length} categories →
         </button>
       )}
@@ -1333,14 +1332,14 @@ const getDateRangeForPeriod = () => {
 
   {/* Insights for categories */}
   {categoryView === 'expense' && categoryData.expense.length > 0 && (
-    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-      <div className="flex items-start gap-3">
-        <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+    <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-amber-50 border border-amber-200 rounded-xl">
+      <div className="flex items-start gap-3 sm:gap-2">
+        <AlertCircle className="h-5 w-5 sm:h-4 sm:w-4 text-amber-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-medium text-amber-900">
+          <p className="text-sm font-medium text-amber-900 sm:text-xs">
             Top spending category: {categoryData.expense[0].name}
           </p>
-          <p className="text-sm text-amber-700 mt-1">
+          <p className="text-sm text-amber-700 mt-1 sm:text-xs">
             Represents {categoryData.expense[0].percentage.toFixed(1)}% of total expenses. 
             {categoryData.expense[0].trend > 20 && ' Spending increased by ' + categoryData.expense[0].trend.toFixed(0) + '% from last period.'}
           </p>
@@ -1348,74 +1347,69 @@ const getDateRangeForPeriod = () => {
       </div>
     </div>
   )}
-
-
-
-          
-        </div>
-        </div>
-
+</div>
+</div>
         {/* Cash Flow & Client Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Cash Flow Chart */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Cash Flow Analysis</h2>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cashFlowData.slice(-30)}>
-                  <defs>
-                    <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis 
-                    dataKey="date"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(date) => format(parseISO(date), 'MMM dd')}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip 
-                    labelFormatter={(date) => format(parseISO(date), 'MMM dd, yyyy')}
-                    formatter={(value: any) => formatCurrency(value)}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="balance"
-                    stroke={COLORS.primary}
-                    fill="url(#balanceGradient)"
-                    strokeWidth={2}
-                    name="Balance"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="mt-4 grid grid-cols-3 gap-4">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-sm text-gray-600">Current Balance</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {formatCurrency(cashFlowData[cashFlowData.length - 1]?.balance || 0)}
-                </p>
-              </div>
-              <div className="bg-emerald-50 rounded-xl p-4">
-                <p className="text-sm text-emerald-600">Total Inflow</p>
-                <p className="text-xl font-bold text-emerald-700">
-                  {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.inflow, 0))}
-                </p>
-              </div>
-              <div className="bg-red-50 rounded-xl p-4">
-                <p className="text-sm text-red-600">Total Outflow</p>
-                <p className="text-xl font-bold text-red-700">
-                  {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.outflow, 0))}
-                </p>
-              </div>
-            </div>
-          </div>
+            <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 sm:p-4">
+    <h2 className="text-xl font-bold text-gray-900 mb-6 sm:text-lg sm:mb-4">Cash Flow Analysis</h2>
+    <div className="h-80 sm:h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={cashFlowData.slice(-30)}>
+          <defs>
+            <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.8}/>
+              <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0.1}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <XAxis 
+            dataKey="date"
+            tick={{ fontSize: 12 }}
+            tickFormatter={(date) => format(parseISO(date), 'MMM dd')}
+          />
+          <YAxis 
+            tick={{ fontSize: 12 }}
+            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+          />
+          <Tooltip 
+            labelFormatter={(date) => format(parseISO(date), 'MMM dd, yyyy')}
+            formatter={(value: any) => formatCurrency(value)}
+          />
+          <Area
+            type="monotone"
+            dataKey="balance"
+            stroke={COLORS.primary}
+            fill="url(#balanceGradient)"
+            strokeWidth={2}
+            name="Balance"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+    
+    <div className="mt-4 sm:mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-2">
+      <div className="bg-gray-50 rounded-xl p-4 sm:p-3">
+        <p className="text-sm text-gray-600 sm:text-xs">Current Balance</p>
+        <p className="text-xl font-bold text-gray-900 sm:text-lg">
+          {formatCurrency(cashFlowData[cashFlowData.length - 1]?.balance || 0)}
+        </p>
+      </div>
+      <div className="bg-emerald-50 rounded-xl p-4 sm:p-3">
+        <p className="text-sm text-emerald-600 sm:text-xs">Total Inflow</p>
+        <p className="text-xl font-bold text-emerald-700 sm:text-lg">
+          {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.inflow, 0))}
+        </p>
+      </div>
+      <div className="bg-red-50 rounded-xl p-4 sm:p-3">
+        <p className="text-sm text-red-600 sm:text-xs">Total Outflow</p>
+        <p className="text-xl font-bold text-red-700 sm:text-lg">
+          {formatCurrency(cashFlowData.reduce((sum, d) => sum + d.outflow, 0))}
+        </p>
+      </div>
+    </div>
+  </div>
 
           {/* Top Clients */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -1459,91 +1453,93 @@ const getDateRangeForPeriod = () => {
         </div>
 
 {/* Top Vendors */}
-{/* Top Vendors - Light Gradient Style */}
 {topVendors.length > 0 && (
-  <div className="bg-gradient-to-br from-purple-50 via-white to-indigo-50 rounded-2xl shadow-lg p-6 border border-purple-100">
-    <div className="flex justify-between items-center mb-6">
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
-          <Briefcase className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Top Vendors</h2>
-          <p className="text-sm text-gray-600">Highest spending by vendor</p>
-        </div>
+  <div className="bg-gradient-to-br from-purple-50 via-white to-indigo-50 rounded-2xl shadow-lg p-6 sm:p-4 border border-purple-100">
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-4 gap-3 sm:gap-0">
+    <div className="flex items-center gap-3 sm:gap-2">
+      <div className="p-3 sm:p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
+        <Briefcase className="h-6 w-6 sm:h-5 sm:w-5 text-white" />
       </div>
-      <button className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 transition-colors hover:bg-purple-50 px-3 py-1 rounded-lg">
-        View all
-        <ArrowRight className="h-4 w-4" />
-      </button>
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 sm:text-lg">Top Vendors</h2>
+        <p className="text-sm text-gray-600 sm:text-xs">Highest spending by vendor</p>
+      </div>
     </div>
-    
-    <div className="space-y-3">
-      {topVendors.map((vendor, index) => {
-        const progressWidth = (vendor.totalSpent / topVendors[0].totalSpent) * 100;
-        const gradients = [
-          'from-purple-500 to-purple-600',
-          'from-indigo-500 to-indigo-600',
-          'from-violet-500 to-violet-600',
-          'from-blue-500 to-blue-600',
-          'from-cyan-500 to-cyan-600'
-        ];
-        
-        return (
-          <div key={vendor.id} className="bg-white/70 backdrop-blur rounded-xl p-4 relative overflow-hidden border border-purple-100/50 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between relative z-10">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradients[index]} flex items-center justify-center text-white font-bold text-sm shadow-md`}>
-                  #{index + 1}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{vendor.name}</p>
-                  <p className="text-xs text-gray-600">{vendor.expenseCount} transactions</p>
-                </div>
+    <Link 
+      to="/vendors" 
+      className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 transition-colors hover:bg-purple-50 px-3 py-1 rounded-lg sm:text-xs sm:px-2"
+    >
+      View all
+      <ArrowRight className="h-4 w-4 sm:h-3 sm:w-3" />
+    </Link>
+  </div>
+  
+  <div className="space-y-3 sm:space-y-2">
+    {topVendors.map((vendor, index) => {
+      const progressWidth = (vendor.totalSpent / topVendors[0].totalSpent) * 100;
+      const gradients = [
+        'from-purple-500 to-purple-600',
+        'from-indigo-500 to-indigo-600',
+        'from-violet-500 to-violet-600',
+        'from-blue-500 to-blue-600',
+        'from-cyan-500 to-cyan-600'
+      ];
+      
+      return (
+        <div key={vendor.id} className="bg-white/70 backdrop-blur rounded-xl p-4 sm:p-3 relative overflow-hidden border border-purple-100/50 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-3 sm:gap-2 flex-1 min-w-0">
+              <div className={`w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br ${gradients[index]} flex items-center justify-center text-white font-bold text-sm sm:text-xs shadow-md flex-shrink-0`}>
+                #{index + 1}
               </div>
-              <div className="text-right">
-                <p className="font-semibold text-gray-900">
-                  {formatCurrency(vendor.totalSpent)}
-                </p>
-                <p className="text-xs text-purple-600 font-medium">
-                  {((vendor.totalSpent / topVendors.reduce((sum, v) => sum + v.totalSpent, 0)) * 100).toFixed(1)}% of total
-                </p>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-gray-900 sm:text-sm truncate">{vendor.name}</p>
+                <p className="text-xs text-gray-600 sm:text-[10px]">{vendor.expenseCount} transactions</p>
               </div>
             </div>
-            
-            {/* Background progress indicator */}
-            <div 
-              className={`absolute inset-0 bg-gradient-to-r ${gradients[index]} opacity-10`}
-              style={{ width: `${progressWidth}%` }}
-            ></div>
+            <div className="text-right flex-shrink-0 ml-2">
+              <p className="font-semibold text-gray-900 sm:text-sm">
+                {formatCurrency(vendor.totalSpent)}
+              </p>
+              <p className="text-xs text-purple-600 font-medium sm:text-[10px]">
+                {((vendor.totalSpent / topVendors.reduce((sum, v) => sum + v.totalSpent, 0)) * 100).toFixed(1)}% of total
+              </p>
+            </div>
           </div>
-        );
-      })}
-    </div>
-    
-    {/* Summary Stats */}
-    <div className="mt-6 grid grid-cols-3 gap-4">
-      <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-3 text-center border border-purple-200">
-        <p className="text-xs text-purple-700 font-medium">Total Vendors</p>
-        <p className="text-xl font-bold text-purple-900">{topVendors.length}</p>
-      </div>
-      <div className="bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl p-3 text-center border border-indigo-200">
-        <p className="text-xs text-indigo-700 font-medium">Total Spent</p>
-        <p className="text-xl font-bold text-indigo-900">
-          {formatCurrency(topVendors.reduce((sum, v) => sum + v.totalSpent, 0))}
-        </p>
-      </div>
-      <div className="bg-gradient-to-br from-violet-100 to-violet-50 rounded-xl p-3 text-center border border-violet-200">
-        <p className="text-xs text-violet-700 font-medium">Avg/Vendor</p>
-        <p className="text-xl font-bold text-violet-900">
-          {formatCurrency(topVendors.reduce((sum, v) => sum + v.totalSpent, 0) / topVendors.length)}
-        </p>
-      </div>
-    </div>
-    
-    {/* Subtle decorative element */}
-    <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-gradient-to-br from-purple-200/20 to-indigo-200/20 rounded-full blur-3xl"></div>
+          
+          {/* Background progress indicator */}
+          <div 
+            className={`absolute inset-0 bg-gradient-to-r ${gradients[index]} opacity-10`}
+            style={{ width: `${progressWidth}%` }}
+          ></div>
+        </div>
+      );
+    })}
   </div>
+  
+  {/* Summary Stats */}
+  <div className="mt-6 sm:mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-2">
+    <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-3 sm:p-2 text-center border border-purple-200">
+      <p className="text-xs text-purple-700 font-medium sm:text-[10px]">Total Vendors</p>
+      <p className="text-xl font-bold text-purple-900 sm:text-lg">{topVendors.length}</p>
+    </div>
+    <div className="bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl p-3 sm:p-2 text-center border border-indigo-200">
+      <p className="text-xs text-indigo-700 font-medium sm:text-[10px]">Total Spent</p>
+      <p className="text-xl font-bold text-indigo-900 sm:text-lg">
+        {formatCurrency(topVendors.reduce((sum, v) => sum + v.totalSpent, 0))}
+      </p>
+    </div>
+    <div className="bg-gradient-to-br from-violet-100 to-violet-50 rounded-xl p-3 sm:p-2 text-center border border-violet-200">
+      <p className="text-xs text-violet-700 font-medium sm:text-[10px]">Avg/Vendor</p>
+      <p className="text-xl font-bold text-violet-900 sm:text-lg">
+        {formatCurrency(topVendors.reduce((sum, v) => sum + v.totalSpent, 0) / topVendors.length)}
+      </p>
+    </div>
+  </div>
+  
+  {/* Subtle decorative element */}
+  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-gradient-to-br from-purple-200/20 to-indigo-200/20 rounded-full blur-3xl sm:w-24 sm:h-24"></div>
+</div>
 )}
 
         {/* Tax Analysis */}
