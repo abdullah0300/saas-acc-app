@@ -1350,9 +1350,9 @@ const getDateRangeForPeriod = () => {
 </div>
 </div>
         {/* Cash Flow & Client Analysis */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cash Flow Chart */}
-            <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 sm:p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-4">
+  {/* Cash Flow Chart */}
+  <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 sm:p-4">
     <h2 className="text-xl font-bold text-gray-900 mb-6 sm:text-lg sm:mb-4">Cash Flow Analysis</h2>
     <div className="h-80 sm:h-64">
       <ResponsiveContainer width="100%" height="100%">
@@ -1411,46 +1411,46 @@ const getDateRangeForPeriod = () => {
     </div>
   </div>
 
-          {/* Top Clients */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Top Clients</h2>
-              <Link 
-                to="/clients"
-                className="text-sm text-indigo-600 hover:text-indigo-700"
-              >
-                View all →
-              </Link>
+  {/* Top Clients */}
+  <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-4">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-4 gap-2 sm:gap-0">
+      <h2 className="text-xl font-bold text-gray-900 sm:text-lg">Top Clients</h2>
+      <Link 
+        to="/clients"
+        className="text-sm text-indigo-600 hover:text-indigo-700 sm:text-xs"
+      >
+        View all →
+      </Link>
+    </div>
+    
+    <div className="space-y-4 sm:space-y-3">
+      {clientMetrics.slice(0, 5).map((client, index) => (
+        <div key={client.id} className="flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-2 flex-1 min-w-0">
+            <div className={`w-10 h-10 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-xs flex-shrink-0`}
+                 style={{ backgroundColor: chartColors[index % chartColors.length] }}>
+              {client.name.charAt(0).toUpperCase()}
             </div>
-            
-            <div className="space-y-4">
-              {clientMetrics.slice(0, 5).map((client, index) => (
-                <div key={client.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm`}
-                         style={{ backgroundColor: chartColors[index % chartColors.length] }}>
-                      {client.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{client.name}</p>
-                      <p className="text-xs text-gray-500">{client.invoiceCount} invoices</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">
-                      {formatCurrency(client.revenue)}
-                    </p>
-                    {client.outstandingAmount > 0 && (
-                      <p className="text-xs text-orange-600">
-                        {formatCurrency(client.outstandingAmount)} due
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-gray-900 sm:text-sm truncate">{client.name}</p>
+              <p className="text-xs text-gray-500 sm:text-[10px]">{client.invoiceCount} invoices</p>
             </div>
           </div>
+          <div className="text-right flex-shrink-0 ml-2">
+            <p className="font-semibold text-gray-900 sm:text-sm">
+              {formatCurrency(client.revenue)}
+            </p>
+            {client.outstandingAmount > 0 && (
+              <p className="text-xs text-orange-600 sm:text-[10px]">
+                {formatCurrency(client.outstandingAmount)} due
+              </p>
+            )}
+          </div>
         </div>
+      ))}
+    </div>
+  </div>
+</div>
 
 {/* Top Vendors */}
 {topVendors.length > 0 && (
