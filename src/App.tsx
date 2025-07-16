@@ -45,6 +45,7 @@ import { PlanProtectedRoute } from './components/Auth/PlanProtectedRoute';
 import { VendorList, VendorForm } from './components/Vendors';
 import { ClientProfitability } from './components/Reports/ClientProfitability';
 import { SecuritySettings } from './components/Settings/SecuritySettings';
+import { ImportHistorySettings } from './components/Settings/ImportHistorySettings';
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -172,6 +173,7 @@ function App() {
                 <Route path="profile" element={<ProfileSettings />} />
                 <Route path="tax" element={<TaxSettings />} />
                 <Route path="currency" element={<CurrencySettings />} />
+                <Route path="/settings/import-history" element={<ImportHistorySettings />} />
                 <Route path="invoice" element={<InvoiceSettings onClose={() => {}} />} />
                 <Route path="notifications" element={<NotificationPreferences />} />
                 <Route path="team" element={<TeamManagement />} />

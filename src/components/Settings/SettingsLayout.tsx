@@ -13,6 +13,7 @@ import {
   Percent,
   Activity,
   ChevronRight,
+  Upload
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -37,6 +38,7 @@ export const SettingsLayout: React.FC = () => {
     { path: "subscription", label: "Subscription & Billing", icon: CreditCard },
     { path: "tax", label: "Tax Settings", icon: Percent },
     { path: "currency", label: "Currency", icon: Globe },
+    { path: "import-history", label: "Import History", icon: Upload },
     // Invoice settings removed - it's accessed from Invoice Form
     { path: "notifications", label: "Notifications", icon: Bell },
     { path: "security", label: "Security", icon: Shield },

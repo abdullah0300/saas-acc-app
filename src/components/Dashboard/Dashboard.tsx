@@ -22,8 +22,10 @@ import {
   Crown,
   AlertCircle,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Upload
 } from 'lucide-react';
+import { AIImportWizard } from '../Import/AIImportWizard';
 import { 
   LineChart, 
   Line, 
@@ -100,6 +102,8 @@ export const Dashboard: React.FC = () => {
   const [error, setError] = useState('');
   const { businessData, businessDataLoading } = useData();
 const { incomes, expenses, invoices, clients } = businessData;
+const [showImportWizard, setShowImportWizard] = useState(false);
+
 
 // Filter for current month data for dashboard stats
 const currentDate = new Date();
@@ -350,13 +354,22 @@ const loading = businessDataLoading;
           </div>
           
           <div className="flex gap-3">
-            <Link
-              to="/income/new"
-              className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Income
-            </Link>
+  {/* ADD THIS NEW IMPORT BUTTON */}
+  <button
+    onClick={() => setShowImportWizard(true)}
+    className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg shadow-purple-200"
+  >
+    <Upload className="h-4 w-4 mr-2" />
+    Import Data
+  </button>
+  
+  <Link
+    to="/income/new"
+    className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
+  >
+    <Plus className="h-4 w-4 mr-2" />
+    Add Income
+  </Link>
             <Link
               to="/expenses/new"
               className="inline-flex items-center px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all transform hover:scale-105 shadow-md"
@@ -694,6 +707,16 @@ const loading = businessDataLoading;
           </div>
         </div>
       </div>
+      {/* ADD THIS IMPORT MODAL */}
+      {showImportWizard && (
+        <AIImportWizard
+          onClose={() => setShowImportWizard(false)}
+          onSuccess={() => {
+            // Refresh the dashboard data after successful import
+            window.location.reload(); // Simple refresh for now
+          }}
+        />
+      )}
     </div>
   );
 };
