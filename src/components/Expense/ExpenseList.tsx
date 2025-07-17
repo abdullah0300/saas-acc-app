@@ -22,7 +22,7 @@ import {
 import { getExpenses, deleteExpense, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
-import { format, startOfMonth, endOfMonth, subMonths, parseISO, startOfWeek, endOfWeek, startOfYear, endOfYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, parseISO, startOfWeek, endOfWeek, startOfYear, endOfYear, subYears } from 'date-fns';
 import { Expense, Category } from '../../types';
 
 export const ExpenseList: React.FC = () => {
@@ -49,11 +49,14 @@ const [itemsPerPage] = useState(50); // 50 items per page
 // Bulk selection states
 const [selectedItems, setSelectedItems] = useState<string[]>([]);
 const [selectAll, setSelectAll] = useState(false);
-
+// Custom date range states
+const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+const [customStartDate, setCustomStartDate] = useState('');
+const [customEndDate, setCustomEndDate] = useState('');
 
   useEffect(() => {
   filterAndSortExpenses();
-}, [user, dateRange, expenses]);
+}, [user, dateRange, expenses, customStartDate, customEndDate]);
 
   useEffect(() => {
     filterAndSortExpenses();
@@ -94,7 +97,19 @@ const [selectAll, setSelectAll] = useState(false);
           const yearStart = startOfYear(now);
           const yearEnd = endOfYear(now);
           return expenseDate >= yearStart && expenseDate <= yearEnd;
+        case 'last-year':
+          const lastYear = subYears(now, 1);
+          const lastYearStart = startOfYear(lastYear);
+          const lastYearEnd = endOfYear(lastYear);
+          return expenseDate >= lastYearStart && expenseDate <= lastYearEnd;
         
+        case 'custom':
+          if (customStartDate && customEndDate) {
+            const customStart = parseISO(customStartDate);
+            const customEnd = parseISO(customEndDate);
+            return expenseDate >= customStart && expenseDate <= customEnd;
+          }
+          return true;
         default:
           return true;
       }
@@ -200,7 +215,59 @@ const handleBulkExport = () => {
     alert('Please select items to export');
     return;
   }
+
+
+// Helper function to get search results count message
+const getSearchResultsMessage = () => {
+  const totalExpenses = expenses.length;
+  const filteredCount = filteredExpenses.length;
+  const isSearching = searchTerm.length > 0;
+  const scopeName = getDateRangeDisplayName(dateRange);
   
+  if (isSearching) {
+    return {
+      primary: `Found ${filteredCount} result${filteredCount !== 1 ? 's' : ''}`,
+      secondary: `Searching in: ${scopeName}`,
+      showExpandOption: filteredCount < 5 && dateRange !== 'all' && totalExpenses > filteredCount
+    };
+  }
+  
+  return {
+    primary: `Showing ${filteredCount} record${filteredCount !== 1 ? 's' : ''}`,
+    secondary: `From: ${scopeName}`,
+    showExpandOption: false
+  };
+};
+
+// Handle custom date range
+const handleCustomDateRange = () => {
+  if (!customStartDate || !customEndDate) {
+    alert('Please select both start and end dates');
+    return;
+  }
+  
+  if (new Date(customStartDate) > new Date(customEndDate)) {
+    alert('Start date cannot be after end date');
+    return;
+  }
+  
+  setDateRange('custom');
+  setShowCustomDatePicker(false);
+};
+
+// Reset custom date picker
+const resetCustomDatePicker = () => {
+  setCustomStartDate('');
+  setCustomEndDate('');
+  setShowCustomDatePicker(false);
+};
+
+// Function to search all time when user wants to expand
+const searchAllTime = () => {
+  setDateRange('all');
+  // The useEffect will automatically re-run the search with new date range
+};
+
   const selectedExpenses = filteredExpenses.filter(expense => 
     selectedItems.includes(expense.id)
   );
@@ -229,7 +296,84 @@ const handleBulkExport = () => {
   alert(`Exported ${selectedItems.length} expense record(s)`);
 };
 
+// Helper function to get user-friendly date range names
+  const getDateRangeDisplayName = (range: string) => {
+    const currentYear = new Date().getFullYear();
+    
+    switch (range) {
+      case 'today':
+        return 'Today';
+      case 'this-week':
+        return 'This Week';
+      case 'this-month':
+        return 'This Month';
+      case 'last-month':
+        return 'Last Month';
+      case 'this-year':
+        return `This Year (${currentYear})`;
+      case 'last-year':
+        return `Last Year (${currentYear - 1})`;
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          return `${format(parseISO(customStartDate), 'MMM dd, yyyy')} - ${format(parseISO(customEndDate), 'MMM dd, yyyy')}`;
+        }
+        return 'Custom Range';
+      case 'all':
+        return 'All Time';
+      default:
+        return 'Selected Period';
+    }
+  };
 
+  // Helper function to get search results count message
+  const getSearchResultsMessage = () => {
+    const totalExpenses = expenses.length;
+    const filteredCount = filteredExpenses.length;
+    const isSearching = searchTerm.length > 0;
+    const scopeName = getDateRangeDisplayName(dateRange);
+    
+    if (isSearching) {
+      return {
+        primary: `Found ${filteredCount} result${filteredCount !== 1 ? 's' : ''}`,
+        secondary: `Searching in: ${scopeName}`,
+        showExpandOption: filteredCount < 5 && dateRange !== 'all' && totalExpenses > filteredCount
+      };
+    }
+    
+    return {
+      primary: `Showing ${filteredCount} record${filteredCount !== 1 ? 's' : ''}`,
+      secondary: `From: ${scopeName}`,
+      showExpandOption: false
+    };
+  };
+
+  // Handle custom date range
+  const handleCustomDateRange = () => {
+    if (!customStartDate || !customEndDate) {
+      alert('Please select both start and end dates');
+      return;
+    }
+    
+    if (new Date(customStartDate) > new Date(customEndDate)) {
+      alert('Start date cannot be after end date');
+      return;
+    }
+    
+    setDateRange('custom');
+    setShowCustomDatePicker(false);
+  };
+
+  // Reset custom date picker
+  const resetCustomDatePicker = () => {
+    setCustomStartDate('');
+    setCustomEndDate('');
+    setShowCustomDatePicker(false);
+  };
+
+  // Function to search all time when user wants to expand
+  const searchAllTime = () => {
+    setDateRange('all');
+  };
   const handleDelete = async (id: string) => {
   if (!window.confirm('Are you sure you want to delete this expense record?')) return;
   
@@ -374,54 +518,153 @@ const handleBulkExport = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <div className="space-y-4">
-          {/* Search Bar */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by description, vendor, or category..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-              />
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm shadow-gray-100/50 border border-gray-100/60 p-6">
+  <div className="space-y-4">
+    {/* Enhanced Search Bar with Scope Indicators */}
+    <div className="space-y-3">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder={`Search expense records in ${getDateRangeDisplayName(dateRange)}...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-3 w-full border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all"
+          />
+          
+          {/* Search Scope Badge */}
+          {searchTerm && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-sm font-medium border border-blue-100">
+                <Calendar className="h-3 w-3" />
+                <span className="hidden sm:inline">{getDateRangeDisplayName(dateRange)}</span>
+                <span className="sm:hidden">Period</span>
+              </div>
             </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="inline-flex items-center px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all"
-            >
-              <Filter className="h-5 w-5 mr-2" />
-              Filters
-              <ChevronDown className={`h-4 w-4 ml-2 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-            </button>
+          )}
+        </div>
+      </div>
+      
+      {/* Search Results Indicator */}
+      {(searchTerm || filteredExpenses.length !== expenses.length) && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100/50">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-blue-700">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+              <span className="font-semibold text-sm">
+                {getSearchResultsMessage().primary}
+              </span>
+            </div>
+            <div className="text-sm text-blue-600">
+              {getSearchResultsMessage().secondary}
+            </div>
           </div>
           
-          {/* Advanced Filters */}
-          {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 pb-32 border-t border-gray-200">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+          {/* Expand Search Option */}
+          {getSearchResultsMessage().showExpandOption && (
+            <button
+              onClick={searchAllTime}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-sm text-blue-600 rounded-lg hover:bg-white transition-all text-sm font-medium shadow-sm hover:shadow-md border border-blue-100/50"
+            >
+              <Search className="h-3 w-3" />
+              <span>Search All Time</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Filter Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* Active Filters Indicator */}
+          {(dateRange !== 'this-month' || selectedCategory !== 'all') && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Active filters:</span>
+              <div className="flex gap-1">
+                {dateRange !== 'this-month' && (
+                  <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium border border-blue-100">
+                    📅 {getDateRangeDisplayName(dateRange)}
+                  </span>
+                )}
+                {selectedCategory !== 'all' && (
+                  <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium border border-purple-100">
+                    📁 {categories.find(cat => cat.id === selectedCategory)?.name || 'Category'}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+            showFilters 
+              ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white shadow-md' 
+              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 shadow-sm hover:shadow-md'
+          }`}
+        >
+          <Filter className="h-4 w-4" />
+          Filters
+          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+    </div>
+    
+    {/* Modern Advanced Filters */}
+    {showFilters && (
+      <div className="pt-6 pb-8">
+        <div className="bg-gradient-to-br from-gray-50/80 via-white/90 to-blue-50/80 backdrop-blur-sm rounded-2xl shadow-sm shadow-gray-100/50 border border-gray-100/60 p-6">
+          
+          {/* Filter Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-xl shadow-sm">
+              <Filter className="h-4 w-4 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Advanced Filters
+            </h3>
+          </div>
+
+          {/* Modern Filter Grid */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${dateRange === 'custom' || showCustomDatePicker ? 'xl:grid-cols-2' : 'xl:grid-cols-3'}`}>
+            
+            {/* Date Range Filter */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-blue-500" />
+                Date Range
+              </label>
+              <div className="relative">
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all duration-200 text-gray-700 font-medium shadow-sm hover:shadow-md appearance-none cursor-pointer"
                 >
                   <option value="today">Today</option>
                   <option value="this-week">This Week</option>
                   <option value="this-month">This Month</option>
                   <option value="last-month">Last Month</option>
-                  <option value="this-year">This Year</option>
+                  <option value="this-year">This Year ({new Date().getFullYear()})</option>
+                  <option value="last-year">Last Year ({new Date().getFullYear() - 1})</option>
+                  <option value="custom">🎯 Custom Date Range</option>
                 </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-400 pointer-events-none" />
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            </div>
+            
+            {/* Category Filter */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-purple-500" />
+                Category
+              </label>
+              <div className="relative">
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition-all duration-200 text-gray-700 font-medium shadow-sm hover:shadow-md appearance-none cursor-pointer"
                 >
                   <option value="all">All Categories</option>
                   {categories.map((category) => (
@@ -430,31 +673,114 @@ const handleBulkExport = () => {
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400 pointer-events-none" />
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-                <div className="flex gap-2">
+            </div>
+            
+            {/* Sort Options */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-emerald-500" />
+                Sort By
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'date' | 'amount')}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300 transition-all duration-200 text-gray-700 font-medium shadow-sm hover:shadow-md appearance-none cursor-pointer"
                   >
-                    <option value="date">Date</option>
-                    <option value="amount">Amount</option>
+                    <option value="date">📅 Date</option>
+                    <option value="amount">💰 Amount</option>
                   </select>
-                  <button
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
-                  >
-                    <ArrowUpDown className="h-5 w-5 text-gray-600" />
-                  </button>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-emerald-400 pointer-events-none" />
                 </div>
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="px-4 py-3 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-xl hover:from-emerald-500 hover:to-teal-600 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 flex items-center"
+                  title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+                >
+                  <ArrowUpDown className={`h-4 w-4 transition-transform duration-200 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Date Picker Section */}
+          {(dateRange === 'custom' || showCustomDatePicker) && (
+            <div className="mt-6 p-6 bg-gradient-to-br from-blue-50/80 to-indigo-50/80 backdrop-blur-sm rounded-2xl border border-blue-100/50 shadow-inner">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-1.5 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-lg">
+                  <Calendar className="h-4 w-4 text-white" />
+                </div>
+                <h4 className="text-md font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Custom Date Range
+                </h4>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-600">Start Date</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/90 backdrop-blur-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all duration-200 text-gray-700 font-medium shadow-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-600">End Date</label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/90 backdrop-blur-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all duration-200 text-gray-700 font-medium shadow-sm"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCustomDateRange}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 font-medium"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Apply Range
+                </button>
+                <button
+                  onClick={resetCustomDatePicker}
+                  className="px-6 py-3 bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+                >
+                  Clear
+                </button>
               </div>
             </div>
           )}
+
+          {/* Quick Filter Pills */}
+          <div className="mt-6 pt-6 border-t border-gray-200/50">
+            <p className="text-sm font-medium text-gray-600 mb-3">Quick Filters:</p>
+            <div className="flex flex-wrap gap-2">
+              {['today', 'this-week', 'this-month', 'this-year'].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setDateRange(filter)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    dateRange === filter
+                      ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white shadow-sm'
+                      : 'bg-white/60 text-gray-600 hover:bg-white/80 border border-gray-200/50'
+                  }`}
+                >
+                  {filter.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+    )}
+  </div>
+</div>
 
       {/* Expense Table */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">

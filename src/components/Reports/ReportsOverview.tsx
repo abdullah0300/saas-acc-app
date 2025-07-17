@@ -7,6 +7,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonReport } from '../Common/Loading';
 import { 
+  ChevronRight,
   BarChart3, 
   TrendingUp, 
   TrendingDown, 
@@ -799,19 +800,25 @@ const getDateRangeForPeriod = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Financial Analytics</h1>
-              <p className="text-gray-600 mt-1">Comprehensive insights into your business performance</p>
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-100/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-gray-600" />
             </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Period Selector */}
+            <div>
+              <h1 className="text-lg font-medium text-gray-900">Financial Analytics</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Comprehensive insights into your business performance</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Period Selector */}
+            <div className="flex items-center gap-1 bg-gray-50/80 rounded-xl p-1">
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="px-3 py-1.5 text-sm font-medium bg-transparent border-none outline-none cursor-pointer text-gray-700 rounded-lg hover:bg-white/60"
               >
                 <option value="1month">Last Month</option>
                 <option value="3months">Last 3 Months</option>
@@ -819,127 +826,140 @@ const getDateRangeForPeriod = () => {
                 <option value="1year">Last Year</option>
                 <option value="ytd">Year to Date</option>
               </select>
-              
-              {/* Action Buttons */}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1">
               <button
                 onClick={refreshData}
                 disabled={refreshing}
-                className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all"
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
               
-              {/* <button
-                onClick={() => setCompareMode(!compareMode)}
-                className={`inline-flex items-center px-4 py-2 rounded-xl transition-all ${
-                  compareMode 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-white border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                <Activity className="h-4 w-4 mr-2" />
-                Compare
-              </button> */}
               <button
                 onClick={exportReport}
-                className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export
+                <Download className="w-3.5 h-3.5" />
+                Export View
               </button>
               
-  {/* Only show for Essentials and Plus plans */}
-{/* Advanced Export - Show to all users with Pro badge */}
-{user && (
-  <ExportDropdown 
-    userId={user.id}
-    clients={clientMetrics}
-    currentPeriod={period}
-  />
-)}
-              
-              {/* Replace the P&L Statement Link */}
-                <button
-                  onClick={() => {
-                    if (hasFeature('profit_loss_statements')) {
-                      navigate('/reports/profit-loss');
-                    } else {
-                      showAnticipationModal('feature', {
-                        featureName: 'Profit & Loss Statements'
-                      });
-                    }
-                  }}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  P&L Statement
-                  {!hasFeature('profit_loss_statements') && (
-                    <Crown className="h-4 w-4 ml-2 text-amber-300" />
-                  )}
-                </button>
-
-              <button
-                    onClick={() => {
-                      if (hasFeature('cash_flow_analysis')) {
-                        navigate('/reports/cash-flow');
-                      } else {
-                        showAnticipationModal('feature', {
-                          featureName: 'Cash Flow Analysis'
-                        });
-                      }
-                    }}
-                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Cash Flow
-                    {!hasFeature('cash_flow_analysis') && (
-                      <Crown className="h-4 w-4 ml-2 text-amber-300" />
-                    )}
-                  </button>
-
-              <button
-                    onClick={() => {
-                      if (hasFeature('advanced_tax_reports')) {
-                        navigate('/reports/tax');
-                      } else {
-                        showAnticipationModal('feature', {
-                          featureName: 'Advanced Tax Reports'
-                        });
-                      }
-                    }}
-                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Tax Reports
-                    {!hasFeature('advanced_tax_reports') && (
-                      <Crown className="h-4 w-4 ml-2 text-amber-300" />
-                    )}
-                  </button>
-
-
-              <button
-                      onClick={() => {
-                        if (hasFeature('advanced_reports')) {
-                          navigate('/reports/client-profitability');
-                        } else {
-                          showAnticipationModal('feature', {
-                            featureName: 'Client Profitability Analysis'
-                          });
-                        }
-                      }}
-                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg shadow-purple-200"
-                    >
-                      <Users className="h-4 w-4 mr-2" />
-                      Client Profitability
-                      {!hasFeature('advanced_reports') && (
-                        <Crown className="h-4 w-4 ml-2 text-amber-300" />
-                      )}
-                    </button>
-             
+              {/* Simple Advanced Export Button */}
+              {user && (
+                <ExportDropdown 
+                  userId={user.id}
+                  clients={clientMetrics}
+                  currentPeriod={period}
+                />
+              )}
             </div>
           </div>
         </div>
+      </div>
+
+{/* Report Cards Section - Updated Styling */}
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+  {/* P&L Statement Card */}
+  <div 
+    onClick={() => {
+      if (hasFeature('profit_loss_statements')) {
+        navigate('/reports/profit-loss');
+      } else {
+        showAnticipationModal('feature', { 
+          featureName: 'Profit & Loss Statements',
+          fallbackPath: '/reports'
+        });
+      }
+    }}
+    className="group cursor-pointer p-4 rounded-xl bg-blue-50/40 border border-blue-100/60 hover:border-blue-200/80 hover:bg-blue-50/70 transition-all duration-300"
+  >
+    <div className="flex items-center justify-between mb-3">
+      <div className="w-8 h-8 rounded-lg bg-blue-100/70 flex items-center justify-center">
+        <TrendingUp className="w-4 h-4 text-blue-600" />
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+    </div>
+    <h3 className="text-sm font-medium text-gray-900 mb-1">P&L Statement</h3>
+    <p className="text-xs text-gray-500 leading-relaxed">Detailed profit and loss analysis</p>
+  </div>
+
+  {/* Cash Flow Card */}
+  <div 
+    onClick={() => {
+      if (hasFeature('cash_flow_analysis')) {
+        navigate('/reports/cash-flow');
+      } else {
+        showAnticipationModal('feature', { 
+          featureName: 'Cash Flow Analysis',
+          fallbackPath: '/reports'
+        });
+      }
+    }}
+    className="group cursor-pointer p-4 rounded-xl bg-emerald-50/40 border border-emerald-100/60 hover:border-emerald-200/80 hover:bg-emerald-50/70 transition-all duration-300"
+  >
+    <div className="flex items-center justify-between mb-3">
+      <div className="w-8 h-8 rounded-lg bg-emerald-100/70 flex items-center justify-center">
+        <DollarSign className="w-4 h-4 text-emerald-600" />
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-500 transition-colors" />
+    </div>
+    <h3 className="text-sm font-medium text-gray-900 mb-1">Cash Flow</h3>
+    <p className="text-xs text-gray-500 leading-relaxed">Track money flow and forecasting</p>
+  </div>
+
+  {/* Tax Reports Card */}
+  <div 
+    onClick={() => {
+      if (hasFeature('advanced_tax_reports')) {
+        navigate('/reports/tax');
+      } else {
+        showAnticipationModal('feature', { 
+          featureName: 'Advanced Tax Reports',
+          fallbackPath: '/reports'
+        });
+      }
+    }}
+    className="group cursor-pointer p-4 rounded-xl bg-amber-50/40 border border-amber-100/60 hover:border-amber-200/80 hover:bg-amber-50/70 transition-all duration-300"
+  >
+    <div className="flex items-center justify-between mb-3">
+      <div className="w-8 h-8 rounded-lg bg-amber-100/70 flex items-center justify-center">
+        <Receipt className="w-4 h-4 text-amber-600" />
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-500 transition-colors" />
+    </div>
+    <h3 className="text-sm font-medium text-gray-900 mb-1">Tax Reports</h3>
+    <p className="text-xs text-gray-500 leading-relaxed">Tax calculations and compliance</p>
+  </div>
+
+  {/* Client Profitability Card */}
+  <div 
+    onClick={() => {
+      if (hasFeature('advanced_reports')) {
+        navigate('/reports/client-profitability');
+      } else {
+        showAnticipationModal('feature', { 
+          featureName: 'Client Profitability Analysis',
+          fallbackPath: '/reports'
+        });
+      }
+    }}
+    className="group cursor-pointer p-4 rounded-xl bg-purple-50/40 border border-purple-100/60 hover:border-purple-200/80 hover:bg-purple-50/70 transition-all duration-300"
+  >
+    <div className="flex items-center justify-between mb-3">
+      <div className="w-8 h-8 rounded-lg bg-purple-100/70 flex items-center justify-center">
+        <Users className="w-4 h-4 text-purple-600" />
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-purple-500 transition-colors" />
+    </div>
+    <h3 className="text-sm font-medium text-gray-900 mb-1">Client Profitability</h3>
+    <p className="text-xs text-gray-500 leading-relaxed">Revenue analysis by client</p>
+  </div>
+</div>
+
+
+
 
         {/* KPI Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

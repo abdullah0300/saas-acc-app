@@ -9,7 +9,10 @@ import {
   DollarSign,
   AlertCircle,
   ChevronDown,
-  Calculator
+  Calculator,
+  Sparkles,
+  RefreshCw,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -207,8 +210,12 @@ export const TaxReport: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 shadow-lg"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -216,220 +223,292 @@ export const TaxReport: React.FC = () => {
   const netTaxColor = taxSummary.netTaxLiability >= 0 ? 'text-red-600' : 'text-green-600';
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Advanced Tax Report</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Comprehensive tax summary for filing and compliance
-            </p>
-          </div>
-          <button
-            onClick={exportTaxReport}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </button>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Period Type</label>
-            <select
-              value={periodType}
-              onChange={(e) => setPeriodType(e.target.value as 'quarterly' | 'annual')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header - Enhanced with gradient and modern styling */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="flex items-start space-x-4">
+              <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
+                <Calculator className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  Advanced Tax Report
+                </h1>
+                <p className="text-gray-600 mt-2 text-lg">
+                  Comprehensive tax summary for filing and compliance
+                </p>
+                <div className="flex items-center mt-3 text-sm text-gray-500">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Professional tax reporting system
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={exportTaxReport}
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              <option value="quarterly">Quarterly</option>
-              <option value="annual">Annual</option>
-            </select>
+              <Download className="h-5 w-5 mr-2" />
+              Export Report
+            </button>
+          </div>
+        </div>
+
+        {/* Controls - Modern card styling */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="flex flex-col sm:flex-row gap-6">
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Period Type</label>
+              <select
+                value={periodType}
+                onChange={(e) => setPeriodType(e.target.value as 'quarterly' | 'annual')}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 hover:bg-white transition-all duration-200"
+              >
+                <option value="quarterly">Quarterly View</option>
+                <option value="annual">Annual Comparison</option>
+              </select>
+            </div>
+            
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Year</label>
+              <select
+                value={year}
+                onChange={(e) => setYear(parseInt(e.target.value))}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 hover:bg-white transition-all duration-200"
+              >
+                {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={loadTaxData}
+                disabled={loading}
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+              >
+                <RefreshCw className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Cards - Enhanced with gradients and modern styling */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Tax Collected Card */}
+          <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-6 text-white relative overflow-hidden shadow-xl">
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <Sparkles className="h-5 w-5 opacity-60" />
+              </div>
+              <p className="text-emerald-100 text-sm font-medium">Tax Collected</p>
+              <p className="text-3xl font-bold mt-1">{formatCurrency(taxSummary.totalTaxCollected)}</p>
+              <p className="text-emerald-100 text-sm mt-2">From sales</p>
+            </div>
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+          </div>
+
+          {/* Tax Paid Card */}
+          <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-6 text-white relative overflow-hidden shadow-xl">
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                  <TrendingDown className="h-6 w-6" />
+                </div>
+                <Sparkles className="h-5 w-5 opacity-60" />
+              </div>
+              <p className="text-orange-100 text-sm font-medium">Tax Paid</p>
+              <p className="text-3xl font-bold mt-1">{formatCurrency(taxSummary.totalTaxPaid)}</p>
+              <p className="text-orange-100 text-sm mt-2">On purchases</p>
+            </div>
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+          </div>
+
+          {/* Net Tax Liability Card */}
+          <div className={`bg-gradient-to-br ${taxSummary.netTaxLiability >= 0 ? 'from-red-500 to-red-600' : 'from-green-500 to-green-600'} rounded-2xl p-6 text-white relative overflow-hidden shadow-xl`}>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                  <DollarSign className="h-6 w-6" />
+                </div>
+                <Sparkles className="h-5 w-5 opacity-60" />
+              </div>
+              <p className="text-white/80 text-sm font-medium">Net Tax Liability</p>
+              <p className="text-3xl font-bold mt-1">{formatCurrency(Math.abs(taxSummary.netTaxLiability))}</p>
+              <p className="text-white/80 text-sm mt-2">
+                {taxSummary.netTaxLiability >= 0 ? 'To remit' : 'Refundable'}
+              </p>
+            </div>
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+          </div>
+
+          {/* Average Rate Card */}
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white relative overflow-hidden shadow-xl">
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <Sparkles className="h-5 w-5 opacity-60" />
+              </div>
+              <p className="text-indigo-100 text-sm font-medium">Avg Rate</p>
+              <p className="text-3xl font-bold mt-1">{taxSummary.averageTaxRate.toFixed(2)}%</p>
+              <p className="text-indigo-100 text-sm mt-2">Effective rate</p>
+            </div>
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+          </div>
+        </div>
+
+        {/* Period Breakdown Table - Enhanced styling */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-8 py-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Period Breakdown</h2>
+              <span className="text-sm text-gray-500">• Detailed tax analysis</span>
+            </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-            <select
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              {[0, 1, 2, 3, 4].map(y => {
-                const yearOption = new Date().getFullYear() - y;
-                return (
-                  <option key={yearOption} value={yearOption}>
-                    {yearOption}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingDown className="h-5 w-5 text-green-600" />
-            <span className="text-sm text-gray-500">Collected</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(taxSummary.totalTaxCollected)}
-          </p>
-          <p className="text-sm text-gray-600 mt-1">From sales</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-            <span className="text-sm text-gray-500">Paid</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(taxSummary.totalTaxPaid)}
-          </p>
-          <p className="text-sm text-gray-600 mt-1">On purchases</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <Calculator className="h-5 w-5 text-purple-600" />
-            <span className="text-sm text-gray-500">Net Tax</span>
-          </div>
-          <p className={`text-2xl font-bold ${netTaxColor}`}>
-            {formatCurrency(Math.abs(taxSummary.netTaxLiability))}
-          </p>
-          <p className="text-sm text-gray-600 mt-1">
-            {taxSummary.netTaxLiability >= 0 ? 'To remit' : 'Refundable'}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <FileText className="h-5 w-5 text-orange-600" />
-            <span className="text-sm text-gray-500">Avg Rate</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {taxSummary.averageTaxRate.toFixed(2)}%
-          </p>
-          <p className="text-sm text-gray-600 mt-1">Effective rate</p>
-        </div>
-      </div>
-
-      {/* Period Breakdown Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Period Breakdown</h2>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Period
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Sales
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tax Collected
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Purchases
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tax Paid
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Net Tax
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Transactions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {taxSummary.periods.map((period, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {period.period}
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    Period
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    Sales
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    Tax Collected
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    Purchases
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    Tax Paid
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    Net Tax
+                  </th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    Transactions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {taxSummary.periods.map((period, index) => (
+                  <tr key={period.period} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-200">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className={`w-2 h-2 rounded-full mr-3 ${index % 4 === 0 ? 'bg-indigo-500' : index % 4 === 1 ? 'bg-purple-500' : index % 4 === 2 ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                        <span className="text-sm font-semibold text-gray-900">{period.period}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                      {formatCurrency(period.salesAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600 text-right">
+                      {formatCurrency(period.taxCollected)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                      {formatCurrency(period.purchaseAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600 text-right">
+                      {formatCurrency(period.taxPaid)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right">
+                      <span className={period.netTax >= 0 ? 'text-red-600' : 'text-green-600'}>
+                        {formatCurrency(Math.abs(period.netTax))}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
+                      <div className="flex flex-col">
+                        <span className="text-emerald-600 font-medium">{period.transactionCount.income} income</span>
+                        <span className="text-amber-600 font-medium">{period.transactionCount.expense} expense</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                
+                {/* Summary Row */}
+                <tr className="bg-gradient-to-r from-indigo-50 to-purple-50 border-t-2 border-indigo-200">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-bold text-gray-900 flex items-center">
+                      <Calculator className="h-4 w-4 mr-2 text-indigo-600" />
+                      TOTAL
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                    {formatCurrency(period.salesAmount)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 text-right">
+                    {formatCurrency(taxSummary.periods.reduce((sum, p) => sum + p.salesAmount, 0))}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-medium">
-                    {formatCurrency(period.taxCollected)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-emerald-600 text-right">
+                    {formatCurrency(taxSummary.totalTaxCollected)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                    {formatCurrency(period.purchaseAmount)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 text-right">
+                    {formatCurrency(taxSummary.periods.reduce((sum, p) => sum + p.purchaseAmount, 0))}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 text-right font-medium">
-                    {formatCurrency(period.taxPaid)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-600 text-right">
+                    {formatCurrency(taxSummary.totalTaxPaid)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
-                    <span className={period.netTax >= 0 ? 'text-red-600' : 'text-green-600'}>
-                      {formatCurrency(Math.abs(period.netTax))}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right">
+                    <span className={taxSummary.netTaxLiability >= 0 ? 'text-red-600' : 'text-green-600'}>
+                      {formatCurrency(Math.abs(taxSummary.netTaxLiability))}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                      <span className="text-green-600">{period.transactionCount.income}</span>
-                      <span>/</span>
-                      <span className="text-blue-600">{period.transactionCount.expense}</span>
-                    </div>
+                    -
                   </td>
                 </tr>
-              ))}
-              
-              {/* Total Row */}
-              <tr className="bg-gray-50 font-medium">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  Total
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                  {formatCurrency(taxSummary.periods.reduce((sum, p) => sum + p.salesAmount, 0))}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right">
-                  {formatCurrency(taxSummary.totalTaxCollected)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                  {formatCurrency(taxSummary.periods.reduce((sum, p) => sum + p.purchaseAmount, 0))}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 text-right">
-                  {formatCurrency(taxSummary.totalTaxPaid)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                  <span className={taxSummary.netTaxLiability >= 0 ? 'text-red-600' : 'text-green-600'}>
-                    {formatCurrency(Math.abs(taxSummary.netTaxLiability))}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                  -
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* Information Alert */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex">
-          <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-900">Important Notes</h3>
-            <div className="mt-2 text-sm text-blue-700">
-              <ul className="list-disc list-inside space-y-1">
-                <li>This report is based on the tax rates applied to each transaction</li>
-                <li>Net tax liability shows the amount you need to remit to tax authorities</li>
-                <li>Consult with a tax professional for accurate filing</li>
-                <li>Export this report for your accountant or tax filing</li>
-              </ul>
+        {/* Information Alert - Enhanced styling */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 shadow-lg">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <AlertCircle className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-lg font-bold text-blue-900 flex items-center">
+                Important Notes
+                <Shield className="h-4 w-4 ml-2" />
+              </h3>
+              <div className="mt-3 text-sm text-blue-800">
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    This report is based on the tax rates applied to each transaction
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Net tax liability shows the amount you need to remit to tax authorities
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Consult with a tax professional for accurate filing
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Export this report for your accountant or tax filing
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

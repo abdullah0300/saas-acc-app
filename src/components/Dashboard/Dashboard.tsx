@@ -355,13 +355,13 @@ const loading = businessDataLoading;
           
           <div className="flex gap-3">
   {/* ADD THIS NEW IMPORT BUTTON */}
-  <button
+  {/* <button
     onClick={() => setShowImportWizard(true)}
     className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg shadow-purple-200"
   >
     <Upload className="h-4 w-4 mr-2" />
     Import Data
-  </button>
+  </button> */}
   
   <Link
     to="/income/new"

@@ -91,3 +91,26 @@ code {
 
 /* mobile app load */
 
+
+/* Ensure portal dropdown doesn't affect page layout */
+#export-dropdown-portal {
+  pointer-events: auto;
+}
+
+/* Custom scrollbar for dropdown */
+#export-dropdown-portal::-webkit-scrollbar {
+  width: 4px;
+}
+
+#export-dropdown-portal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#export-dropdown-portal::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 2px;
+}
+
+#export-dropdown-portal::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.6);
+}

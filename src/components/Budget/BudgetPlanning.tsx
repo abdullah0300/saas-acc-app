@@ -1,33 +1,30 @@
+// src/components/Budget/BudgetPlanning.tsx
 import React, { useState, useEffect } from 'react';
 import { 
-  PiggyBank, 
+  Plus, 
+  Target, 
   TrendingUp, 
-  TrendingDown, 
-  AlertTriangle,
-  Plus,
+  PiggyBank, 
+  AlertTriangle, 
+  BarChart3, 
+  DollarSign,
   Edit,
   Trash2,
+  X,
   Calendar,
-  Target,
-  DollarSign,
-  BarChart3
+  Save
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
+import { format, startOfMonth } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
-import { supabase } from '../../services/supabaseClient';
-import { getIncomes, getExpenses, createBudget, updateBudget, deleteBudget } from '../../services/database';
+import { useSettings } from '../../contexts/SettingsContext';
 import { useData } from '../../contexts/DataContext';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { 
+  createBudget, 
+  updateBudget, 
+  deleteBudget, 
+  getIncomes, 
+  getExpenses 
+} from '../../services/database';
 
 interface Budget {
   id: string;
@@ -70,12 +67,12 @@ const calculatePercentage = (actual: number, budgeted: number): number => {
 
 export const BudgetPlanning: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency, baseCurrency } = useSettings(); // Added useSettings hook
+  const { formatCurrency, baseCurrency } = useSettings();
   const { businessData, businessDataLoading, addBudgetToCache, updateBudgetInCache, removeBudgetFromCache } = useData();
-const { budgets, categories } = businessData;
-const allCategories = [...categories.income, ...categories.expense];
-const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
-const loading = businessDataLoading;
+  const { budgets, categories } = businessData;
+  const allCategories = [...categories.income, ...categories.expense];
+  const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
+  const loading = businessDataLoading;
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [error, setError] = useState('');
@@ -89,25 +86,25 @@ const loading = businessDataLoading;
   });
 
   useEffect(() => {
-  if (user && budgets.length >= 0) {
-    loadBudgetProgress();
-  }
-}, [user, budgets]); // Now depends on cached budgets
+    if (user && budgets.length >= 0) {
+      loadBudgetProgress();
+    }
+  }, [user, budgets]);
 
   const loadBudgetProgress = async () => {
-  if (!user || !budgets.length) {
-    setBudgetProgress([]);
-    return;
-  }
-  
-  try {
-    await calculateBudgetProgress(budgets);
-  } catch (err: any) {
-    console.error('Error calculating budget progress:', err);
-    setError('Failed to calculate budget progress.');
-    setBudgetProgress([]);
-  }
-};
+    if (!user || !budgets.length) {
+      setBudgetProgress([]);
+      return;
+    }
+    
+    try {
+      await calculateBudgetProgress(budgets);
+    } catch (err: any) {
+      console.error('Error calculating budget progress:', err);
+      setError('Failed to calculate budget progress.');
+      setBudgetProgress([]);
+    }
+  };
 
   const calculateBudgetProgress = async (budgetList: Budget[]) => {
     if (!user || !budgetList || budgetList.length === 0) {
@@ -117,7 +114,7 @@ const loading = businessDataLoading;
     
     try {
       const startDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+      const endDate = format(new Date(), 'yyyy-MM-dd');
       
       const [incomes, expenses] = await Promise.all([
         getIncomes(user.id, startDate, endDate),
@@ -162,37 +159,37 @@ const loading = businessDataLoading;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!user) return;
-  
-  const amount = safeParseNumber(formData.amount);
-  if (amount <= 0) {
-    alert('Please enter a valid budget amount greater than 0');
-    return;
-  }
-  
-  try {
-    const budgetData = {
-      user_id: user.id,
-      category_id: formData.category_id,
-      amount: amount,
-      period: formData.period,
-      start_date: formData.start_date
-    };
+    e.preventDefault();
+    if (!user) return;
     
-    if (editingBudget) {
-      const updatedBudget = await updateBudget(editingBudget.id, budgetData);
-      updateBudgetInCache(editingBudget.id, updatedBudget); // ✅ Update cache
-    } else {
-      const newBudget = await createBudget(budgetData);
-      addBudgetToCache(newBudget); // ✅ Add to cache
+    const amount = safeParseNumber(formData.amount);
+    if (amount <= 0) {
+      alert('Please enter a valid budget amount greater than 0');
+      return;
     }
     
-    resetForm();
-  } catch (err: any) {
-    alert('Error saving budget: ' + err.message);
-  }
-};
+    try {
+      const budgetData = {
+        user_id: user.id,
+        category_id: formData.category_id,
+        amount: amount,
+        period: formData.period,
+        start_date: formData.start_date
+      };
+      
+      if (editingBudget) {
+        const updatedBudget = await updateBudget(editingBudget.id, budgetData);
+        updateBudgetInCache(editingBudget.id, updatedBudget);
+      } else {
+        const newBudget = await createBudget(budgetData);
+        addBudgetToCache(newBudget);
+      }
+      
+      resetForm();
+    } catch (err: any) {
+      alert('Error saving budget: ' + err.message);
+    }
+  };
 
   const handleEdit = (budget: Budget) => {
     setEditingBudget(budget);
@@ -206,15 +203,15 @@ const loading = businessDataLoading;
   };
 
   const handleDelete = async (id: string) => {
-  if (!window.confirm('Are you sure you want to delete this budget?')) return;
-  
-  try {
-    await deleteBudget(id);
-    removeBudgetFromCache(id); // ✅ Remove from cache
-  } catch (err: any) {
-    alert('Error deleting budget: ' + err.message);
-  }
-};
+    if (!window.confirm('Are you sure you want to delete this budget?')) return;
+    
+    try {
+      await deleteBudget(id);
+      removeBudgetFromCache(id);
+    } catch (err: any) {
+      alert('Error deleting budget: ' + err.message);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -257,341 +254,412 @@ const loading = businessDataLoading;
 
   const chartData = getChartData();
 
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length && payload[0].payload) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 rounded shadow-lg border">
-          <p className="text-sm font-semibold">{label}</p>
-          <p className="text-sm text-gray-600">
-            Budget: {formatCurrency(data.budgeted || 0)}
-          </p>
-          <p className="text-sm text-gray-600">
-            Actual: {formatCurrency(data.actual || 0)}
-          </p>
-          <p className="text-sm font-medium">
-            Used: {data.percentage || 0}%
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <p className="text-red-600 mb-4">{error}</p>
-        <button 
-          onClick={loadBudgetProgress}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Try Again
-        </button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl p-6 shadow-sm">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Budget Planning</h1>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Budget
-        </button>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Budget Planning
+            </h1>
+            <p className="text-gray-600 mt-2">Track and manage your financial goals</p>
+          </div>
+          
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
+          >
+            <Plus className="h-5 w-5" />
+            Add Budget
+          </button>
+        </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Total Budgeted</p>
-            <Target className="h-5 w-5 text-blue-600" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(totalBudgeted)}
-          </p>
-          <p className="text-sm text-gray-500 mt-1">
-            {budgetProgress.length} categories
-          </p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Actual Spending</p>
-            <TrendingUp className="h-5 w-5 text-green-600" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(totalActual)}
-          </p>
-          <p className="text-sm text-gray-500">
-            {overallPercentage}% of budget
-          </p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Remaining</p>
-            <PiggyBank className="h-5 w-5 text-purple-600" />
-          </div>
-          <p className={`text-2xl font-bold ${totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(Math.abs(totalRemaining))}
-          </p>
-          <p className="text-sm text-gray-500">
-            {totalRemaining >= 0 ? 'Under budget' : 'Over budget'}
-          </p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">At Risk</p>
-            <AlertTriangle className="h-5 w-5 text-orange-600" />
-          </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {budgetProgress.filter(b => b.percentage >= 80).length}
-          </p>
-          <p className="text-sm text-gray-500">
-            Categories over 80%
-          </p>
-        </div>
-      </div>
-
-      {/* Budget Progress Visual */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Budget Progress Overview</h2>
-        
-        {chartData.length > 0 && !chartError ? (
-          <div className="space-y-4">
-            {/* Simple Progress Bars Instead of Chart */}
-            {budgetProgress.map((item, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700">{item.category}</span>
-                  <span className="text-sm text-gray-500">
-                    {formatCurrency(item.actual)} / {formatCurrency(item.budgeted)}
-                  </span>
-                </div>
-                <div className="relative w-full bg-gray-200 rounded-full h-8">
-                  <div
-                    className="absolute top-0 left-0 h-full rounded-full transition-all flex items-center justify-end pr-2"
-                    style={{
-                      width: `${Math.min(item.percentage, 100)}%`,
-                      backgroundColor: getProgressColor(item.percentage)
-                    }}
-                  >
-                    <span className="text-xs font-medium text-white">
-                      {item.percentage}%
-                    </span>
-                  </div>
-                </div>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-blue-100/50 border border-white/60 p-6 transform hover:scale-105 transition-all duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl shadow-lg">
+                <Target className="h-6 w-6 text-white" />
               </div>
-            ))}
+              <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                Target
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 mb-1">Total Budgeted</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+              {formatCurrency(totalBudgeted)}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              {budgetProgress.length} categories
+            </p>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No budget data to display</p>
-            <p className="text-sm text-gray-400 mt-1">Add budgets to see your progress</p>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-emerald-100/50 border border-white/60 p-6 transform hover:scale-105 transition-all duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl shadow-lg">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                {overallPercentage}%
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 mb-1">Actual Spending</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+              {formatCurrency(totalActual)}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              {overallPercentage}% of budget
+            </p>
           </div>
-        )}
-      </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-purple-100/50 border border-white/60 p-6 transform hover:scale-105 transition-all duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl shadow-lg">
+                <PiggyBank className="h-6 w-6 text-white" />
+              </div>
+              <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${
+                totalRemaining >= 0 
+                  ? 'text-emerald-600 bg-emerald-50 border-emerald-100' 
+                  : 'text-red-600 bg-red-50 border-red-100'
+              }`}>
+                {totalRemaining >= 0 ? '✓' : '!'}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 mb-1">Remaining</p>
+            <p className={`text-2xl sm:text-3xl font-bold ${totalRemaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {formatCurrency(Math.abs(totalRemaining))}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              {totalRemaining >= 0 ? 'Under budget' : 'Over budget'}
+            </p>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-orange-100/50 border border-white/60 p-6 transform hover:scale-105 transition-all duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl shadow-lg">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
+                Alert
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-600 mb-1">At Risk</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+              {budgetProgress.filter(b => b.percentage >= 80).length}
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Categories over 80%
+            </p>
+          </div>
+        </div>
 
-      {/* Budget Details */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Budget Details</h2>
-          <div className="space-y-4">
-            {budgetProgress.length > 0 ? (
-              budgetProgress.map((budget, index) => {
-                const originalBudget = budgets.find(b => b.category?.name === budget.category);
-                
-                return (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{budget.category}</h3>
-                        <p className="text-sm text-gray-500">
-                          {originalBudget?.period || 'monthly'} budget
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        {originalBudget && (
-                          <>
+        {/* Budget Progress Visual */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-gray-100/50 border border-white/60 p-6 sm:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl shadow-lg">
+              <BarChart3 className="h-5 w-5 text-white" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Budget Progress Overview
+            </h2>
+          </div>
+          
+          {chartData.length > 0 && !chartError ? (
+            <div className="space-y-6">
+              {budgetProgress.map((item, index) => (
+                <div key={index} className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm sm:text-base font-semibold text-gray-800">{item.category}</span>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                        item.percentage >= 90 ? 'bg-red-100 text-red-700 border border-red-200' :
+                        item.percentage >= 70 ? 'bg-orange-100 text-orange-700 border border-orange-200' :
+                        'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {item.percentage}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="hidden sm:inline">
+                        {formatCurrency(item.actual)} / {formatCurrency(item.budgeted)}
+                      </span>
+                      <span className="sm:hidden">
+                        {formatCurrency(item.actual)} / {formatCurrency(item.budgeted)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="relative w-full bg-gray-200 rounded-full h-4 sm:h-6 overflow-hidden shadow-inner">
+                    <div
+                      className="absolute top-0 left-0 h-full rounded-full transition-all duration-700 ease-out flex items-center justify-end pr-2 sm:pr-3"
+                      style={{
+                        width: `${Math.min(item.percentage, 100)}%`,
+                        background: `linear-gradient(90deg, ${getProgressColor(item.percentage)}, ${getProgressColor(item.percentage)}dd)`
+                      }}
+                    >
+                      <span className="text-xs font-bold text-white drop-shadow-sm">
+                        {item.percentage > 15 ? `${item.percentage}%` : ''}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {item.percentage >= 90 && (
+                    <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-200/50">
+                      <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                      <span className="text-sm font-medium text-red-700">
+                        Budget limit {item.percentage > 100 ? 'exceeded' : 'approaching'}!
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 sm:py-16">
+              <div className="p-4 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                <BarChart3 className="h-10 w-10 text-gray-400" />
+              </div>
+              <p className="text-gray-500 text-lg font-medium">No budget data to display</p>
+              <p className="text-sm text-gray-400 mt-2">Add budgets to see your progress</p>
+            </div>
+          )}
+        </div>
+
+        {/* Budget Details */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-gray-100/50 border border-white/60">
+          <div className="p-6 sm:p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+                <DollarSign className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Budget Details
+              </h2>
+            </div>
+            
+            <div className="space-y-4">
+              {budgetProgress.length > 0 ? (
+                budgetProgress.map((budget, index) => {
+                  const correspondingBudget = budgets.find(b => b.category?.name === budget.category);
+                  return (
+                    <div key={index} className="p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200/50 hover:shadow-md transition-all duration-200">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-semibold text-gray-900">{budget.category}</h3>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              correspondingBudget?.period === 'yearly' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                              correspondingBudget?.period === 'quarterly' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                              'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                            }`}>
+                              {correspondingBudget?.period || 'monthly'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Budgeted:</span>
+                              <p className="font-semibold text-gray-900">{formatCurrency(budget.budgeted)}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Actual:</span>
+                              <p className="font-semibold text-gray-900">{formatCurrency(budget.actual)}</p>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 text-sm">Remaining:</span>
+                            <p className={`font-bold ${budget.remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {formatCurrency(Math.abs(budget.remaining))}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {correspondingBudget && (
+                          <div className="flex gap-2">
                             <button
-                              onClick={() => handleEdit(originalBudget)}
-                              className="text-blue-600 hover:text-blue-700"
-                              title="Edit"
+                              onClick={() => handleEdit(correspondingBudget)}
+                              className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+                              title="Edit Budget"
                             >
                               <Edit className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(originalBudget.id)}
-                              className="text-red-600 hover:text-red-700"
-                              title="Delete"
+                              onClick={() => handleDelete(correspondingBudget.id)}
+                              className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                              title="Delete Budget"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
-                          </>
+                          </div>
                         )}
                       </div>
+                      
+                      <div className="relative w-full bg-gray-200 rounded-full h-3 mt-4 overflow-hidden shadow-inner">
+                        <div
+                          className="absolute top-0 left-0 h-full rounded-full transition-all duration-700"
+                          style={{
+                            width: `${Math.min(budget.percentage, 100)}%`,
+                            backgroundColor: getProgressColor(budget.percentage)
+                          }}
+                        />
+                      </div>
+                      
+                      {budget.percentage >= 90 && (
+                        <div className="flex items-center gap-2 mt-3 p-2 bg-red-50 rounded-lg border border-red-200">
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                          <span className="text-sm font-medium text-red-700">
+                            Budget limit {budget.percentage > 100 ? 'exceeded' : 'approaching'}!
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    
-                    <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
-                      <div>
-                        <p className="text-gray-600">Budgeted</p>
-                        <p className="font-semibold">{formatCurrency(budget.budgeted)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Spent</p>
-                        <p className="font-semibold">{formatCurrency(budget.actual)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Remaining</p>
-                        <p className={`font-semibold ${budget.remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(Math.abs(budget.remaining))}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="relative w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="absolute top-0 left-0 h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(budget.percentage, 100)}%`,
-                          backgroundColor: getProgressColor(budget.percentage)
-                        }}
+                  );
+                })
+              ) : (
+                <div className="text-center py-12 sm:py-16">
+                  <div className="p-4 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                    <DollarSign className="h-10 w-10 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 text-lg font-medium">No budgets set yet</p>
+                  <p className="text-sm text-gray-400 mt-2">Click "Add Budget" to get started</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Add/Edit Budget Modal */}
+        {showAddForm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-md w-full mx-4 border border-white/60">
+              <div className="p-6 sm:p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    {editingBudget ? 'Edit Budget' : 'Add New Budget'}
+                  </h3>
+                  <button
+                    onClick={resetForm}
+                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Category *
+                    </label>
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-indigo-200/50 focus:border-indigo-400 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                    >
+                      <option value="">Select category</option>
+                      {allCategories.map(category => (
+                        <option key={category.id} value={category.id}>
+                          {category.name} ({category.type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Budget Amount ({baseCurrency}) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                        {baseCurrency === 'USD' ? '$' : baseCurrency === 'EUR' ? '€' : baseCurrency}
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        required
+                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-indigo-200/50 focus:border-indigo-400 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                        placeholder="0.00"
                       />
                     </div>
-                    
-                    {budget.percentage >= 90 && (
-                      <div className="flex items-center gap-2 mt-3 text-sm text-red-600">
-                        <AlertTriangle className="h-4 w-4" />
-                        <span>Budget limit {budget.percentage > 100 ? 'exceeded' : 'approaching'}!</span>
-                      </div>
-                    )}
                   </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-12">
-                <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No budgets set yet</p>
-                <p className="text-sm text-gray-400 mt-1">Click "Add Budget" to get started</p>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Period *
+                    </label>
+                    <select
+                      value={formData.period}
+                      onChange={(e) => setFormData({ ...formData, period: e.target.value as 'monthly' | 'quarterly' | 'yearly' })}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-indigo-200/50 focus:border-indigo-400 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="quarterly">Quarterly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Start Date *
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <input
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                        required
+                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-indigo-200/50 focus:border-indigo-400 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="submit"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
+                    >
+                      <Save className="h-4 w-4" />
+                      {editingBudget ? 'Update Budget' : 'Create Budget'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Add/Edit Budget Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingBudget ? 'Edit Budget' : 'Add New Budget'}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
-                </label>
-                <select
-  value={formData.category_id}
-  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-  required
-  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
->
-  <option value="">Select category</option>
-  {allCategories.map(category => (
-    <option key={category.id} value={category.id}>
-      {category.name} ({category.type})
-    </option>
-  ))}
-</select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Budget Amount ({baseCurrency}) *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                    {baseCurrency === 'USD' ? '$' : baseCurrency === 'EUR' ? '€' : baseCurrency}
-                  </span>
-                  <input
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    required
-                    min="0.01"
-                    step="0.01"
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Period
-                </label>
-                <select
-                  value={formData.period}
-                  onChange={(e) => setFormData({ ...formData, period: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2 pt-4">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  {editingBudget ? 'Update' : 'Add'} Budget
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
