@@ -37,30 +37,34 @@ export const SubscriptionEnforcer: React.FC<{ children: React.ReactNode }> = ({ 
     const isOnExemptPath = exemptPaths.some(path => location.pathname.includes(path));
     
     if (subscription) {
-      const trialExpired = subscription.trial_end && new Date(subscription.trial_end) < new Date();
-      const hasNoStripeSubscription = !subscription.stripe_subscription_id;
-      const isNotActive = subscription.status !== 'active';
-      
-      // If trial expired and no payment method AND not active
-      if (trialExpired && hasNoStripeSubscription && isNotActive) {
-        if (isOnExemptPath) {
-          setShowTrialExpiredModal(false);
-        } else {
-          setShowTrialExpiredModal(true);
-        }
-      } else {
-        setShowTrialExpiredModal(false);
-      }
-      
-      // Check for trial ending soon (3 days or less)
-      if (isTrialing() && trialDaysLeft() <= 3 && trialDaysLeft() > 0 && !isOnExemptPath) {
-        setAnticipationModalState({
-          isOpen: true,
-          type: 'trial',
-          context: { daysLeft: trialDaysLeft() }
-        });
-      }
+  // 🔥 FIXED LOGIC: Only show modal if actually still trialing and expired
+  const isCurrentlyTrialing = subscription.status === 'trialing';
+  const hasStripeSubscription = !!subscription.stripe_subscription_id;
+  const trialExpired = subscription.trial_end && new Date(subscription.trial_end) < new Date();
+  
+  // Only show trial expired modal if:
+  // 1. Still in trialing status (not paid)
+  // 2. No active Stripe subscription
+  // 3. Trial has actually expired
+  if (isCurrentlyTrialing && !hasStripeSubscription && trialExpired) {
+    if (isOnExemptPath) {
+      setShowTrialExpiredModal(false);
+    } else {
+      setShowTrialExpiredModal(true);
     }
+  } else {
+    setShowTrialExpiredModal(false);
+  }
+  
+  // 🔥 FIXED: Only show trial ending warning if actually trialing AND trial hasn't ended
+  if (isTrialing() && trialDaysLeft() <= 3 && trialDaysLeft() > 0 && !isOnExemptPath && !hasStripeSubscription) {
+    setAnticipationModalState({
+      isOpen: true,
+      type: 'trial',
+      context: { daysLeft: trialDaysLeft() }
+    });
+  }
+}
   }, [subscription, loading, location]);
   
   const planDisplayName = SUBSCRIPTION_PLANS[plan]?.displayName || 'Simple Start';

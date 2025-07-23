@@ -188,8 +188,8 @@ export const STRIPE_PRICE_IDS = {
     yearly: 'price_1RcoIWGO7FUbyUUTE4NsZ1Kk'
   },
   plus: {
-    monthly: 'price_1RcoLUGO7FUbyUUTNtBKEIHe', // You may need to create a new price for $25
-    yearly: 'price_1RcoLUGO7FUbyUUTYFuP5QvE'   // You may need to create a new price for $240
+    monthly: 'price_1RoAIJGO7FUbyUUTJ3j20InB',  // ✅ NEW
+    yearly: 'price_1RoAIyGO7FUbyUUTvCuhXEid'   // ✅ NEW
   }
 };
 

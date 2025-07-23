@@ -59,7 +59,8 @@ interface SubscriptionContextType {
   isTrialing: () => boolean;
   trialDaysLeft: () => number;
   isActive: () => boolean;
-  
+  hasPaidSubscription: () => boolean;  // 🔥 ADD THIS LINE
+
   // Actions
   refreshUsage: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
@@ -354,9 +355,21 @@ useEffect(() => {
   };
 
   const isActive = (): boolean => {
-    if (!subscription) return false;
-    return subscription.status === 'active' || isTrialing();
-  };
+  if (!subscription) return false;
+  
+  // 🔥 FIXED: Properly check for active subscription
+  // User is active if:
+  // 1. They have 'active' status (paid subscription), OR
+  // 2. They are currently in a valid trial
+  return subscription.status === 'active' || 
+         (subscription.status === 'trialing' && isTrialing());
+};
+
+// 🔥 NEW: Add helper to check if user has paid subscription
+const hasPaidSubscription = (): boolean => {
+  if (!subscription) return false;
+  return subscription.status === 'active' && !!subscription.stripe_subscription_id;
+};
 
   // Actions
   const refreshUsage = async () => {
@@ -384,6 +397,7 @@ useEffect(() => {
     isTrialing,
     trialDaysLeft,
     isActive,
+    hasPaidSubscription,
     refreshUsage,
     refreshSubscription,
     showAnticipationModal,
