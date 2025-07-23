@@ -3,7 +3,12 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { SkeletonCard } from '../Common/Loading';
+import { AIInsightsService, Insight } from '../../services/aiInsightsService';
+import { Brain, RefreshCw } from 'lucide-react';
+import { ContextCollectionModal } from '../AI/ContextCollectionModal';
+
 import { 
+  Building ,
   TrendingUp, 
   TrendingDown, 
   DollarSign, 
@@ -23,7 +28,9 @@ import {
   AlertCircle,
   CheckCircle,
   AlertTriangle,
-  Upload
+  Upload,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { AIImportWizard } from '../Import/AIImportWizard';
 import { 
@@ -103,7 +110,14 @@ export const Dashboard: React.FC = () => {
   const { businessData, businessDataLoading } = useData();
 const { incomes, expenses, invoices, clients } = businessData;
 const [showImportWizard, setShowImportWizard] = useState(false);
-
+// ADD these state variables after line 64
+const [insights, setInsights] = useState<Insight[]>([]);
+const [loadingInsights, setLoadingInsights] = useState(true);
+const [refreshingInsights, setRefreshingInsights] = useState(false);
+const [lastInsightUpdate, setLastInsightUpdate] = useState<string>('');
+const [needsContext, setNeedsContext] = useState(false);
+const [missingFields, setMissingFields] = useState<any[]>([]); // Use any[] instead of string[]
+const [showContextModal, setShowContextModal] = useState(false);
 
 // Filter for current month data for dashboard stats
 const currentDate = new Date();
@@ -119,6 +133,11 @@ const currentMonthExpenses = expenses.filter(expense => {
   const expenseDate = parseISO(expense.date);
   return expenseDate >= currentMonthStart && expenseDate <= currentMonthEnd;
 });
+
+// ADD this function after your useState declarations
+const formatInsightCurrency = (amount: number) => {
+  return formatCurrency(amount); // Uses your existing formatCurrency from useSettings
+};
 
 // Calculate stats from current month data
 const stats = {
@@ -166,6 +185,64 @@ const generateMonthlyData = () => {
   
   return months;
 };
+
+// ADD these functions after the stats calculation
+// REPLACE your existing loadInsights function:
+const loadInsights = async () => {
+  try {
+    setLoadingInsights(true);
+    const response = await AIInsightsService.getInsights();
+    
+    // Add safety checks
+    if (response && response.needsContext) {
+      setNeedsContext(true);
+      setMissingFields(response.missingFields || []);
+      setShowContextModal(true);
+      setInsights([]);
+    } else if (response && response.insights) {
+      setInsights(response.insights);
+      setLastInsightUpdate(response.generated_at);
+      setNeedsContext(false);
+      setMissingFields([]); // Clear any previous missing fields
+    } else {
+      // Fallback if response is malformed
+      setInsights([]);
+      setNeedsContext(false);
+      setMissingFields([]);
+    }
+  } catch (error) {
+    console.error('Error loading insights:', error);
+    // Reset states on error
+    setInsights([]);
+    setNeedsContext(false);
+    setMissingFields([]);
+  } finally {
+    setLoadingInsights(false);
+  }
+};
+
+const handleRefreshInsights = async () => {
+  try {
+    setRefreshingInsights(true);
+    const response = await AIInsightsService.regenerateInsights();
+    setInsights(response.insights);
+    setLastInsightUpdate(response.generated_at);
+  } catch (error) {
+    console.error('Error refreshing insights:', error);
+  } finally {
+    setRefreshingInsights(false);
+  }
+};
+
+// Load insights when component mounts (since you don't have useEffect)
+React.useEffect(() => {
+  if (user && !businessDataLoading) {
+    loadInsights();
+  }
+}, [user, businessDataLoading]);
+
+const [showAllInsights, setShowAllInsights] = useState(false);
+
 
 const monthlyData = generateMonthlyData();
 
@@ -453,6 +530,157 @@ const loading = businessDataLoading;
           </div>
         </div>
 
+
+        {/* AI CFO Insights Section */}
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-xl">
+                <Brain className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">AI CFO Insights</h2>
+                <p className="text-sm text-gray-500">Smart business intelligence</p>
+              </div>
+            </div>
+            <button
+              onClick={handleRefreshInsights}
+              disabled={refreshingInsights}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshingInsights ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+
+          {/* Last Updated */}
+          {lastInsightUpdate && (
+            <div className="text-xs text-gray-500 mb-4">
+              Last updated: {format(new Date(lastInsightUpdate), 'MMM d, yyyy \'at\' h:mm a')}
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loadingInsights ? (
+            <div className="space-y-3">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+              </div>
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            </div>
+          ) : (
+            /* Insights */
+            <div className="space-y-3">
+              {insights.length === 0 && !needsContext ? (
+  <div className="text-center py-8 text-gray-500">
+    <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
+    <p className="font-medium">No insights available yet</p>
+    <p className="text-sm">Add some transactions to get AI-powered insights!</p>
+  </div>
+) : needsContext ? (
+  <div className="text-center py-8">
+    <Building className="w-12 h-12 mx-auto mb-3 text-blue-600" />
+    <p className="font-medium text-gray-900 mb-2">Get Personalized Insights</p>
+    <p className="text-sm text-gray-600 mb-4">Tell us about your business to receive tailored financial advice</p>
+    <button
+      onClick={() => setShowContextModal(true)}
+      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+    >
+      Complete Setup
+    </button>
+  </div>
+) : (
+                <>
+                  {/* Show top 2 insights sorted by priority */}
+                  {insights
+                    .sort((a, b) => a.priority - b.priority) // Sort by priority (1 = highest)
+                    .slice(0, showAllInsights ? insights.length : 2) // Show 2 or all
+                    .map((insight) => {
+                      const getInsightIcon = (type: string) => {
+                        switch (type) {
+                          case 'urgent': return '🚨';
+                          case 'warning': return '⚠️';
+                          case 'success': return '💰';
+                          default: return '💡';
+                        }
+                      };
+
+                      const getInsightStyle = (type: string) => {
+                        switch (type) {
+                          case 'urgent': 
+                            return 'border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-red-25';
+                          case 'warning': 
+                            return 'border-l-4 border-yellow-500 bg-gradient-to-r from-yellow-50 to-yellow-25';
+                          case 'success': 
+                            return 'border-l-4 border-green-500 bg-gradient-to-r from-green-50 to-green-25';
+                          default: 
+                            return 'border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-25';
+                        }
+                      };
+
+                      return (
+                        <div
+                          key={insight.id}
+                          className={`rounded-lg p-4 ${getInsightStyle(insight.type)}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className="text-lg flex-shrink-0">
+                              {getInsightIcon(insight.type)}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 mb-1">
+                                {insight.title}
+                              </h3>
+                              <p className="text-gray-700 text-sm mb-2 leading-relaxed">
+                                {insight.message}
+                              </p>
+                              {insight.action && (
+                                <Link
+                                  to={insight.action.link}
+                                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                                >
+                                  {insight.action.label}
+                                  <ArrowRight className="w-4 h-4 ml-1" />
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {/* Show More/Less Button */}
+                  {insights.length > 2 && (
+                    <div className="pt-3 border-t border-gray-100">
+                      <button
+                        onClick={() => setShowAllInsights(!showAllInsights)}
+                        className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        {showAllInsights ? (
+                          <>
+                            Show Less
+                            <ChevronUp className="w-4 h-4" />
+                          </>
+                        ) : (
+                          <>
+                            Show {insights.length - 2} More Insights
+                            <ChevronDown className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <FeatureGate feature="cash_flow_analysis" className="h-full">
@@ -643,6 +871,8 @@ const loading = businessDataLoading;
   </div>
 </div>
 
+        
+
         {/* Monthly Performance and Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
@@ -717,6 +947,27 @@ const loading = businessDataLoading;
           }}
         />
       )}
+      {/* Context Collection Modal - UPDATE this */}
+{showContextModal && missingFields && missingFields.length > 0 && (
+  <ContextCollectionModal
+    isOpen={showContextModal}
+    onClose={() => {
+      setShowContextModal(false);
+      setNeedsContext(false);
+      setMissingFields([]); // ADD: Clear missing fields
+    }}
+    missingFields={missingFields}
+    onComplete={() => {
+      setShowContextModal(false);
+      setNeedsContext(false);
+      setMissingFields([]); // ADD: Clear missing fields
+      // Wait a moment before reloading to ensure state is clean
+      setTimeout(() => {
+        loadInsights();
+      }, 100);
+    }}
+  />
+)}
     </div>
   );
 };

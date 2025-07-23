@@ -6,6 +6,7 @@ import { subscriptionService } from '../services/subscriptionService';
 import { getEffectiveUserId } from '../services/database';
 import { getIncomes, getExpenses, getInvoices, getClients, getCategories, getBudgets } from '../services/database';
 import { format, startOfMonth, endOfMonth, subYears } from 'date-fns';
+import { AIInsightsService } from '../services/aiInsightsService'; // Add this import
 
 interface DataContextType {
   subscription: any;
@@ -226,6 +227,8 @@ const addIncomeToCache = (newIncome: any) => {
     ...prev,
     incomes: [newIncome, ...prev.incomes]
   }));
+    AIInsightsService.refreshInsightsOnTransaction('income');
+
 };
 
 const addExpenseToCache = (newExpense: any) => {
@@ -233,6 +236,8 @@ const addExpenseToCache = (newExpense: any) => {
     ...prev,
     expenses: [newExpense, ...prev.expenses]
   }));
+    AIInsightsService.refreshInsightsOnTransaction('expense');
+
 };
 
 const addInvoiceToCache = (newInvoice: any) => {
@@ -240,6 +245,8 @@ const addInvoiceToCache = (newInvoice: any) => {
     ...prev,
     invoices: [newInvoice, ...prev.invoices]
   }));
+    AIInsightsService.refreshInsightsOnTransaction('invoice');
+
 };
 
 const addClientToCache = (newClient: any) => {

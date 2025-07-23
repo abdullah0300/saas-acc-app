@@ -443,42 +443,40 @@ export const ExpenseForm: React.FC = () => {
               )}
               <select
                 value={formData.category_id}
-                onChange={(e) => {
-  const newDescription = e.target.value;
-  setFormData({ ...formData, description: newDescription });
-  
-  // Clear any existing suggestion
-  setShowAiSuggestion(false);
-  setAiSuggestion(null);
-  
-  // Clear existing timeout
-  if (window.aiSuggestionTimeout) {
-    clearTimeout(window.aiSuggestionTimeout);
-  }
-  
-  // Try instant suggestion first (0ms delay)
-  if (newDescription.length >= 3 && formData.amount) {
-    const instantSuggestion = AIService.getInstantSuggestion(
-      newDescription, 
-      categories
-    );
+               onChange={(e) => {
+    const newCategoryId = e.target.value;
     
-    if (instantSuggestion && instantSuggestion.confidence > 0.7) {
-      // Show instant suggestion immediately
-      setAiSuggestion(instantSuggestion);
-      setShowAiSuggestion(true);
-      setLoadingAiSuggestion(false);
-    } else {
-      // Fall back to AI with small delay
-      setLoadingAiSuggestion(true);
-      setShowAiSuggestion(true);
+    // ✅ CORRECT: Update category_id field
+    setFormData({ ...formData, category_id: newCategoryId });
+    
+    // ✅ TRAINING: If AI had a suggestion and user picks different category, log rejection
+    if (aiSuggestion && aiSuggestion.category && newCategoryId) {
+      const selectedCategory = categories.find(cat => cat.id === newCategoryId);
       
-      window.aiSuggestionTimeout = setTimeout(() => {
-        getAISuggestion(formData.amount, newDescription, formData.vendor);
-      }, 800); // Reduced delay since we have instant fallback
+      // If user picked different category than AI suggested, log as rejection
+      if (selectedCategory && selectedCategory.name !== aiSuggestion.category) {
+        AIService.logUserChoice(
+          "expense_category",
+          aiSuggestion.category, // What AI suggested
+          selectedCategory.name,  // What user actually chose
+          {
+            amount: formData.amount,
+            description: formData.description,
+            outcome: "manual_override", // User manually overrode AI
+          }
+        );
+      }
     }
-  }
-}}
+    
+    // Clear AI suggestion display
+    setShowAiSuggestion(false);
+    setAiSuggestion(null);
+    
+    // Clear any pending AI timeouts
+    if (window.aiSuggestionTimeout) {
+      clearTimeout(window.aiSuggestionTimeout);
+    }
+  }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select category</option>
