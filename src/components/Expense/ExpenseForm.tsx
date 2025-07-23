@@ -65,11 +65,14 @@ export const ExpenseForm: React.FC = () => {
   const [showAiSuggestion, setShowAiSuggestion] = useState(false);
 
   useEffect(() => {
-    loadCategories();
-    if (isEdit && id) {
-      loadExpense();
-    }
-  }, [id, isEdit]);
+  loadCategories();
+  // Preload user's learning patterns for instant suggestions
+  AIService.preloadUserPatterns();
+  
+  if (isEdit && id) {
+    loadExpense();
+  }
+}, [id, isEdit]);
 
   useEffect(() => {
     if (user) {
@@ -441,34 +444,41 @@ export const ExpenseForm: React.FC = () => {
               <select
                 value={formData.category_id}
                 onChange={(e) => {
-                  const newCategoryId = e.target.value;
-                  setFormData({ ...formData, category_id: newCategoryId });
-
-                  // If user had an AI suggestion but chose different category, log it for learning
-                  if (showAiSuggestion && aiSuggestion?.category) {
-                    const selectedCategory = categories.find(
-                      (cat) => cat.id === newCategoryId
-                    );
-                    if (
-                      selectedCategory &&
-                      selectedCategory.name !== aiSuggestion.category
-                    ) {
-                      AIService.logUserChoice(
-                        "expense_category",
-                        aiSuggestion.category,
-                        selectedCategory.name, // What user actually chose
-                        {
-                          amount: formData.amount,
-                          description: formData.description,
-                          outcome: "user_override",
-                          user_preferred: selectedCategory.name,
-                        }
-                      );
-                    }
-                    setShowAiSuggestion(false);
-                    setAiSuggestion(null);
-                  }
-                }}
+  const newDescription = e.target.value;
+  setFormData({ ...formData, description: newDescription });
+  
+  // Clear any existing suggestion
+  setShowAiSuggestion(false);
+  setAiSuggestion(null);
+  
+  // Clear existing timeout
+  if (window.aiSuggestionTimeout) {
+    clearTimeout(window.aiSuggestionTimeout);
+  }
+  
+  // Try instant suggestion first (0ms delay)
+  if (newDescription.length >= 3 && formData.amount) {
+    const instantSuggestion = AIService.getInstantSuggestion(
+      newDescription, 
+      categories
+    );
+    
+    if (instantSuggestion && instantSuggestion.confidence > 0.7) {
+      // Show instant suggestion immediately
+      setAiSuggestion(instantSuggestion);
+      setShowAiSuggestion(true);
+      setLoadingAiSuggestion(false);
+    } else {
+      // Fall back to AI with small delay
+      setLoadingAiSuggestion(true);
+      setShowAiSuggestion(true);
+      
+      window.aiSuggestionTimeout = setTimeout(() => {
+        getAISuggestion(formData.amount, newDescription, formData.vendor);
+      }, 800); // Reduced delay since we have instant fallback
+    }
+  }
+}}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select category</option>
