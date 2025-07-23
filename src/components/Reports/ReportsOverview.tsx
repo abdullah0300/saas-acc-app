@@ -1209,11 +1209,11 @@ const processFastData = (
         </div>
 
         {/* Smart Insights Panel */}
-        <InsightsPanel 
+        {/* <InsightsPanel 
           insights={insights} 
           onDismiss={handleDismissInsight}
           loading={loadingInsights}
-        />
+        /> */}
 
         {/* Main Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
