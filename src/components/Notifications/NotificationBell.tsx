@@ -8,34 +8,98 @@ import { formatDistanceToNow } from 'date-fns';
 import { notificationConfig } from '../../types';
 import * as Icons from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../services/supabaseClient';
 
 export const NotificationBell: React.FC = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const [lastAcknowledgedCount, setLastAcknowledgedCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-const { formatCurrency, baseCurrency } = useSettings();
+  const { formatCurrency, baseCurrency } = useSettings();
+  const { user } = useAuth();
 
-// Helper function to format notification messages with proper currency
-const formatNotificationMessage = (notification: any) => {
-  let message = notification.message;
-  
-  if (notification.metadata?.amount !== undefined) {
-    const amount = notification.metadata.amount;
-    const currency = notification.metadata.currency || baseCurrency;
-    message = message.replace(/\$[\d,]+\.?\d*/g, () => {
-      return formatCurrency(amount, currency);
-    });
-  } else {
-    message = message.replace(/\$[\d,]+\.?\d*/g, (match: string) => {
-      const amount = parseFloat(match.replace(/[$,]/g, ''));
-      return formatCurrency(amount, baseCurrency);
-    });
-  }
-  
-  return message;
-};
-  // Close dropdown on outside click
+  // Helper function to format notification messages with proper currency
+  const formatNotificationMessage = (notification: any) => {
+    let message = notification.message;
+    
+    if (notification.metadata?.amount !== undefined) {
+      const amount = notification.metadata.amount;
+      const currency = notification.metadata.currency || baseCurrency;
+      message = message.replace(/\$[\d,]+\.?\d*/g, () => {
+        return formatCurrency(amount, currency);
+      });
+    } else {
+      message = message.replace(/\$[\d,]+\.?\d*/g, (match: string) => {
+        const amount = parseFloat(match.replace(/[$,]/g, ''));
+        return formatCurrency(amount, baseCurrency);
+      });
+    }
+    
+    return message;
+  };
+
+  // Load and save last acknowledged notification count
+  const loadLastAcknowledgedCount = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('user_settings')
+        .select('notification_preferences')
+        .eq('user_id', user.id)
+        .single();
+      
+      const lastCount = data?.notification_preferences?.last_acknowledged_count || 0;
+      setLastAcknowledgedCount(lastCount);
+    } catch (error) {
+      console.error('Error loading notification preferences:', error);
+    }
+  };
+
+  const saveLastAcknowledgedCount = async (count: number) => {
+    if (!user) return;
+    try {
+      // Get current preferences first
+      const { data: currentData } = await supabase
+        .from('user_settings')
+        .select('notification_preferences')
+        .eq('user_id', user.id)
+        .single();
+
+      const currentPrefs = currentData?.notification_preferences || {};
+      
+      await supabase
+        .from('user_settings')
+        .update({
+          notification_preferences: {
+            ...currentPrefs,
+            last_acknowledged_count: count
+          }
+        })
+        .eq('user_id', user.id);
+      
+      setLastAcknowledgedCount(count);
+    } catch (error) {
+      console.error('Error saving notification preferences:', error);
+    }
+  };
+
+  // Load last acknowledged count on mount
+  useEffect(() => {
+    loadLastAcknowledgedCount();
+  }, [user]);
+
+  const handleBellClick = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen && unreadCount > 0) {
+      // Save current unread count as acknowledged
+      saveLastAcknowledgedCount(unreadCount);
+    }
+  };
+
+  // Show badge only if current unread count is higher than last acknowledged
+  const shouldShowBadge = unreadCount > lastAcknowledgedCount;
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -70,11 +134,11 @@ const formatNotificationMessage = (notification: any) => {
     <div className="relative" ref={dropdownRef}>
       {/* Bell Icon with Badge */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleBellClick}
         className="relative text-gray-600 hover:text-gray-900 transition-colors p-2"
       >
         <Bell className="h-6 w-6" />
-        {unreadCount > 0 && (
+        {shouldShowBadge && (
           <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
