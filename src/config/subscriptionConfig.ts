@@ -62,7 +62,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
     description: 'Perfect for freelancers and solopreneurs',
     monthlyPrice: 5,
     yearlyPrice: 48, // 20% discount
-    trialDays: 30,
+    trialDays: 30,  
     limits: {
       users: 1,
       monthlyInvoices: 20, // CHANGED FROM 50 TO 20
