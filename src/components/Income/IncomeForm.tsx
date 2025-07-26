@@ -19,7 +19,7 @@ import { Category } from "../../types";
 export const IncomeForm: React.FC = () => {
   const { user } = useAuth();
   const { taxRates, defaultTaxRate } = useSettings(); // Added taxRates and defaultTaxRate
-  const { addIncomeToCache, addClientToCache } = useData();
+  const { addIncomeToCache,  addClientToCache , updateIncomeInCache } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -157,7 +157,8 @@ export const IncomeForm: React.FC = () => {
       };
 
       if (isEdit && id) {
-        await updateIncome(id, incomeData);
+        const updatedIncome = await updateIncome(id, incomeData);
+        updateIncomeInCache(id, updatedIncome); 
       } else {
         const newIncome = await createIncome(incomeData);
 

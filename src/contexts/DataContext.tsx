@@ -34,6 +34,9 @@ interface DataContextType {
   addBudgetToCache: (budget: any) => void; // ✅ Add this
   updateBudgetInCache: (id: string, budget: any) => void; // ✅ Add this
   removeBudgetFromCache: (id: string) => void; // ✅ Add this
+  updateIncomeInCache: (id: string, income: any) => void;
+    updateExpenseInCache: (id: string, expense: any) => void; // ADD THIS LINE
+
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -173,6 +176,15 @@ const updateBudgetInCache = (id: string, updatedBudget: any) => {
   }));
 };
 
+const updateExpenseInCache = (id: string, updatedExpense: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    expenses: prev.expenses.map(expense => 
+      expense.id === id ? updatedExpense : expense
+    )
+  }));
+};
+
 const removeBudgetFromCache = (id: string) => {
   setBusinessData(prev => ({
     ...prev,
@@ -231,6 +243,15 @@ const addIncomeToCache = (newIncome: any) => {
 
 };
 
+const updateIncomeInCache = (id: string, updatedIncome: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    incomes: prev.incomes.map(income => 
+      income.id === id ? updatedIncome : income
+    )
+  }));
+};
+
 const addExpenseToCache = (newExpense: any) => {
   setBusinessData(prev => ({
     ...prev,
@@ -274,6 +295,8 @@ const addClientToCache = (newClient: any) => {
     addClientToCache,
     addBudgetToCache,
     updateBudgetInCache,
+     updateExpenseInCache,
+     updateIncomeInCache,
     removeBudgetFromCache
   }}>
       {children}

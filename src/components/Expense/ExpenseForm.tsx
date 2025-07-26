@@ -32,6 +32,7 @@ export const ExpenseForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+  const {  updateExpenseInCache } = useData(); // ADD updateExpenseInCache
 
   const [formData, setFormData] = useState({
     amount: "",
@@ -309,7 +310,8 @@ export const ExpenseForm: React.FC = () => {
       };
 
       if (isEdit && id) {
-        await updateExpense(id, expenseData);
+        const updatedExpense = await updateExpense(id, expenseData);
+    updateExpenseInCache(id, updatedExpense); 
       } else {
         const newExpense = await createExpense(expenseData);
         addExpenseToCache(newExpense); // ✅ Add to cache

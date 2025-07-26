@@ -184,7 +184,11 @@ if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount || null;
     .from('income')
     .update(updateData)
     .eq('id', id)
-    .select()
+    .select(`
+      *,
+      category:categories(*),
+      client:clients(*)
+    `)
     .single();
   
   if (error) throw error;
@@ -259,7 +263,11 @@ export const updateExpense = async (id: string, updates: Partial<Expense>) => {
     .from('expenses')
     .update(updateData)
     .eq('id', id)
-    .select()
+    .select(`
+      *,
+      category:categories(*),
+      vendor_detail:vendors(*)
+    `)
     .single();
   
   if (error) throw error;
