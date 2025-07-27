@@ -541,7 +541,7 @@ const loading = businessDataLoading;
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">AI CFO Insights</h2>
-                <p className="text-sm text-gray-500">Smart business intelligence</p>
+                <p className="text-sm text-gray-500">We get it - here's what the numbers are telling us</p>
               </div>
             </div>
             <button
@@ -948,23 +948,35 @@ const loading = businessDataLoading;
         />
       )}
       {/* Context Collection Modal - UPDATE this */}
-{showContextModal && missingFields && missingFields.length > 0 && (
+
+{showContextModal && (
   <ContextCollectionModal
     isOpen={showContextModal}
     onClose={() => {
       setShowContextModal(false);
       setNeedsContext(false);
-      setMissingFields([]); // ADD: Clear missing fields
+      setMissingFields([]);
     }}
     missingFields={missingFields}
     onComplete={() => {
+      // Close modal immediately
       setShowContextModal(false);
       setNeedsContext(false);
-      setMissingFields([]); // ADD: Clear missing fields
-      // Wait a moment before reloading to ensure state is clean
-      setTimeout(() => {
-        loadInsights();
-      }, 100);
+      setMissingFields([]);
+      
+      // Show loading and regenerate insights after a delay
+      setLoadingInsights(true);
+      setTimeout(async () => {
+        try {
+          const response = await AIInsightsService.regenerateInsights();
+          setInsights(response.insights);
+          setLastInsightUpdate(response.generated_at);
+        } catch (error) {
+          console.error('Error loading insights:', error);
+        } finally {
+          setLoadingInsights(false);
+        }
+      }, 1000);
     }}
   />
 )}

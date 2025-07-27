@@ -1,6 +1,8 @@
-// COMPLETE REPLACEMENT: src/components/AI/ContextCollectionModal.tsx
+// UPDATED: src/components/AI/ContextCollectionModal.tsx
+// Now supports both text inputs AND dropdowns for global scalability
+
 import React, { useState, useEffect } from 'react';
-import { X, Building, ArrowLeft, ArrowRight, Check, AlertCircle } from 'lucide-react';
+import { X, Building, ArrowLeft, ArrowRight, Check, AlertCircle, Lightbulb } from 'lucide-react';
 import { AIInsightsService } from '../../services/aiInsightsService';
 
 interface ContextCollectionModalProps {
@@ -20,6 +22,7 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showExamples, setShowExamples] = useState(false);
 
   // Reset modal state when it opens/closes
   useEffect(() => {
@@ -28,6 +31,7 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
       setAnswers({});
       setSaving(false);
       setError('');
+      setShowExamples(false);
     }
   }, [isOpen]);
 
@@ -40,45 +44,45 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
   const progressPercentage = ((currentStep + 1) / missingFields.length) * 100;
 
   const handleNext = async () => {
-  if (isLastStep) {
-    try {
-      setSaving(true);
+    if (isLastStep) {
+      try {
+        setSaving(true);
+        setError('');
+        
+        await AIInsightsService.updateUserContext(answers);
+        
+        // Close modal FIRST
+        onClose();
+        
+        // Reset modal state after closing
+        setCurrentStep(0);
+        setAnswers({});
+        setSaving(false);
+        
+        // Then trigger completion callback
+        onComplete();
+        
+      } catch (error) {
+        console.error('Error saving context:', error);
+        setError('Failed to save your information. Please try again.');
+        setSaving(false);
+      }
+    } else {
+      setCurrentStep(currentStep + 1);
       setError('');
-      
-      await AIInsightsService.updateUserContext(answers);
-      
-      // Close modal FIRST
-      onClose();
-      
-      // Reset modal state after closing
-      setCurrentStep(0);
-      setAnswers({});
-      setSaving(false);
-      
-      // Then trigger completion callback
-      onComplete();
-      
-    } catch (error) {
-      console.error('Error saving context:', error);
-      setError('Failed to save your information. Please try again.');
-      setSaving(false); // Make sure to reset saving state on error
     }
-  } else {
-    setCurrentStep(currentStep + 1);
-    setError(''); // Clear any previous errors
-  }
-};
+  };
 
   const handleBack = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
-      setError(''); // Clear any errors when going back
+      setError('');
     }
   };
 
   const handleAnswer = (value: string) => {
     setAnswers({ ...answers, [currentField.field]: value });
-    setError(''); // Clear error when user provides answer
+    setError('');
   };
 
   const handleClose = () => {
@@ -111,8 +115,8 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
                 <Building className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Business Setup</h2>
-                <p className="text-sm text-gray-500">Help us personalize your experience</p>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Tell Us About Your Business</h2>
+                <p className="text-sm text-gray-500">Help us provide personalized insights</p>
               </div>
             </div>
             <button 
@@ -152,7 +156,7 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
                   {currentField.question}
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  This information helps us provide insights tailored specifically to your business needs.
+                  This helps us provide insights that are relevant to your specific business and market.
                 </p>
               </div>
 
@@ -167,12 +171,61 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
                 </div>
               )}
               
-              {/* Answer Options */}
-              <div className="space-y-3">
-                {currentField.options ? (
-                  // Multiple Choice Options
+              {/* Answer Input/Options */}
+              <div className="space-y-4">
+                {currentField.type === 'text' ? (
+                  // TEXT INPUT for business_type and location
+                  <div className="space-y-4">
+                    <div>
+                      <textarea
+                        placeholder={currentField.placeholder}
+                        value={answers[currentField.field] || ''}
+                        onChange={(e) => handleAnswer(e.target.value)}
+                        disabled={saving}
+                        rows={3}
+                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-0 transition-colors resize-none placeholder:text-gray-400 text-gray-900"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Be as specific as you'd like - this helps us give you better advice!
+                      </p>
+                    </div>
+
+                    {/* Examples Section */}
+                    {currentField.examples && currentField.examples.length > 0 && (
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+                        <button
+                          type="button"
+                          onClick={() => setShowExamples(!showExamples)}
+                          className="flex items-center gap-2 text-sm font-medium text-amber-800 hover:text-amber-900 transition-colors"
+                        >
+                          <Lightbulb className="w-4 h-4" />
+                          {showExamples ? 'Hide' : 'Show'} Examples
+                        </button>
+                        
+                        {showExamples && (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-xs text-amber-700 font-medium">Example answers:</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {currentField.examples.map((example: string, index: number) => (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  onClick={() => handleAnswer(example)}
+                                  className="text-left p-2 bg-white/70 hover:bg-white border border-amber-200 rounded-lg text-xs text-amber-800 hover:text-amber-900 transition-colors"
+                                >
+                                  "{example}"
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // DROPDOWN for business_stage (keeping existing functionality)
                   <div className="space-y-3 max-h-64 sm:max-h-80 overflow-y-auto pr-1">
-                    {currentField.options.map((option: string, index: number) => {
+                    {currentField.options?.map((option: string, index: number) => {
                       const isSelected = answers[currentField.field] === option;
                       return (
                         <button
@@ -197,7 +250,7 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
                                 : 'border-gray-300 group-hover:border-gray-400'
                             }`}>
                               {isSelected && (
-                                <Check className="w-3 h-3 text-white" />
+                                <Check className="w-3.5 h-3.5 text-white" />
                               )}
                             </div>
                           </div>
@@ -205,80 +258,47 @@ export const ContextCollectionModal: React.FC<ContextCollectionModalProps> = ({
                       );
                     })}
                   </div>
-                ) : (
-                  // Text Input
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Type your answer here..."
-                      value={answers[currentField.field] || ''}
-                      onChange={(e) => handleAnswer(e.target.value)}
-                      disabled={saving}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-0 focus:border-blue-500 transition-colors text-gray-900 placeholder-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                      autoFocus
-                    />
-                    <p className="text-xs text-gray-500">
-                      Enter your response and click Next to continue
-                    </p>
-                  </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Footer Actions */}
+          {/* Footer */}
           <div className="p-4 sm:p-6 border-t border-gray-100 bg-white flex-shrink-0">
             <div className="flex gap-3">
               {!isFirstStep && (
                 <button
                   onClick={handleBack}
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-3 text-gray-600 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">Back</span>
+                  <span className="font-medium">Back</span>
                 </button>
               )}
+              
               <button
                 onClick={handleNext}
                 disabled={!canProceed || saving}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 {saving ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>Saving...</span>
                   </>
                 ) : isLastStep ? (
                   <>
+                    <Check className="w-4 h-4" />
                     <span>Complete Setup</span>
-                    <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
                   </>
                 ) : (
                   <>
-                    <span>Next</span>
+                    <span>Continue</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
-            </div>
-            
-            {/* Step Indicators (Mobile) */}
-            <div className="flex justify-center gap-2 mt-4 sm:hidden">
-              {missingFields.map((_, index) => (
-                <div
-                  key={`step-${index}`}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === currentStep 
-                      ? 'bg-blue-500' 
-                      : index < currentStep 
-                        ? 'bg-green-400' 
-                        : 'bg-gray-300'
-                  }`}
-                />
-              ))}
             </div>
           </div>
         </div>
