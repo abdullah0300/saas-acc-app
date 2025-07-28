@@ -246,16 +246,32 @@ const [showAllInsights, setShowAllInsights] = useState(false);
 
 const monthlyData = generateMonthlyData();
 
-const categoryData: any = { 
-  income: incomes.slice(0, 5).map(income => ({
-    name: income.category?.name || 'Uncategorized',
-    value: income.amount
-  })), 
-  expense: expenses.slice(0, 5).map(expense => ({
-    name: expense.category?.name || 'Uncategorized', 
-    value: expense.amount
-  }))
-};
+const categoryData: any = (() => {
+  // Group income by category and sum amounts
+  const incomeByCategory = incomes.reduce((acc: any, income) => {
+    const categoryName = income.category?.name || 'Uncategorized';
+    acc[categoryName] = (acc[categoryName] || 0) + income.amount;
+    return acc;
+  }, {});
+
+  // Group expenses by category and sum amounts  
+  const expenseByCategory = expenses.reduce((acc: any, expense) => {
+    const categoryName = expense.category?.name || 'Uncategorized';
+    acc[categoryName] = (acc[categoryName] || 0) + expense.amount;
+    return acc;
+  }, {});
+
+  return {
+    income: Object.entries(incomeByCategory)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 5), // Top 5 income categories
+    expense: Object.entries(expenseByCategory)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 5)  // Top 5 expense categories
+  };
+})();
 // Create recent activity with proper type field
 const recentActivity = [
   ...currentMonthIncomes.slice(0, 3).map(income => ({ 
