@@ -82,7 +82,7 @@ const COLORS = ['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b'
 export const ClientProfitability: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, baseCurrency } = useSettings();
   
   // Date range state - default to last 12 months
   const [startDate, setStartDate] = useState(
@@ -166,14 +166,14 @@ export const ClientProfitability: React.FC = () => {
       );
       
       // Calculate metrics
-      const totalRevenue = clientIncomes.reduce((sum, inc) => sum + inc.amount, 0);
+      const totalRevenue = clientIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
       const paidInvoices = clientInvoices.filter(inv => inv.status === 'paid');
       const pendingInvoices = clientInvoices.filter(inv => inv.status === 'sent');
       const overdueInvoices = clientInvoices.filter(inv => inv.status === 'overdue');
       
       // Calculate outstanding amount
       const outstandingAmount = [...pendingInvoices, ...overdueInvoices]
-        .reduce((sum, inv) => sum + inv.total, 0);
+        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       
       // Calculate average payment days
       const paymentDays = paidInvoices
@@ -203,7 +203,7 @@ export const ClientProfitability: React.FC = () => {
         .filter(inv => inv.paid_date)
         .map(inv => ({
           date: inv.paid_date!,
-          amount: inv.total,
+          amount: inv.base_amount || inv.total,
           invoiceNumber: inv.invoice_number
         }))
         .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
@@ -251,8 +251,8 @@ export const ClientProfitability: React.FC = () => {
     const monthlyData: { [key: string]: number } = {};
     
     incomes.forEach(income => {
-      const monthKey = format(parseISO(income.date), 'MMM yyyy');
-      monthlyData[monthKey] = (monthlyData[monthKey] || 0) + income.amount;
+  const monthKey = format(parseISO(income.date), 'MMM yyyy');
+      monthlyData[monthKey] = (monthlyData[monthKey] || 0) + (income.base_amount || income.amount);
     });
     
     return Object.entries(monthlyData)
@@ -543,8 +543,8 @@ export const ClientProfitability: React.FC = () => {
                   <div className="text-xs text-emerald-600 font-medium">Revenue</div>
                 </div>
               </div>
-              <p className="text-3xl font-bold text-emerald-900 mb-1">{formatCurrency(summaryMetrics.totalRevenue)}</p>
-              <p className="text-sm text-emerald-700">Total Revenue</p>
+              <p className="text-3xl font-bold text-emerald-900 mb-1">{formatCurrency(summaryMetrics.totalRevenue, baseCurrency)}</p>
+              <p className="text-sm text-emerald-700">Total Revenue ({baseCurrency})</p>
             </div>
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-200/30 rounded-full blur-2xl"></div>
           </div>

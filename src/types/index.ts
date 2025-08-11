@@ -109,6 +109,8 @@ export interface Invoice {
   total: number;
   notes?: string;
   currency?: string;
+  exchange_rate?: number;    // ADD THIS LINE
+  base_amount?: number;       // ADD THIS LINE
   paid_date?: string;
   sent_date?: string;
   items?: InvoiceItem[];

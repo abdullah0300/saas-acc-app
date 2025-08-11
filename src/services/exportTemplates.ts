@@ -10,20 +10,22 @@ export interface ExportOptions {
   clientId?: string;
   includeTransactions?: boolean;
   groupByCategory?: boolean;
+  baseCurrency?: string; // ADD THIS LINE
 }
 
 export class ExportTemplates {
   // Generate header metadata for any export
   static generateHeader(title: string, options: ExportOptions, filters?: any): string {
-    const headers = [
-      `${title}`,
-      `Generated: ${format(new Date(), 'MMMM dd, yyyy HH:mm')}`,
-      options.dateRange ? `Period: ${options.dateRange.start} to ${options.dateRange.end}` : '',
-      filters?.clientName ? `Client: ${filters.clientName}` : '',
-      `Report Type: ${options.type.charAt(0).toUpperCase() + options.type.slice(1)}`,
-      '',
-      '---'
-    ].filter(Boolean);
+  const headers = [
+    `${title}`,
+    `Generated: ${format(new Date(), 'MMMM dd, yyyy HH:mm')}`,
+    options.dateRange ? `Period: ${options.dateRange.start} to ${options.dateRange.end}` : '',
+    options.baseCurrency ? `Currency: ${options.baseCurrency}` : '', // ADD THIS
+    filters?.clientName ? `Client: ${filters.clientName}` : '',
+    `Report Type: ${options.type.charAt(0).toUpperCase() + options.type.slice(1)}`,
+    '',
+    '---'
+  ].filter(Boolean);
     
     return headers.join('\n');
   }
@@ -34,8 +36,8 @@ export class ExportTemplates {
       this.generateHeader('Financial Summary Report', options),
       '',
       'KEY PERFORMANCE INDICATORS',
-      `Total Revenue,${data.totalRevenue}`,
-      `Total Expenses,${data.totalExpenses}`,
+      `Total Revenue (${options.baseCurrency}),${data.totalRevenue}`,
+      `Total Expenses (${options.baseCurrency}),${data.totalExpenses}`,
       `Net Profit,${data.netProfit}`,
       `Profit Margin,${data.profitMargin.toFixed(2)}%`,
       `Outstanding Amount,${data.totalOutstanding}`,
@@ -68,31 +70,31 @@ export class ExportTemplates {
 
   // Detailed Transaction Export
   static generateDetailedExport(data: any, options: ExportOptions): string {
-    const csv = [
-      this.generateHeader('Detailed Transaction Report', options),
-      '',
-      'INCOME TRANSACTIONS',
-      'Date,Description,Category,Client,Amount,Tax,Total,Reference',
-      ...data.incomes.map((inc: any) => 
-        `${inc.date},"${inc.description}","${inc.category?.name || 'Uncategorized'}","${inc.client?.name || ''}",${inc.amount},${inc.tax_amount || 0},${inc.total_with_tax || inc.amount},"${inc.reference_number || ''}"`
-      ),
-      `,,,,Subtotal:,${data.totalIncome}`,
-      '',
-      'EXPENSE TRANSACTIONS',
-      'Date,Description,Category,Vendor,Amount,Tax,Total,Receipt',
-      ...data.expenses.map((exp: any) => 
-        `${exp.date},"${exp.description}","${exp.category?.name || 'Uncategorized'}","${exp.vendor || ''}",${exp.amount},${exp.tax_amount || 0},${exp.total_with_tax || exp.amount},"${exp.receipt_url ? 'Yes' : 'No'}"`
-      ),
-      `,,,,Subtotal:,${data.totalExpenses}`,
-      '',
-      'SUMMARY',
-      `Total Income,,,,${data.totalIncome}`,
-      `Total Expenses,,,,${data.totalExpenses}`,
-      `Net Profit/Loss,,,,${data.netProfit}`
-    ];
-    
-    return csv.join('\n');
-  }
+  const csv = [
+    this.generateHeader('Detailed Transaction Report', options),
+    '',
+    'INCOME TRANSACTIONS',
+    `Date,Description,Category,Client,Original Amount,Currency,Exchange Rate,Amount (${options.baseCurrency}),Tax,Reference`,
+    ...data.incomes.map((inc: any) => 
+      `${inc.date},"${inc.description}","${inc.category?.name || 'Uncategorized'}","${inc.client?.name || ''}",${inc.amount},${inc.currency || options.baseCurrency},${inc.exchange_rate || 1},${inc.base_amount || inc.amount},${inc.tax_amount || 0},"${inc.reference_number || ''}"`
+    ),
+    `,,,,,,Subtotal (${options.baseCurrency}):,${data.totalIncome}`,
+    '',
+    'EXPENSE TRANSACTIONS',
+    `Date,Description,Category,Vendor,Original Amount,Currency,Exchange Rate,Amount (${options.baseCurrency}),Tax,Receipt`,
+    ...data.expenses.map((exp: any) => 
+      `${exp.date},"${exp.description}","${exp.category?.name || 'Uncategorized'}","${exp.vendor?.name || ''}",${exp.amount},${exp.currency || options.baseCurrency},${exp.exchange_rate || 1},${exp.base_amount || exp.amount},${exp.tax_amount || 0},"${exp.receipt_url ? 'Yes' : 'No'}"`
+    ),
+    `,,,,,,Subtotal (${options.baseCurrency}):,${data.totalExpenses}`,
+    '',
+    'SUMMARY',
+    `Total Income,,,,,,,${data.totalIncome}`,
+    `Total Expenses,,,,,,,${data.totalExpenses}`,
+    `Net Profit/Loss,,,,,,,${data.netProfit}`
+  ];
+  
+  return csv.join('\n');
+}
 
   // Tax-Ready Export
   static generateTaxExport(data: any, options: ExportOptions): string {

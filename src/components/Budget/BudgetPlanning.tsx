@@ -130,12 +130,12 @@ export const BudgetPlanning: React.FC = () => {
         
         if (budget.category.type === 'income') {
           actualAmount = incomes
-            .filter(inc => inc.category_id === budget.category_id)
-            .reduce((sum, inc) => sum + safeParseNumber(inc.amount), 0);
+          .filter(inc => inc.category_id === budget.category_id)
+          .reduce((sum, inc) => sum + safeParseNumber(inc.base_amount || inc.amount), 0);
         } else {
           actualAmount = expenses
-            .filter(exp => exp.category_id === budget.category_id)
-            .reduce((sum, exp) => sum + safeParseNumber(exp.amount), 0);
+          .filter(exp => exp.category_id === budget.category_id)
+          .reduce((sum, exp) => sum + safeParseNumber(exp.base_amount || exp.amount), 0);
         }
         
         const budgetAmount = safeParseNumber(budget.amount);
@@ -306,9 +306,9 @@ export const BudgetPlanning: React.FC = () => {
                 Target
               </span>
             </div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Total Budgeted</p>
+            <p className="text-sm font-medium text-gray-600 mb-1">Total Budgeted ({baseCurrency})</p>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {formatCurrency(totalBudgeted)}
+              {formatCurrency(totalBudgeted, baseCurrency)}
             </p>
             <p className="text-sm text-gray-500 mt-2">
               {budgetProgress.length} categories
@@ -324,7 +324,7 @@ export const BudgetPlanning: React.FC = () => {
                 {overallPercentage}%
               </span>
             </div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Actual Spending</p>
+            <p className="text-sm font-medium text-gray-600 mb-1">Actual Spending ({baseCurrency})</p>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900">
               {formatCurrency(totalActual)}
             </p>
@@ -346,7 +346,7 @@ export const BudgetPlanning: React.FC = () => {
                 {totalRemaining >= 0 ? '✓' : '!'}
               </span>
             </div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Remaining</p>
+            <p className="text-sm font-medium text-gray-600 mb-1">Remaining ({baseCurrency})</p>
             <p className={`text-2xl sm:text-3xl font-bold ${totalRemaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               {formatCurrency(Math.abs(totalRemaining))}
             </p>

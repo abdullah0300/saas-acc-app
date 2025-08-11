@@ -8,30 +8,33 @@ import { auditService } from './auditService';
 
 export class ExportService {
   // Add this method to the ExportService class
-static async exportAllData(userId: string): Promise<void> {
+static async exportAllData(userId: string, baseCurrency: string): Promise<void> {
   try {
     // Create a timestamp for all exports
     const timestamp = format(new Date(), 'yyyy-MM-dd-HHmm');
     
-    // Export all data types
+    // Export all data types with the actual baseCurrency
     const exports = [
       this.exportData('summary', userId, { 
         dateRange: { 
           start: '2020-01-01', 
           end: format(new Date(), 'yyyy-MM-dd') 
-        } 
+        },
+        baseCurrency // Use the passed baseCurrency
       }),
       this.exportData('detailed', userId, { 
         dateRange: { 
           start: '2020-01-01', 
           end: format(new Date(), 'yyyy-MM-dd') 
-        } 
+        },
+        baseCurrency // Use the passed baseCurrency
       }),
       this.exportData('tax', userId, {
         dateRange: { 
           start: format(startOfYear(new Date()), 'yyyy-MM-dd'), 
           end: format(new Date(), 'yyyy-MM-dd') 
-        }
+        },
+        baseCurrency // Use the passed baseCurrency
       })
     ];
     
@@ -49,50 +52,53 @@ static async exportAllData(userId: string): Promise<void> {
 }
   // Main export function
   static async exportData(
-    type: ExportType,
-    userId: string,
-    options: Partial<ExportOptions> = {}
-  ): Promise<void> {
-    try {
-       
-      let csvContent = '';
-      
-      switch (type) {
-        case 'summary':
-          csvContent = await this.generateSummaryData(userId, options);
-          break;
-        case 'detailed':
-          csvContent = await this.generateDetailedData(userId, options);
-          break;
-        case 'tax':
-          csvContent = await this.generateTaxData(userId, options);
-          break;
-        case 'client':
-          if (!options.clientId) throw new Error('Client ID required');
-          csvContent = await this.generateClientData(userId, options.clientId, options);
-          break;
-        case 'monthly':
-          csvContent = await this.generateMonthlyData(userId, options);
-          break;
-      }
-      
-      // Download the file
-      this.downloadCSV(csvContent, `${type}-export-${format(new Date(), 'yyyy-MM-dd')}.csv`);
-      
-      // Save to export history
-      this.saveExportHistory(type, options);
-      
-    } catch (error) {
-      console.error('Export failed:', error);
-      throw error;
+  type: ExportType,
+  userId: string,
+  options: Partial<ExportOptions> = {}
+): Promise<void> {
+  try {
+    // Extract baseCurrency from options
+    const baseCurrency = options.baseCurrency || 'USD';
+    
+    let csvContent = '';
+    
+    switch (type) {
+      case 'summary':
+        csvContent = await this.generateSummaryData(userId, options, baseCurrency);
+        break;
+      case 'detailed':
+        csvContent = await this.generateDetailedData(userId, options, baseCurrency);
+        break;
+      case 'tax':
+        csvContent = await this.generateTaxData(userId, options, baseCurrency);
+        break;
+      case 'client':
+        if (!options.clientId) throw new Error('Client ID required');
+        csvContent = await this.generateClientData(userId, options.clientId, options, baseCurrency);
+        break;
+      case 'monthly':
+        csvContent = await this.generateMonthlyData(userId, options, baseCurrency);
+        break;
     }
+    
+    // Download the file with currency in filename
+    this.downloadCSV(csvContent, `${type}-export-${format(new Date(), 'yyyy-MM-dd')}-${baseCurrency}.csv`);
+    
+    // Save to export history
+    this.saveExportHistory(type, options);
+    
+  } catch (error) {
+    console.error('Export failed:', error);
+    throw error;
   }
+}
 
   // Generate summary data (enhanced current export)
   private static async generateSummaryData(
-    userId: string, 
-    options: Partial<ExportOptions>
-  ): Promise<string> {
+  userId: string, 
+  options: Partial<ExportOptions>,
+  baseCurrency: string
+): Promise<string> {
     const { dateRange } = options;
     const startDate = dateRange?.start || format(startOfMonth(new Date()), 'yyyy-MM-dd');
     const endDate = dateRange?.end || format(endOfMonth(new Date()), 'yyyy-MM-dd');
@@ -104,9 +110,9 @@ static async exportAllData(userId: string): Promise<void> {
       getInvoices(userId)
     ]);
     
-    // Calculate metrics
-    const totalRevenue = incomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    // Calculate metrics using base amounts
+    const totalRevenue = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
     
@@ -120,7 +126,7 @@ static async exportAllData(userId: string): Promise<void> {
     );
     const totalOutstanding = periodInvoices
       .filter(inv => inv.status !== 'paid')
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     const collectionRate = this.calculateCollectionRate(periodInvoices);
     const avgDaysToPayment = this.calculateAvgPaymentDays(periodInvoices);
     
@@ -141,14 +147,15 @@ static async exportAllData(userId: string): Promise<void> {
       monthlyData
     };
     
-    return ExportTemplates.generateSummaryExport(data, { type: 'summary', dateRange });
+    return ExportTemplates.generateSummaryExport(data, { type: 'summary', dateRange, baseCurrency });
   }
 
   // Generate detailed transaction data
   private static async generateDetailedData(
-    userId: string,
-    options: Partial<ExportOptions>
-  ): Promise<string> {
+  userId: string,
+  options: Partial<ExportOptions>,
+  baseCurrency: string
+): Promise<string> {
     const { dateRange } = options;
     const startDate = dateRange?.start || format(startOfMonth(new Date()), 'yyyy-MM-dd');
     const endDate = dateRange?.end || format(endOfMonth(new Date()), 'yyyy-MM-dd');
@@ -158,25 +165,40 @@ static async exportAllData(userId: string): Promise<void> {
       getExpenses(userId, startDate, endDate)
     ]);
     
-    const totalIncome = incomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalIncome = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     
-    const data = {
-      incomes: incomes.sort((a, b) => a.date.localeCompare(b.date)),
-      expenses: expenses.sort((a, b) => a.date.localeCompare(b.date)),
-      totalIncome,
-      totalExpenses,
-      netProfit: totalIncome - totalExpenses
-    };
+   const data = {
+  incomes: incomes.sort((a, b) => a.date.localeCompare(b.date)).map(inc => ({
+    ...inc,
+    // Ensure all currency fields are included
+    amount: inc.amount,
+    currency: inc.currency || baseCurrency,
+    exchange_rate: inc.exchange_rate || 1,
+    base_amount: inc.base_amount || inc.amount
+  })),
+  expenses: expenses.sort((a, b) => a.date.localeCompare(b.date)).map(exp => ({
+    ...exp,
+    // Ensure all currency fields are included
+    amount: exp.amount,
+    currency: exp.currency || baseCurrency,
+    exchange_rate: exp.exchange_rate || 1,
+    base_amount: exp.base_amount || exp.amount
+  })),
+  totalIncome,
+  totalExpenses,
+  netProfit: totalIncome - totalExpenses
+};
     
-    return ExportTemplates.generateDetailedExport(data, { type: 'detailed', dateRange });
+    return ExportTemplates.generateDetailedExport(data, { type: 'detailed', dateRange, baseCurrency });
   }
 
   // Generate tax-ready data
   private static async generateTaxData(
-    userId: string,
-    options: Partial<ExportOptions>
-  ): Promise<string> {
+  userId: string,
+  options: Partial<ExportOptions>,
+  baseCurrency: string
+): Promise<string> {
     const { dateRange } = options;
     const year = dateRange?.start ? new Date(dateRange.start).getFullYear() : new Date().getFullYear();
     const startDate = `${year}-01-01`;
@@ -188,9 +210,10 @@ static async exportAllData(userId: string): Promise<void> {
     ]);
     
     // Tax calculations
-    const totalIncome = incomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const taxCollected = incomes.reduce((sum, inc) => sum + (inc.tax_amount || 0), 0);
-    const taxPaid = expenses.reduce((sum, exp) => sum + (exp.tax_amount || 0), 0);
+    // Tax calculations using base amounts
+      const totalIncome = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+      const taxCollected = incomes.reduce((sum, inc) => sum + (inc.tax_amount || 0), 0);
+      const taxPaid = expenses.reduce((sum, exp) => sum + (exp.tax_amount || 0), 0);
     
     // Map to tax categories
     const incomeByCategoryTax = this.mapToTaxCategories(incomes, 'income');
@@ -215,15 +238,16 @@ static async exportAllData(userId: string): Promise<void> {
       mileageLog: [] // Placeholder - would need mileage tracking feature
     };
     
-    return ExportTemplates.generateTaxExport(data, { type: 'tax', dateRange: { start: startDate, end: endDate } });
+      return ExportTemplates.generateTaxExport(data, { type: 'tax', dateRange: { start: startDate, end: endDate }, baseCurrency });
   }
 
   // Generate client-specific data
   private static async generateClientData(
-    userId: string,
-    clientId: string,
-    options: Partial<ExportOptions>
-  ): Promise<string> {
+  userId: string,
+  clientId: string,
+  options: Partial<ExportOptions>,
+  baseCurrency: string
+): Promise<string> {
     const { dateRange } = options;
     
     const [clients, invoices, incomes] = await Promise.all([
@@ -243,10 +267,10 @@ static async exportAllData(userId: string): Promise<void> {
       ? clientInvoices.filter(inv => inv.date >= dateRange.start && inv.date <= dateRange.end)
       : clientInvoices;
     
-    const totalRevenue = clientIncomes.reduce((sum, inc) => sum + inc.amount, 0);
+    const totalRevenue = clientIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
     const outstandingBalance = filteredInvoices
-      .filter(inv => inv.status !== 'paid')
-      .reduce((sum, inv) => sum + inv.total, 0);
+  .filter(inv => inv.status !== 'paid')
+  .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     
     // Generate activity timeline
     const activity = this.generateClientActivity(filteredInvoices, clientIncomes);
@@ -264,22 +288,25 @@ static async exportAllData(userId: string): Promise<void> {
           : 0
       })),
       payments: clientIncomes.map(inc => ({
-        date: inc.date,
-        invoice_number: filteredInvoices.find(inv => inv.id === inc.reference_number)?.invoice_number || 'Direct Payment',
-        amount: inc.amount,
-        method: 'Bank Transfer' // Would need payment method tracking
-      })),
+  date: inc.date,
+  invoice_number: filteredInvoices.find(inv => inv.id === inc.reference_number)?.invoice_number || 'Direct Payment',
+  amount: inc.base_amount || inc.amount, // Use base amount for consistency
+  original_amount: inc.amount,
+  currency: inc.currency || baseCurrency,
+  method: 'Bank Transfer' // Would need payment method tracking
+})),
       activity
     };
     
-    return ExportTemplates.generateClientExport(data, { type: 'client', clientId, dateRange });
+    return ExportTemplates.generateClientExport(data, { type: 'client', clientId, dateRange, baseCurrency });
   }
 
   // Generate monthly business review data
   private static async generateMonthlyData(
-    userId: string,
-    options: Partial<ExportOptions>
-  ): Promise<string> {
+  userId: string,
+  options: Partial<ExportOptions>,
+  baseCurrency: string
+): Promise<string> {
     const targetDate = options.dateRange?.start ? new Date(options.dateRange.start) : new Date();
     const monthStart = format(startOfMonth(targetDate), 'yyyy-MM-dd');
     const monthEnd = format(endOfMonth(targetDate), 'yyyy-MM-dd');
@@ -299,11 +326,11 @@ static async exportAllData(userId: string): Promise<void> {
     const monthInvoices = invoices.filter(inv => inv.date >= monthStart && inv.date <= monthEnd);
     const lastMonthInvoices = invoices.filter(inv => inv.date >= lastMonthStart && inv.date <= lastMonthEnd);
     
-    // Calculate metrics
-    const revenue = incomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const expenses_ = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const lastMonthRevenue = lastIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const lastMonthExpenses = lastExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    // Calculate metrics using base amounts
+    const revenue = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+    const expenses_ = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+    const lastMonthRevenue = lastIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+    const lastMonthExpenses = lastExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     
     // Top sources and categories
     const topIncomeSources = this.getTopItems(incomes, 'client', 5, revenue);
@@ -335,7 +362,7 @@ static async exportAllData(userId: string): Promise<void> {
       lastMonthInvoicesPaid: lastMonthInvoices.filter(inv => inv.status === 'paid').length
     };
     
-    return ExportTemplates.generateMonthlyExport(data, { type: 'monthly', dateRange: { start: monthStart, end: monthEnd } });
+    return ExportTemplates.generateMonthlyExport(data, { type: 'monthly', dateRange: { start: monthStart, end: monthEnd }, baseCurrency });
   }
 
   // Helper functions
@@ -343,7 +370,7 @@ static async exportAllData(userId: string): Promise<void> {
     const grouped = items.reduce((acc, item) => {
       const category = item.category?.name || 'Uncategorized';
       if (!acc[category]) acc[category] = 0;
-      acc[category] += item.amount;
+      acc[category] += (item.base_amount || item.amount);
       return acc;
     }, {} as Record<string, number>);
     
@@ -400,8 +427,8 @@ static async exportAllData(userId: string): Promise<void> {
         exp.date >= monthStart && exp.date <= monthEnd
       );
       
-      const income = monthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-      const expense = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const income = monthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+      const expense = monthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
       
       months.push({
         month: format(d, 'MMM yyyy'),
@@ -430,7 +457,7 @@ static async exportAllData(userId: string): Promise<void> {
         };
       }
       
-      acc[key].amount += item.amount;
+      acc[key].amount += (item.base_amount || item.amount);
       acc[key].taxAmount += item.tax_amount || 0;
       
       return acc;
@@ -464,8 +491,8 @@ static async exportAllData(userId: string): Promise<void> {
         return date >= quarterStart && date <= quarterEnd;
       });
       
-      const income = qIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-      const expense = qExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const income = qIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+      const expense = qExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
       const netIncome = income - expense;
       
       quarters.push({
@@ -492,7 +519,7 @@ static async exportAllData(userId: string): Promise<void> {
     
     allItems.forEach(item => {
       if (item.type === 'invoice') {
-        balance += item.total;
+       balance += (item.base_amount || item.total);
         activity.push({
           date: item.date,
           description: `Invoice #${item.invoice_number}`,
@@ -501,7 +528,7 @@ static async exportAllData(userId: string): Promise<void> {
           balance
         });
       } else {
-        balance -= item.amount;
+        balance -= (item.base_amount || item.amount);
         activity.push({
           date: item.date,
           description: `Payment received`,
@@ -522,7 +549,7 @@ static async exportAllData(userId: string): Promise<void> {
         : item.category?.name || 'Uncategorized';
       
       if (!acc[key]) acc[key] = 0;
-      acc[key] += item.amount;
+      acc[key] += (item.base_amount || item.amount);
       return acc;
     }, {} as Record<string, number>);
     

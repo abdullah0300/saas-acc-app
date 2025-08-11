@@ -20,7 +20,12 @@ import {
   Check,
   X,
   MoreVertical,
-  ArrowUpDown
+  ArrowUpDown,
+  Eye,
+  Clock,
+  RefreshCw,
+  Copy,
+  Users 
 } from 'lucide-react';
 import { getIncomes, deleteIncome, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -30,7 +35,7 @@ import { Income, Category } from '../../types';
 
 export const IncomeList: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency } = useSettings(); // Added formatCurrency
+  const { formatCurrency, baseCurrency } = useSettings();
 // Remove local incomes state - we'll use cached data instead
 const { businessData, businessDataLoading, refreshBusinessData } = useData();
 const { incomes } = businessData;  const [filteredIncomes, setFilteredIncomes] = useState<Income[]>([]);
@@ -59,6 +64,8 @@ const [itemsPerPage] = useState(50); // 50 items per page
 // Bulk selection states
 const [selectedItems, setSelectedItems] = useState<string[]>([]);
 const [selectAll, setSelectAll] = useState(false);
+const [showDetailModal, setShowDetailModal] = useState(false);
+const [selectedIncome, setSelectedIncome] = useState<Income | null>(null);
 
   useEffect(() => {
   // Data is already loaded by DataContext, just filter when dateRange changes
@@ -108,7 +115,10 @@ const handleBulkDelete = async () => {
   }
 };
 
-
+const handleViewDetails = (income: Income) => {
+  setSelectedIncome(income);
+  setShowDetailModal(true);
+};
 
 // ADD THIS FUNCTION:
 const handleBulkExport = () => {
@@ -375,15 +385,16 @@ const paginatedIncomes = getPaginatedIncomes();
 };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Description', 'Category', 'Amount', 'Reference'];
-    const data = filteredIncomes.map(income => [
-      format(parseISO(income.date), 'yyyy-MM-dd'),
-      income.description,
-      income.category?.name || 'Uncategorized',
-      income.client?.name || 'No client',
-      income.amount.toString(),
-      income.reference_number || ''
-    ]);
+    const headers = ['Date', 'Description', 'Category', 'Client', 'Amount', 'Currency', 'Reference'];
+const data = filteredIncomes.map(income => [
+  format(parseISO(income.date), 'yyyy-MM-dd'),
+  income.description,
+  income.category?.name || 'Uncategorized',
+  income.client?.name || 'No client',
+  income.amount.toString(),
+  income.currency || baseCurrency,
+  income.reference_number || ''
+]);
     
     const csvContent = [
       headers.join(','),
@@ -397,8 +408,9 @@ const paginatedIncomes = getPaginatedIncomes();
     link.click();
   };
 
-  const totalIncome = filteredIncomes.reduce((sum, income) => sum + income.amount, 0);
-  const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes.length : 0;
+  // Use base_amount for accurate totals across currencies
+const totalIncome = filteredIncomes.reduce((sum, income) => sum + (income.base_amount || income.amount), 0);
+const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes.length : 0;  
 
   if (loading) return <SkeletonTable rows={10} columns={6} hasActions={true} />;
 
@@ -439,7 +451,7 @@ const paginatedIncomes = getPaginatedIncomes();
             </div>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(totalIncome)}
+            {formatCurrency(totalIncome, baseCurrency)}
           </p>
           <p className="text-sm text-gray-500 mt-1">
             {filteredIncomes.length} transactions
@@ -454,7 +466,7 @@ const paginatedIncomes = getPaginatedIncomes();
             </div>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(Math.round(averageIncome))}
+            {formatCurrency(Math.round(averageIncome), baseCurrency)}
           </p>
           <p className="text-sm text-gray-500 mt-1">Per transaction</p>
         </div>
@@ -838,18 +850,18 @@ const paginatedIncomes = getPaginatedIncomes();
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {paginatedIncomes.length > 0 ? (
-  paginatedIncomes.map((income: Income) => (
-                  <tr key={income.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="relative w-12 px-6 sm:w-16 sm:px-8">
-      <input
-        type="checkbox"
-        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-        checked={selectedItems.includes(income.id)}
-        onChange={(e) => handleSelectItem(income.id, e.target.checked)}
-      />
-    </td>
+              <tbody className="bg-white divide-y divide-gray-200">
+                              {paginatedIncomes.length > 0 ? (
+                  paginatedIncomes.map((income: Income) => (
+                                  <tr key={income.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="relative w-12 px-6 sm:w-16 sm:px-8">
+                      <input
+                        type="checkbox"
+                        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        checked={selectedItems.includes(income.id)}
+                        onChange={(e) => handleSelectItem(income.id, e.target.checked)}
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 text-gray-400 mr-2" />
@@ -886,12 +898,26 @@ const paginatedIncomes = getPaginatedIncomes();
                       {income.reference_number || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right">
-                      <span className="text-emerald-600">
-                        {formatCurrency(income.amount)}
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-emerald-600">
+                          {formatCurrency(income.amount, income.currency || baseCurrency)}
+                        </span>
+                        {income.currency && income.currency !== baseCurrency && (
+                          <span className="text-xs text-gray-500 mt-0.5">
+                            {income.currency}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                       <div className="flex items-center justify-center gap-2">
+                        <button
+                              onClick={() => handleViewDetails(income)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="View Details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
                         <Link
                           to={`/income/edit/${income.id}`}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -1011,6 +1037,234 @@ const paginatedIncomes = getPaginatedIncomes();
             </svg>
           </button>
         </nav>
+      </div>
+    </div>
+  </div>
+)}
+{/* Income Detail Modal */}
+{showDetailModal && selectedIncome && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      {/* Modal Header */}
+      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Income Details</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Transaction ID: {selectedIncome.id.slice(0, 8)}...
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setShowDetailModal(false);
+              setSelectedIncome(null);
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+      </div>
+
+      {/* Modal Body */}
+      <div className="p-6 space-y-6">
+        {/* Basic Information */}
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-6">
+          <h4 className="text-sm font-semibold text-emerald-800 mb-4 flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Basic Information
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-600">Date</p>
+              <p className="font-medium text-gray-900">
+                {format(parseISO(selectedIncome.date), 'MMMM dd, yyyy')}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Reference Number</p>
+              <p className="font-medium text-gray-900">
+                {selectedIncome.reference_number || 'N/A'}
+              </p>
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-sm text-gray-600">Description</p>
+              <p className="font-medium text-gray-900">{selectedIncome.description}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Category & Client */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-purple-50 rounded-xl p-6">
+            <h4 className="text-sm font-semibold text-purple-800 mb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Category
+            </h4>
+            <p className="font-medium text-gray-900">
+              {selectedIncome.category?.name || 'Uncategorized'}
+            </p>
+          </div>
+          
+          <div className="bg-blue-50 rounded-xl p-6">
+            <h4 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Client
+            </h4>
+            {selectedIncome.client ? (
+              <div>
+                <p className="font-medium text-gray-900">{selectedIncome.client.name}</p>
+                {selectedIncome.client.email && (
+                  <p className="text-sm text-gray-600 mt-1">{selectedIncome.client.email}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No client assigned</p>
+            )}
+          </div>
+        </div>
+
+        {/* Financial Details */}
+        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6">
+          <h4 className="text-sm font-semibold text-indigo-800 mb-4 flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Financial Details
+          </h4>
+          
+          <div className="space-y-4">
+            {/* Original Amount */}
+            <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
+              <span className="text-gray-600">Amount</span>
+              <span className="font-semibold text-lg text-gray-900">
+                {formatCurrency(selectedIncome.amount, selectedIncome.currency || baseCurrency)}
+              </span>
+            </div>
+
+            {/* Tax Information */}
+            {selectedIncome.tax_rate && selectedIncome.tax_rate > 0 && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Tax Rate</span>
+                  <span className="font-medium">{selectedIncome.tax_rate}%</span>
+                </div>
+                <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
+                  <span className="text-gray-600">Tax Amount</span>
+                  <span className="font-medium">
+                    {formatCurrency(selectedIncome.tax_amount || 0, selectedIncome.currency || baseCurrency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
+                  <span className="text-gray-600 font-medium">Total with Tax</span>
+                  <span className="font-semibold text-lg">
+                    {formatCurrency(
+                      (selectedIncome.total_with_tax || selectedIncome.amount), 
+                      selectedIncome.currency || baseCurrency
+                    )}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Currency Conversion Details */}
+            {selectedIncome.currency && selectedIncome.currency !== baseCurrency && (
+              <div className="mt-4 pt-4 border-t-2 border-indigo-200">
+                <h5 className="text-sm font-semibold text-indigo-700 mb-3 flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Currency Conversion
+                </h5>
+                
+                <div className="bg-white/50 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Original Currency</span>
+                    <span className="font-medium">{selectedIncome.currency}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Exchange Rate</span>
+                    <span className="font-medium">
+                      1 {baseCurrency} = {selectedIncome.exchange_rate || 1} {selectedIncome.currency}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                    <span className="text-gray-700 font-medium">Amount in {baseCurrency}</span>
+                    <span className="font-bold text-lg text-indigo-700">
+                      {formatCurrency(selectedIncome.base_amount || selectedIncome.amount, baseCurrency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Timestamps */}
+        <div className="bg-gray-50 rounded-xl p-6">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Record Information
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-gray-600">Created</p>
+              <p className="font-medium text-gray-900">
+                {format(parseISO(selectedIncome.created_at), 'MMM dd, yyyy HH:mm')}
+              </p>
+            </div>
+            {selectedIncome.updated_at && (
+              <div>
+                <p className="text-gray-600">Last Updated</p>
+                <p className="font-medium text-gray-900">
+                  {format(parseISO(selectedIncome.updated_at), 'MMM dd, yyyy HH:mm')}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <Link
+            to={`/income/edit/${selectedIncome.id}`}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Edit className="h-4 w-4" />
+            Edit Income
+          </Link>
+          
+          <button
+            onClick={() => {
+              // Copy details to clipboard
+              const details = `Income Details
+Date: ${format(parseISO(selectedIncome.date), 'MMMM dd, yyyy')}
+Description: ${selectedIncome.description}
+Amount: ${formatCurrency(selectedIncome.amount, selectedIncome.currency || baseCurrency)}
+${selectedIncome.currency !== baseCurrency ? `Base Amount: ${formatCurrency(selectedIncome.base_amount || selectedIncome.amount, baseCurrency)}` : ''}
+Category: ${selectedIncome.category?.name || 'Uncategorized'}
+Client: ${selectedIncome.client?.name || 'No client'}
+Reference: ${selectedIncome.reference_number || 'N/A'}`;
+              
+              navigator.clipboard.writeText(details);
+              alert('Details copied to clipboard!');
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <Copy className="h-4 w-4" />
+            Copy Details
+          </button>
+          
+          <button
+            onClick={() => {
+              handleDelete(selectedIncome.id);
+              setShowDetailModal(false);
+              setSelectedIncome(null);
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   </div>

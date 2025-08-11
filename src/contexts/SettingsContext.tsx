@@ -26,9 +26,15 @@ interface SettingsContextType {
   baseCurrency: string;
   currencySymbol: string;
   loading: boolean;
+  exchangeRatesLoading: boolean; // ADD THIS
   refreshSettings: () => Promise<void>;
   formatCurrency: (amount: number, currency?: string) => string;
   getCurrencySymbol: (currency: string) => string;
+  exchangeRates: { [key: string]: number };
+  exchangeRateStatus: 'online' | 'offline' | 'manual' | 'loading';
+  getExchangeRate: (from: string, to: string) => Promise<number>;
+  convertCurrency: (amount: number, from: string, to: string) => Promise<number>;
+  refreshExchangeRates: () => Promise<void>;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -63,17 +69,38 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exchangeRatesLoading, setExchangeRatesLoading] = useState(true); // ADD THIS
+  const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }>({});
+  const [exchangeRateStatus, setExchangeRateStatus] = useState<'online' | 'offline' | 'manual' | 'loading'>('loading');
 
+  // REPLACE YOUR useEffect WITH THIS:
   useEffect(() => {
     if (user) {
       loadSettings();
     } else {
-      // Clear settings when user logs out
       setTaxRates([]);
       setUserSettings(null);
+      setExchangeRates({});
+      setExchangeRateStatus('loading');
       setLoading(false);
+      setExchangeRatesLoading(false);
     }
   }, [user]);
+
+  // ADD THIS NEW useEffect FOR EXCHANGE RATES:
+  useEffect(() => {
+    // Load exchange rates after userSettings is loaded
+    if (userSettings?.base_currency) {
+      loadExchangeRates();
+      
+      // Set up interval to refresh exchange rates every 30 minutes
+      const interval = setInterval(() => {
+        loadExchangeRates();
+      }, 30 * 60 * 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [userSettings?.base_currency, userSettings?.enabled_currencies]);
 
   const loadSettings = async () => {
     if (!user) return;
@@ -99,7 +126,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .from('user_settings')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle() instead of single() to avoid 406 error
+        .maybeSingle();
       
       if (!settingsData) {
         // No settings found - create default settings
@@ -114,8 +141,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           country: 'US'
         };
         
-        console.log('Attempting to create settings with:', defaultSettings);
-        
         const { data: newSettings, error: createError } = await supabase
           .from('user_settings')
           .insert([defaultSettings])
@@ -124,12 +149,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           
         if (createError) {
           console.error('Failed to create user settings:', createError);
-          console.error('Error details:', {
-            code: createError.code,
-            message: createError.message,
-            details: createError.details,
-            hint: createError.hint
-          });
           
           // Check if it's a unique constraint violation
           if (createError.code === '23505') {
@@ -187,16 +206,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return CURRENCY_SYMBOLS[currency] || currency;
   };
 
+  // UPDATE YOUR formatCurrency FUNCTION:
   const formatCurrency = (amount: number, currency?: string) => {
     const curr = currency || baseCurrency;
     const symbol = getCurrencySymbol(curr);
     
-    // Handle zero
-    if (amount === 0) {
-      return `${symbol}0.00`;
+    // Handle loading state
+    if (exchangeRatesLoading && curr !== baseCurrency) {
+      return `${symbol} ${amount.toLocaleString()} (...)`;
     }
     
-    // For currencies with different formatting conventions
     switch (curr) {
       case 'INR':
         // Indian numbering system
@@ -235,6 +254,101 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // UPDATE YOUR loadExchangeRates FUNCTION:
+  const loadExchangeRates = async () => {
+    if (!user || !userSettings?.base_currency) return;
+    
+    setExchangeRateStatus('loading');
+    setExchangeRatesLoading(true); // ADD THIS
+    
+    try {
+      // First, try to get from localStorage cache
+      const cachedData = localStorage.getItem('exchangeRatesCache');
+      if (cachedData) {
+        const { rates, timestamp, baseCurrency: cachedBase } = JSON.parse(cachedData);
+        const cacheAge = Date.now() - timestamp;
+        
+        // Use cache if it's less than 5 minutes old and for the same base currency
+        if (cacheAge < 5 * 60 * 1000 && cachedBase === userSettings.base_currency) {
+          setExchangeRates(rates);
+          setExchangeRateStatus('online');
+          setExchangeRatesLoading(false);
+          return;
+        }
+      }
+      
+      const { data, error } = await supabase.functions.invoke('currency-exchange', {
+        body: {
+          action: 'getRatesWithStatus',
+          userId: user.id,
+          baseCurrency: userSettings.base_currency,
+          currencies: userSettings.enabled_currencies || ['USD', 'EUR', 'GBP', 'PKR', 'INR', 'AED', 'SAR', 'CAD', 'AUD', 'JPY']
+        }
+      });
+
+      if (!error && data) {
+        setExchangeRates(data.rates || {});
+        setExchangeRateStatus(data.status || 'offline');
+        
+        // Cache the rates
+        localStorage.setItem('exchangeRatesCache', JSON.stringify({
+          rates: data.rates || {},
+          timestamp: Date.now(),
+          baseCurrency: userSettings.base_currency
+        }));
+      } else {
+        setExchangeRateStatus('offline');
+      }
+    } catch (err) {
+      console.error('Error loading exchange rates:', err);
+      setExchangeRateStatus('offline');
+    } finally {
+      setExchangeRatesLoading(false); // ADD THIS
+    }
+  };
+
+  // UPDATE YOUR getExchangeRate FUNCTION:
+  const getExchangeRate = async (from: string, to: string): Promise<number> => {
+    if (from === to) return 1;
+    
+    // Check if we have the rate in memory
+    if (from === baseCurrency && exchangeRates[to]) {
+      return exchangeRates[to];
+    }
+    
+    // Otherwise fetch it
+    try {
+      const { data } = await supabase.functions.invoke('currency-exchange', {
+        body: {
+          action: 'convert',
+          userId: user?.id,
+          amount: 1,
+          from,
+          to
+        }
+      });
+      
+      return data?.rate || 1;
+    } catch (error) {
+      console.error('Error getting exchange rate:', error);
+      return 1;
+    }
+  };
+
+  // UPDATE YOUR convertCurrency FUNCTION:
+  const convertCurrency = async (amount: number, from: string, to: string): Promise<number> => {
+    if (from === to) return amount;
+    
+    const rate = await getExchangeRate(from, to);
+    return amount * rate;
+  };
+
+  const refreshExchangeRates = async () => {
+    setExchangeRates({}); // Clear current rates to force refresh
+    localStorage.removeItem('exchangeRatesCache'); // Clear cache
+    await loadExchangeRates();
+  };
+
   return (
     <SettingsContext.Provider value={{
       taxRates,
@@ -243,9 +357,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       baseCurrency,
       currencySymbol,
       loading,
+      exchangeRatesLoading, // ADD THIS
       refreshSettings,
       formatCurrency,
-      getCurrencySymbol
+      getCurrencySymbol,
+      exchangeRates,
+      exchangeRateStatus,
+      getExchangeRate,
+      convertCurrency,
+      refreshExchangeRates
     }}>
       {children}
     </SettingsContext.Provider>

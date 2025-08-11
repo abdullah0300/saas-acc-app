@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
-import { ArrowLeft, Save, Upload, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, Upload, Plus, X, AlertCircle } from "lucide-react";
 import { AIService, AISuggestion } from "../../services/aiService";
 import { AISuggestion as AISuggestionComponent } from "../AI/AISuggestion";
 import {
@@ -27,7 +27,7 @@ declare global {
 
 export const ExpenseForm: React.FC = () => {
   const { user } = useAuth();
-  const { taxRates, defaultTaxRate } = useSettings();
+  const { taxRates, defaultTaxRate, formatCurrency, baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol, userSettings } = useSettings();
   const { addExpenseToCache } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -35,16 +35,17 @@ export const ExpenseForm: React.FC = () => {
   const {  updateExpenseInCache } = useData(); // ADD updateExpenseInCache
 
   const [formData, setFormData] = useState({
-    amount: "",
-    description: "",
-    category_id: "",
-    date: new Date().toISOString().split("T")[0],
-    vendor: "",
-    vendor_id: "",
-    receipt_url: "",
-    tax_rate: defaultTaxRate.toString(),
-    tax_amount: "0",
-  });
+  amount: "",
+  description: "",
+  category_id: "",
+  date: new Date().toISOString().split("T")[0],
+  vendor: "",
+  vendor_id: "",
+  receipt_url: "",
+  tax_rate: defaultTaxRate.toString(),
+  tax_amount: "0",
+  currency: baseCurrency, // ADD THIS LINE
+});
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -64,6 +65,9 @@ export const ExpenseForm: React.FC = () => {
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null);
   const [loadingAiSuggestion, setLoadingAiSuggestion] = useState(false);
   const [showAiSuggestion, setShowAiSuggestion] = useState(false);
+  const [showRateWarning, setShowRateWarning] = useState(false);
+const [originalRate, setOriginalRate] = useState<number | null>(null);
+const [useHistoricalRate, setUseHistoricalRate] = useState(true);
 
   useEffect(() => {
   loadCategories();
@@ -81,7 +85,12 @@ export const ExpenseForm: React.FC = () => {
     }
   }, [user]);
 
-  // ... rest of your component code stays the same
+
+useEffect(() => {
+  if (formData.currency && formData.currency !== baseCurrency) {
+    fetchExchangeRate();
+  }
+}, [formData.currency]);
 
   const loadVendors = async () => {
     if (!user) return;
@@ -113,23 +122,50 @@ export const ExpenseForm: React.FC = () => {
       const expense = expenses.find((e) => e.id === id);
 
       if (expense) {
-        setFormData({
-          amount: expense.amount.toString(),
-          description: expense.description,
-          category_id: expense.category_id || "",
-          date: expense.date,
-          vendor: expense.vendor || "",
-          vendor_id: expense.vendor_id || "", // Add this
-          receipt_url: expense.receipt_url || "",
-          tax_rate: defaultTaxRate.toString(), // Set default tax rate
-          tax_amount: "0", // Initialize tax amount
-        });
-      }
+  setFormData({
+    amount: expense.amount.toString(),
+    description: expense.description,
+    category_id: expense.category_id || "",
+    date: expense.date,
+    vendor: expense.vendor || "",
+    vendor_id: expense.vendor_id || "",
+    receipt_url: expense.receipt_url || "",
+    tax_rate: (expense.tax_rate || defaultTaxRate).toString(),
+    tax_amount: (expense.tax_amount || 0).toString(),
+    currency: expense.currency || baseCurrency, // ADD THIS LINE
+  });
+  // Store original exchange rate for comparison
+if (expense.exchange_rate && expense.currency !== baseCurrency) {
+  setOriginalRate(expense.exchange_rate);
+}
+}
     } catch (err: any) {
       setError(err.message);
     }
   };
 
+  const fetchExchangeRate = async () => {
+  if (!formData.currency || formData.currency === baseCurrency) {
+    setShowRateWarning(false);
+    return;
+  }
+  
+  try {
+    const currentRate = exchangeRates[formData.currency] || 1;
+    
+    // Check if we're editing and rates are different
+    if (isEdit && originalRate && Math.abs(currentRate - originalRate) > 0.01) {
+      setShowRateWarning(true);
+      
+      // Don't auto-update if user prefers historical rate
+      if (useHistoricalRate) {
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check exchange rate:', error);
+  }
+};
   const handleCreateVendor = async () => {
     if (!user || !newVendorData.name.trim()) return;
 
@@ -296,18 +332,28 @@ export const ExpenseForm: React.FC = () => {
     setError("");
 
     try {
-      const expenseData = {
-        user_id: user.id,
-        amount: parseFloat(formData.amount),
-        description: formData.description,
-        category_id: formData.category_id || undefined,
-        date: formData.date,
-        vendor: formData.vendor || undefined,
-        vendor_id: formData.vendor_id || undefined, // Add this line
-        receipt_url: formData.receipt_url || undefined,
-        tax_rate: parseFloat(formData.tax_rate) || 0, // Add this
-        tax_amount: parseFloat(formData.tax_amount) || 0, // Add this
-      };
+      // Calculate base amount if different currency
+const amount = parseFloat(formData.amount);
+const exchangeRate = formData.currency !== baseCurrency 
+  ? (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1)) 
+  : 1;
+const baseAmount = formData.currency !== baseCurrency ? amount / exchangeRate : amount;
+
+const expenseData = {
+  user_id: user.id,
+  amount: amount,
+  description: formData.description,
+  category_id: formData.category_id || undefined,
+  date: formData.date,
+  vendor: formData.vendor || undefined,
+  vendor_id: formData.vendor_id || undefined,
+  receipt_url: formData.receipt_url || undefined,
+  tax_rate: parseFloat(formData.tax_rate) || 0,
+  tax_amount: parseFloat(formData.tax_amount) || 0,
+  currency: formData.currency, // ADD THIS
+  exchange_rate: exchangeRate, // ADD THIS
+  base_amount: baseAmount, // ADD THIS
+};
 
       if (isEdit && id) {
         const updatedExpense = await updateExpense(id, expenseData);
@@ -496,6 +542,71 @@ export const ExpenseForm: React.FC = () => {
               </select>
             </div>
 
+            {/* Currency Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Currency
+                </label>
+                <select
+                  value={formData.currency}
+                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {userSettings?.enabled_currencies?.map(currency => (
+                    <option key={currency} value={currency}>
+                      {currency} - {getCurrencySymbol(currency)}
+                    </option>
+                  ))}
+                </select>
+                {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Rate: 1 {baseCurrency} = {exchangeRates[formData.currency].toFixed(4)} {formData.currency}
+                  </p>
+                )}
+              </div>
+              {/* Exchange Rate Warning */}
+{showRateWarning && isEdit && originalRate && (
+  <div className="md:col-span-2 mt-4">
+    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <div className="flex items-start">
+        <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+        <div className="flex-1">
+          <h4 className="text-sm font-medium text-yellow-800 mb-2">
+            Exchange Rate Changed
+          </h4>
+          <p className="text-sm text-yellow-700 mb-3">
+            The exchange rate has changed since this transaction was created:
+          </p>
+          <div className="text-sm space-y-1 mb-3">
+            <div>Original rate: <span className="font-medium">1 {baseCurrency} = {originalRate.toFixed(4)} {formData.currency}</span></div>
+            <div>Current rate: <span className="font-medium">1 {baseCurrency} = {exchangeRates[formData.currency]?.toFixed(4) || 'N/A'} {formData.currency}</span></div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={useHistoricalRate}
+                onChange={() => setUseHistoricalRate(true)}
+                className="mr-2"
+              />
+              <span className="text-sm text-yellow-700">Use original rate (historical)</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={!useHistoricalRate}
+                onChange={() => setUseHistoricalRate(false)}
+                className="mr-2"
+              />
+              <span className="text-sm text-yellow-700">Use current rate</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
             {/* Tax Rate - Added this section */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -524,7 +635,7 @@ export const ExpenseForm: React.FC = () => {
               </select>
               {parseFloat(formData.tax_rate) > 0 && (
                 <p className="text-sm text-gray-500 mt-1">
-                  Tax Amount: {formData.tax_amount}
+                  Tax Amount: {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
                 </p>
               )}
             </div>
@@ -596,6 +707,24 @@ export const ExpenseForm: React.FC = () => {
               )}
             </div>
           </div>
+          {/* Total Summary */}
+{formData.amount && (
+  <div className="bg-gray-50 rounded-lg p-4">
+    <div className="flex justify-between items-center">
+      <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+      <div className="text-right">
+        <div className="text-lg font-semibold text-gray-900">
+          {formatCurrency(parseFloat(formData.amount) || 0, formData.currency)}
+        </div>
+        {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+          <div className="text-sm text-gray-500">
+            ≈ {formatCurrency((parseFloat(formData.amount) || 0) / exchangeRates[formData.currency], baseCurrency)}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
           <div className="flex justify-end space-x-4">
             <button

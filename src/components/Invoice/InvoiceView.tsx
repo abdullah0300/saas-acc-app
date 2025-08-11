@@ -48,7 +48,7 @@ import QRCode from 'qrcode';
 export const InvoiceView: React.FC = () => {
   const { id } = useParams();
   const { user } = useAuth();
-  const { formatCurrency } = useSettings(); // ADD THIS
+  const { formatCurrency, baseCurrency, exchangeRates } = useSettings();
   const { refreshBusinessData } = useData();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -233,7 +233,7 @@ export const InvoiceView: React.FC = () => {
     
     const message = encodeURIComponent(
       `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
-      `Amount: ${formatCurrency(invoice?.total || 0)}\n` +
+      `Amount: ${formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}\n` +
       `Due Date: ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
       `View Invoice: ${link}`
     );
@@ -577,6 +577,22 @@ export const InvoiceView: React.FC = () => {
                     {Math.abs(daysUntilDue)} days overdue
                   </p>
                 )}
+                {invoice.currency && invoice.currency !== baseCurrency && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-gray-400" />
+                    Currency:
+                  </span>
+                  <span className="font-medium">
+                    {invoice.currency}
+                    {invoice.exchange_rate && invoice.exchange_rate !== 1 && (
+                      <span className="text-sm text-gray-500 ml-2">
+                        (1 {baseCurrency} = {invoice.exchange_rate} {invoice.currency})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
               </div>
             </div>
 
@@ -623,10 +639,10 @@ export const InvoiceView: React.FC = () => {
                       {item.quantity}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 text-right">
-                      {formatCurrency(item.rate)}
+                      {formatCurrency(item.rate, invoice.currency || baseCurrency)}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
-                      {formatCurrency(item.amount)}
+                      {formatCurrency(item.amount, invoice.currency || baseCurrency)}
                     </td>
                   </tr>
                 ))}
@@ -639,21 +655,28 @@ export const InvoiceView: React.FC = () => {
             <div className="w-full max-w-xs space-y-2">
               <div className="flex justify-between items-center py-2">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
+                <span className="font-medium">{formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}</span>
               </div>
               
               {invoice.tax_rate > 0 && (
                 <div className="flex justify-between items-center py-2 border-t border-gray-200">
                   <span className="text-gray-600">Tax ({invoice.tax_rate}%)</span>
-                  <span className="font-medium">{formatCurrency(invoice.tax_amount)}</span>
+                  <span className="font-medium">{formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}</span>
                 </div>
               )}
               
               <div className="flex justify-between items-center py-3 border-t-2 border-gray-900">
                 <span className="text-lg font-semibold">Total</span>
-                <span className="text-lg font-bold" style={{ color: primaryColor }}>
-                  {formatCurrency(invoice.total)}
-                </span>
+                <div className="text-right">
+                  <span className="text-lg font-bold" style={{ color: primaryColor }}>
+                    {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
+                  </span>
+                  {invoice.currency && invoice.currency !== baseCurrency && invoice.base_amount && (
+                    <div className="text-sm text-gray-500">
+                      ({formatCurrency(invoice.base_amount, baseCurrency)})
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -44,7 +44,7 @@ interface TaxSummary {
 
 export const TaxReport: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency, defaultTaxRate } = useSettings();
+  const { formatCurrency, baseCurrency, defaultTaxRate } = useSettings();
   const [loading, setLoading] = useState(true);
   const [periodType, setPeriodType] = useState<'quarterly' | 'annual'>('quarterly');
   const [year, setYear] = useState(new Date().getFullYear());
@@ -89,21 +89,25 @@ export const TaxReport: React.FC = () => {
           exp.date >= period.startDate && exp.date <= period.endDate
         );
         
-        // Calculate tax collected (from income/sales)
-        const taxCollected = periodIncomes.reduce((sum, inc) => {
-          const taxAmount = inc.tax_amount || (inc.amount * (inc.tax_rate || defaultTaxRate || 0) / 100);
-          return sum + taxAmount;
-        }, 0);
+        // Calculate tax collected (from income/sales) - using base amounts
+          const taxCollected = periodIncomes.reduce((sum, inc) => {
+            // If tax_amount exists, use it; otherwise calculate from base_amount
+            const baseAmount = inc.base_amount || inc.amount;
+            const taxAmount = inc.tax_amount || (baseAmount * (inc.tax_rate || defaultTaxRate || 0) / 100);
+            return sum + taxAmount;
+          }, 0);
+
+          const salesAmount = periodIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
         
-        const salesAmount = periodIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-        
-        // Calculate tax paid (from expenses/purchases)
-        const taxPaid = periodExpenses.reduce((sum, exp) => {
-          const taxAmount = exp.tax_amount || (exp.amount * (exp.tax_rate || defaultTaxRate || 0) / 100);
-          return sum + taxAmount;
-        }, 0);
-        
-        const purchaseAmount = periodExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+        // Calculate tax paid (from expenses/purchases) - using base amounts// Calculate tax paid (from expenses/purchases) - using base amounts
+            const taxPaid = periodExpenses.reduce((sum, exp) => {
+              // If tax_amount exists, use it; otherwise calculate from base_amount
+              const baseAmount = exp.base_amount || exp.amount;
+              const taxAmount = exp.tax_amount || (baseAmount * (exp.tax_rate || defaultTaxRate || 0) / 100);
+              return sum + taxAmount;
+            }, 0);
+
+            const purchaseAmount = periodExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
         
         return {
           period: period.label,
@@ -179,9 +183,10 @@ export const TaxReport: React.FC = () => {
     let csv = 'Tax Report\n';
     csv += `Period: ${periodType === 'quarterly' ? `Year ${year}` : `${year - 2} - ${year}`}\n`;
     csv += `Generated: ${format(new Date(), 'MMMM dd, yyyy')}\n`;
+    csv += `Currency: ${baseCurrency}\n`;
     csv += `Default Tax Rate: ${defaultTaxRate}%\n\n`;
     
-    // Summary section
+    // Summary sectionf
     csv += 'SUMMARY\n';
     csv += `Total Tax Collected,${taxSummary.totalTaxCollected.toFixed(2)}\n`;
     csv += `Total Tax Paid,${taxSummary.totalTaxPaid.toFixed(2)}\n`;
@@ -234,7 +239,7 @@ export const TaxReport: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  Advanced Tax Report
+                  Advanced Tax Report ({baseCurrency})
                 </h1>
                 <p className="text-gray-600 mt-2 text-lg">
                   Comprehensive tax summary for filing and compliance
@@ -310,8 +315,8 @@ export const TaxReport: React.FC = () => {
                 </div>
                 <Sparkles className="h-5 w-5 opacity-60" />
               </div>
-              <p className="text-emerald-100 text-sm font-medium">Tax Collected</p>
-              <p className="text-3xl font-bold mt-1">{formatCurrency(taxSummary.totalTaxCollected)}</p>
+              <p className="text-emerald-100 text-sm font-medium">Tax Collected ({baseCurrency})</p>
+              <p className="text-3xl font-bold mt-1">{formatCurrency(taxSummary.totalTaxCollected, baseCurrency)}</p>
               <p className="text-emerald-100 text-sm mt-2">From sales</p>
             </div>
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
@@ -326,8 +331,8 @@ export const TaxReport: React.FC = () => {
                 </div>
                 <Sparkles className="h-5 w-5 opacity-60" />
               </div>
-              <p className="text-orange-100 text-sm font-medium">Tax Paid</p>
-              <p className="text-3xl font-bold mt-1">{formatCurrency(taxSummary.totalTaxPaid)}</p>
+              <p className="text-orange-100 text-sm font-medium">Tax Paid ({baseCurrency})</p>
+              <p className="text-3xl font-bold mt-1">{formatCurrency(taxSummary.totalTaxPaid, baseCurrency)}</p>
               <p className="text-orange-100 text-sm mt-2">On purchases</p>
             </div>
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
@@ -342,8 +347,8 @@ export const TaxReport: React.FC = () => {
                 </div>
                 <Sparkles className="h-5 w-5 opacity-60" />
               </div>
-              <p className="text-white/80 text-sm font-medium">Net Tax Liability</p>
-              <p className="text-3xl font-bold mt-1">{formatCurrency(Math.abs(taxSummary.netTaxLiability))}</p>
+              <p className="text-white/80 text-sm font-medium">Net Tax Liability ({baseCurrency})</p>
+              <p className="text-3xl font-bold mt-1">{formatCurrency(Math.abs(taxSummary.netTaxLiability), baseCurrency)}</p>
               <p className="text-white/80 text-sm mt-2">
                 {taxSummary.netTaxLiability >= 0 ? 'To remit' : 'Refundable'}
               </p>
@@ -385,22 +390,22 @@ export const TaxReport: React.FC = () => {
               <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    Period
+                    Period 
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    Sales
+                    Sales ({baseCurrency})
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    Tax Collected
+                    Tax Collected ({baseCurrency})
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    Purchases
+                    Purchases ({baseCurrency})
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    Tax Paid
+                    Tax Paid ({baseCurrency})
                   </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    Net Tax
+                    Net Tax ({baseCurrency})
                   </th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
                     Transactions
@@ -417,20 +422,20 @@ export const TaxReport: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                      {formatCurrency(period.salesAmount)}
+                      {formatCurrency(period.salesAmount, baseCurrency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600 text-right">
-                      {formatCurrency(period.taxCollected)}
+                      {formatCurrency(period.taxCollected, baseCurrency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                      {formatCurrency(period.purchaseAmount)}
+                      {formatCurrency(period.purchaseAmount, baseCurrency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600 text-right">
-                      {formatCurrency(period.taxPaid)}
+                      {formatCurrency(period.taxPaid, baseCurrency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right">
                       <span className={period.netTax >= 0 ? 'text-red-600' : 'text-green-600'}>
-                        {formatCurrency(Math.abs(period.netTax))}
+                        {formatCurrency(Math.abs(period.netTax), baseCurrency)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-center">
@@ -495,6 +500,10 @@ export const TaxReport: React.FC = () => {
                     <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     This report is based on the tax rates applied to each transaction
                   </li>
+                  <li className="flex items-start">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  All amounts are shown in your base currency ({baseCurrency})
+                </li>
                   <li className="flex items-start">
                     <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                     Net tax liability shows the amount you need to remit to tax authorities

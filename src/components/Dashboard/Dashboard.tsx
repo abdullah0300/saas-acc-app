@@ -102,7 +102,7 @@ const UsageSummaryCard = () => {
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency, loading: settingsLoading } = useSettings();
+  const { formatCurrency, baseCurrency, loading: settingsLoading } = useSettings();
   const { limits, usage } = useSubscription();
   
   const [subscription, setSubscription] = useState<any>(null);
@@ -141,16 +141,19 @@ const formatInsightCurrency = (amount: number) => {
 
 // Calculate stats from current month data
 const stats = {
-  totalIncome: currentMonthIncomes.reduce((sum, income) => sum + income.amount, 0),
-  totalExpenses: currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0),
-  netProfit: currentMonthIncomes.reduce((sum, income) => sum + income.amount, 0) - currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+  totalIncome: currentMonthIncomes.reduce((sum, income) => sum + (income.base_amount || income.amount), 0),
+  totalExpenses: currentMonthExpenses.reduce((sum, expense) => sum + (expense.base_amount || expense.amount), 0),
+  netProfit: currentMonthIncomes.reduce((sum, income) => sum + (income.base_amount || income.amount), 0) - 
+             currentMonthExpenses.reduce((sum, expense) => sum + (expense.base_amount || expense.amount), 0),
   pendingInvoices: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').length,
-  totalPending: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').reduce((sum, inv) => sum + inv.total, 0),
+  totalPending: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue')
+                       .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0),
   overdueInvoices: invoices.filter(inv => inv.status === 'overdue').length,
-recentTransactions: [
-  ...currentMonthIncomes.slice(0, 3).map(income => ({ ...income, type: 'income' })),
-  ...currentMonthExpenses.slice(0, 3).map(expense => ({ ...expense, type: 'expense' }))
-].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())};
+  recentTransactions: [
+    ...currentMonthIncomes.slice(0, 3).map(income => ({ ...income, type: 'income' })),
+    ...currentMonthExpenses.slice(0, 3).map(expense => ({ ...expense, type: 'expense' }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+};
 
 // Generate actual monthly data from the last 6 months
 const generateMonthlyData = () => {
@@ -172,8 +175,8 @@ const generateMonthlyData = () => {
       return expenseDate >= monthStart && expenseDate <= monthEnd;
     });
     
-    const income = monthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const expenseTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const income = monthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+    const expenseTotal = monthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     
     months.push({
       month: format(monthDate, 'MMM'),
@@ -247,17 +250,17 @@ const [showAllInsights, setShowAllInsights] = useState(false);
 const monthlyData = generateMonthlyData();
 
 const categoryData: any = (() => {
-  // Group income by category and sum amounts
+  // Group income by category and sum amounts (using base_amount)
   const incomeByCategory = incomes.reduce((acc: any, income) => {
     const categoryName = income.category?.name || 'Uncategorized';
-    acc[categoryName] = (acc[categoryName] || 0) + income.amount;
+    acc[categoryName] = (acc[categoryName] || 0) + (income.base_amount || income.amount);
     return acc;
   }, {});
 
-  // Group expenses by category and sum amounts  
+  // Group expenses by category and sum amounts (using base_amount)
   const expenseByCategory = expenses.reduce((acc: any, expense) => {
     const categoryName = expense.category?.name || 'Uncategorized';
-    acc[categoryName] = (acc[categoryName] || 0) + expense.amount;
+    acc[categoryName] = (acc[categoryName] || 0) + (expense.base_amount || expense.amount);
     return acc;
   }, {});
 
@@ -363,10 +366,10 @@ const loading = businessDataLoading;
   };
 
   const getClientTotalRevenue = (clientId: string) => {
-    return stats?.recentTransactions
-      ?.filter((t: any) => t.type === 'income' && t.client_id === clientId)
-      ?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
-  };
+  return incomes
+    .filter(income => income.client_id === clientId)
+    .reduce((sum, income) => sum + (income.base_amount || income.amount), 0);
+};
 
   if (loading || settingsLoading) {
   return (
@@ -488,7 +491,7 @@ const loading = businessDataLoading;
             <p className="text-3xl font-bold text-gray-900 mt-1">
               {formatCurrency(stats?.totalIncome || 0)}
             </p>
-            <p className="text-sm text-gray-500 mt-2">This month</p>
+            <p className="text-sm text-gray-500 mt-2">This month ({baseCurrency})</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl shadow-red-100 p-6 border border-red-100 transform hover:scale-105 transition-all">
@@ -873,7 +876,9 @@ const loading = businessDataLoading;
               </div>
             </div>
             <div className="text-right flex-shrink-0 ml-2">
-              <p className="text-sm font-semibold text-gray-900 sm:text-xs">{formatCurrency(invoice.total)}</p>
+              <p className="text-sm font-semibold text-gray-900 sm:text-xs">
+                {formatCurrency(invoice.base_amount || invoice.total, baseCurrency)}
+              </p>
               <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(invoice.status)} sm:text-[10px] sm:px-1.5 sm:py-0.5`}>
                 {invoice.status}
               </span>
@@ -940,7 +945,8 @@ const loading = businessDataLoading;
                         <span className={`text-sm font-semibold ${
                           transaction.type === 'income' ? 'text-emerald-600' : 'text-red-600'
                         }`}>
-                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                          {transaction.type === 'income' ? '+' : '-'}
+                          {formatCurrency(transaction.base_amount || transaction.amount, baseCurrency)}
                         </span>
                       </div>
                     </div>

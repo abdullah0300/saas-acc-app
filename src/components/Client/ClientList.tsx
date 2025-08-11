@@ -43,7 +43,7 @@ interface ClientWithMetrics extends Client {
 
 export const ClientList: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, baseCurrency } = useSettings();
   const [filteredClients, setFilteredClients] = useState<ClientWithMetrics[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
@@ -111,17 +111,17 @@ const loading = businessDataLoading;
       const clientIncomes = incomeList.filter(inc => inc.client_id === client.id);
       
       const invoiceRevenue = clientInvoices
-  .filter(inv => inv.status === 'paid')
-  .reduce((sum, inv) => sum + inv.total, 0);
+        .filter(inv => inv.status === 'paid')
+        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
 
-const directIncomeRevenue = clientIncomes
-  .reduce((sum, inc) => sum + inc.amount, 0);
+      const directIncomeRevenue = clientIncomes
+        .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
 
-const totalRevenue = invoiceRevenue + directIncomeRevenue;
+      const totalRevenue = invoiceRevenue + directIncomeRevenue;
       
       const pendingAmount = clientInvoices
-        .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
-        .reduce((sum, inv) => sum + inv.total, 0);
+      .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
+      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       
       const paidInvoices = clientInvoices.filter(inv => inv.status === 'paid').length;
       
@@ -240,16 +240,16 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
 };
 
   const exportClients = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Total Revenue', 'Invoices', 'Status', 'Last Activity'];
+    const headers = ['Name', 'Email', 'Phone', `Total Revenue (${baseCurrency})`, 'Invoices', 'Status', 'Last Activity'];
     const data = filteredClients.map(client => [
-      client.name,
-      client.email || '',
-      client.phone || '',
-      client.totalRevenue.toFixed(2),
-      client.invoiceCount.toString(),
-      client.status,
-      client.lastActivityDate ? format(parseISO(client.lastActivityDate), 'yyyy-MM-dd') : ''
-    ]);
+  client.name,
+  client.email || '',
+  client.phone || '',
+  client.totalRevenue.toFixed(2),
+  client.invoiceCount.toString(),
+  client.status,
+  client.lastActivityDate ? format(parseISO(client.lastActivityDate), 'yyyy-MM-dd') : ''
+]);
     
     const csv = [
       headers.join(','),
@@ -358,9 +358,9 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
                 <DollarSign className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</span>
+              <span className="text-2xl font-bold">{formatCurrency(stats.totalRevenue, baseCurrency)}</span>
             </div>
-            <p className="text-purple-100 text-sm">Total Revenue</p>
+            <p className="text-purple-100 text-sm">Total Revenue ({baseCurrency})</p>
           </div>
           
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white">
@@ -368,9 +368,9 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
                 <TrendingUp className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.avgClientValue)}</span>
+              <span className="text-2xl font-bold">{formatCurrency(stats.avgClientValue, baseCurrency)}</span>
             </div>
-            <p className="text-amber-100 text-sm">Avg Client Value</p>
+            <p className="text-amber-100 text-sm">Avg Client Value ({baseCurrency})</p>
           </div>
         </div>
 
@@ -525,7 +525,7 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <p className="text-xs text-gray-600 mb-1">Revenue</p>
-                      <p className="text-lg font-bold text-gray-900">{formatCurrency(client.totalRevenue)}</p>
+                      <p className="text-lg font-bold text-gray-900">{formatCurrency(client.totalRevenue, baseCurrency)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600 mb-1">Invoices</p>
@@ -541,7 +541,7 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
                   {client.pendingAmount > 0 && (
                     <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
                       <p className="text-xs text-amber-600 font-medium">Pending Amount</p>
-                      <p className="text-lg font-bold text-amber-700">{formatCurrency(client.pendingAmount)}</p>
+                      <p className="text-lg font-bold text-amber-700">{formatCurrency(client.pendingAmount, baseCurrency)}</p>
                     </div>
                   )}
                   

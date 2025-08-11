@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Settings, Save, X } from 'lucide-react';
+import { Settings, Save, X, AlertCircle } from 'lucide-react';
 import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { InvoiceSettings } from './InvoiceSettings';
 import { useAuth } from '../../contexts/AuthContext';
@@ -72,7 +72,10 @@ export const InvoiceForm: React.FC = () => {
   const { addClientToCache } = useData();
   const { addInvoiceToCache } = useData();
   const { formatCurrency } = useSettings();
-
+  const { baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol,userSettings  } = useSettings();
+  const [showRateWarning, setShowRateWarning] = useState(false);
+  const [originalRate, setOriginalRate] = useState<number | null>(null);
+  const [useHistoricalRate, setUseHistoricalRate] = useState(true);
   // Form state
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -81,6 +84,7 @@ export const InvoiceForm: React.FC = () => {
     due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
     tax_rate: '0',
     notes: '',
+    currency: baseCurrency,
     is_recurring: false,
     frequency: 'monthly' as 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly',
     recurring_end_date: '',
@@ -185,6 +189,12 @@ export const InvoiceForm: React.FC = () => {
     }
   }, [user, isEdit]);
 
+  useEffect(() => {
+  if (formData.currency && formData.currency !== baseCurrency) {
+    fetchExchangeRate();
+  }
+}, [formData.currency]);
+
   const loadTemplates = async () => {
     if (!user) return;
     
@@ -195,6 +205,29 @@ export const InvoiceForm: React.FC = () => {
       console.error('Error loading templates:', err);
     }
   };
+
+  const fetchExchangeRate = async () => {
+  if (!formData.currency || formData.currency === baseCurrency) {
+    setShowRateWarning(false);
+    return;
+  }
+  
+  try {
+    const currentRate = exchangeRates[formData.currency] || 1;
+    
+    // Check if we're editing and rates are different
+    if (isEdit && originalRate && Math.abs(currentRate - originalRate) > 0.01) {
+      setShowRateWarning(true);
+      
+      // Don't auto-update if user prefers historical rate
+      if (useHistoricalRate) {
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check exchange rate:', error);
+  }
+};
 
   // Handle template selection
   const handleTemplateSelect = (templateId: string) => {
@@ -391,6 +424,10 @@ export const InvoiceForm: React.FC = () => {
     onSuccess: async (newInvoice) => {
       // Handle recurring invoice if needed
       if (formData.is_recurring) {
+         // Calculate exchange rate here
+    const exchangeRate = formData.currency === baseCurrency 
+      ? 1 
+      : (exchangeRates[formData.currency] || 1);
         const templateInvoiceData = {
           invoice_number: formData.invoice_number,
           client_id: formData.client_id || null,
@@ -402,8 +439,8 @@ export const InvoiceForm: React.FC = () => {
           total,
           notes: formData.notes || null,
           status: 'draft' as const,
-          currency: 'USD',
-          exchange_rate: 1
+          currency: formData.currency,
+          exchange_rate: exchangeRate
         };
         
         const recurringData = {
@@ -449,6 +486,11 @@ export const InvoiceForm: React.FC = () => {
     onSuccess: async () => {
       // Handle recurring invoice update
       if (formData.is_recurring) {
+        // Calculate exchange rate here
+    const exchangeRate = formData.currency === baseCurrency 
+      ? 1 
+      : (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1));
+      
         const templateInvoiceData = {
           invoice_number: formData.invoice_number,
           client_id: formData.client_id || null,
@@ -460,8 +502,8 @@ export const InvoiceForm: React.FC = () => {
           total,
           notes: formData.notes || null,
           status: 'draft' as const,
-          currency: 'USD',
-          exchange_rate: 1
+          currency: formData.currency, // Use actual currency
+          exchange_rate: exchangeRate 
         };
         
         const recurringData = {
@@ -504,19 +546,24 @@ export const InvoiceForm: React.FC = () => {
     if (invoiceData?.invoice) {
       const { invoice, recurringData } = invoiceData;
       
-      setFormData({
-        invoice_number: invoice.invoice_number,
-        client_id: invoice.client_id || '',
-        date: invoice.date,
-        due_date: invoice.due_date,
-        tax_rate: invoice.tax_rate.toString(),
-        notes: invoice.notes || '',
-        is_recurring: !!recurringData,
-        frequency: recurringData?.frequency || 'monthly',
-        recurring_end_date: recurringData?.end_date || '',
-        payment_terms: 30,
-        income_category_id: invoice.income_category_id || ''
-      });
+         setFormData({
+          invoice_number: invoice.invoice_number,
+          client_id: invoice.client_id || '',
+          date: invoice.date,
+          due_date: invoice.due_date,
+          tax_rate: invoice.tax_rate.toString(),
+          notes: invoice.notes || '',
+          currency: invoice.currency || baseCurrency,  // ADD THIS LINE
+          is_recurring: !!recurringData,
+          frequency: recurringData?.frequency || 'monthly',
+          recurring_end_date: recurringData?.end_date || '',
+          payment_terms: 30,
+          income_category_id: invoice.income_category_id || ''
+        });
+        // Store original exchange rate
+if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
+  setOriginalRate(invoice.exchange_rate);
+}
       
       // Convert InvoiceItem[] to FormInvoiceItem[]
       setItems(invoice.items?.map((item: InvoiceItem) => ({
@@ -531,6 +578,14 @@ export const InvoiceForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Calculate exchange rate
+ // Calculate exchange rate
+    const exchangeRate = formData.currency === baseCurrency 
+      ? 1 
+      : (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1));
+    
+  // Calculate base amount (amount in base currency)
+  const baseAmount = total / exchangeRate;
     
     if (!user) return;
     
@@ -546,7 +601,9 @@ export const InvoiceForm: React.FC = () => {
       total: Number(total.toFixed(2)),
       notes: formData.notes || null,
       status: 'draft' as const,
-      currency: 'USD',
+      currency: formData.currency,
+    exchange_rate: exchangeRate,
+    base_amount: baseAmount,
       income_category_id: formData.income_category_id || null
     };
     
@@ -729,6 +786,71 @@ export const InvoiceForm: React.FC = () => {
               />
             </div>
           </div>
+          {/* Add Currency Selection HERE */}
+<div className="mb-6">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Invoice Currency
+  </label>
+  <select
+    value={formData.currency}
+    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    {userSettings?.enabled_currencies?.map(currency => (
+      <option key={currency} value={currency}>
+        {currency} - {getCurrencySymbol(currency)}
+      </option>
+    ))}
+  </select>
+  {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+    <p className="text-xs text-gray-500 mt-1">
+      Rate: 1 {baseCurrency} = {exchangeRates[formData.currency].toFixed(4)} {formData.currency}
+    </p>
+  )}
+</div>
+
+{/* Exchange Rate Warning */}
+{showRateWarning && isEdit && originalRate && (
+  <div className="mt-4">
+    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <div className="flex items-start">
+        <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+        <div className="flex-1">
+          <h4 className="text-sm font-medium text-yellow-800 mb-2">
+            Exchange Rate Changed
+          </h4>
+          <p className="text-sm text-yellow-700 mb-3">
+            The exchange rate has changed since this invoice was created:
+          </p>
+          <div className="text-sm space-y-1 mb-3">
+            <div>Original rate: <span className="font-medium">1 {baseCurrency} = {originalRate.toFixed(4)} {formData.currency}</span></div>
+            <div>Current rate: <span className="font-medium">1 {baseCurrency} = {exchangeRates[formData.currency]?.toFixed(4) || 'N/A'} {formData.currency}</span></div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={useHistoricalRate}
+                onChange={() => setUseHistoricalRate(true)}
+                className="mr-2"
+              />
+              <span className="text-sm text-yellow-700">Use original rate (historical)</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={!useHistoricalRate}
+                onChange={() => setUseHistoricalRate(false)}
+                className="mr-2"
+              />
+              <span className="text-sm text-yellow-700">Use current rate</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
           {/* Income Category Field - Added here */}
           <div className="mb-6">
@@ -864,7 +986,7 @@ export const InvoiceForm: React.FC = () => {
                   required
                 />
                 <div className="w-32 px-3 py-2 bg-gray-100 rounded-lg text-right font-medium">
-                  {formatCurrency(item.amount)}
+                 {formatCurrency(item.amount, formData.currency)}
                 </div>
                 <button
                   type="button"
@@ -884,7 +1006,7 @@ export const InvoiceForm: React.FC = () => {
               <div className="w-64 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(subtotal)}</span>
+                  <span className="font-medium">{formatCurrency(subtotal, formData.currency)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Tax</span>
@@ -899,12 +1021,19 @@ export const InvoiceForm: React.FC = () => {
                       className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
                     />
                     <span>%</span>
-                    <span className="font-medium w-20 text-right">{formatCurrency(taxAmount)}</span>
+                    <span className="font-medium w-20 text-right">{formatCurrency(taxAmount, formData.currency)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between text-lg font-bold pt-2 border-t">
                   <span>Total</span>
-                  <span>{formatCurrency(total)}</span>
+                  <div className="text-right">
+                    <div>{formatCurrency(total, formData.currency)}</div>
+                    {formData.currency !== baseCurrency && (
+                      <div className="text-sm font-normal text-gray-500">
+                        ({formatCurrency(total / (exchangeRates[formData.currency] || 1), baseCurrency)})
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1041,8 +1170,7 @@ export const InvoiceForm: React.FC = () => {
                     placeholder="Enter client name"
                     autoFocus
                   />
-                </div>
-                
+                </div>                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email

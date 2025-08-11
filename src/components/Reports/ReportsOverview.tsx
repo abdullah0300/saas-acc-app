@@ -6,6 +6,7 @@ import { Crown } from 'lucide-react';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonReport } from '../Common/Loading';
+
 import { 
   ChevronRight,
   BarChart3, 
@@ -57,7 +58,7 @@ import {
   Scatter,
   ScatterChart,
   ZAxis,
-  ComposedChart
+  ComposedChart 
 } from 'recharts';
 import { getMonthlySummaries, getCategorySummaries, getClientSummaries, MonthlySummary, CategorySummary, ClientSummary } from '../../services/summaryService';
 import { getIncomes, getExpenses, getInvoices, getClients, getCategories } from '../../services/database';
@@ -267,12 +268,12 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       );
       
       // Calculate metrics
-      const income = monthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-      const expenseTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-      const invoiced = monthInvoices.reduce((sum, inv) => sum + inv.total, 0);
-      const collected = monthInvoices
-        .filter(inv => inv.status === 'paid')
-        .reduce((sum, inv) => sum + inv.total, 0);
+      const income = monthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+      const expenseTotal = monthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+      const invoiced = monthInvoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+        const collected = monthInvoices
+          .filter(inv => inv.status === 'paid')
+          .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       const taxCollected = monthIncomes.reduce((sum, inc) => sum + (inc.tax_amount || 0), 0);
       const taxPaid = monthExpenses.reduce((sum, exp) => sum + (exp.tax_amount || 0), 0);
       
@@ -299,16 +300,16 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       const category = income.category?.name || 'Uncategorized';
       const existing = incomeByCategory.get(category) || { current: 0, previous: 0, count: 0 };
       incomeByCategory.set(category, {
-        current: existing.current + income.amount,
-        previous: existing.previous,
-        count: existing.count + 1
-      });
+      current: existing.current + (income.base_amount || income.amount),
+      previous: existing.previous,
+      count: existing.count + 1
+        });
     });
     
     prevIncomes.forEach(income => {
       const category = income.category?.name || 'Uncategorized';
       const existing = incomeByCategory.get(category) || { current: 0, previous: 0, count: 0 };
-      existing.previous += income.amount;
+      existing.previous += (income.base_amount || income.amount);
     });
     
     const totalIncome = Array.from(incomeByCategory.values()).reduce((sum, cat) => sum + cat.current, 0);
@@ -330,7 +331,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       const category = expense.category?.name || 'Uncategorized';
       const existing = expenseByCategory.get(category) || { current: 0, previous: 0, count: 0 };
       expenseByCategory.set(category, {
-        current: existing.current + expense.amount,
+        current: existing.current + (expense.base_amount || expense.amount),
         previous: existing.previous,
         count: existing.count + 1
       });
@@ -339,7 +340,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
     prevExpenses.forEach(expense => {
       const category = expense.category?.name || 'Uncategorized';
       const existing = expenseByCategory.get(category) || { current: 0, previous: 0, count: 0 };
-      existing.previous += expense.amount;
+      existing.previous += (expense.base_amount || expense.amount);
     });
     
     const totalExpense = Array.from(expenseByCategory.values()).reduce((sum, cat) => sum + cat.current, 0);
@@ -365,7 +366,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       const date = income.date;
       const existing = dailyFlow.get(date) || { inflow: 0, outflow: 0 };
       dailyFlow.set(date, {
-        inflow: existing.inflow + income.amount,
+        inflow: existing.inflow + (income.base_amount || income.amount),
         outflow: existing.outflow
       });
     });
@@ -375,7 +376,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       const existing = dailyFlow.get(date) || { inflow: 0, outflow: 0 };
       dailyFlow.set(date, {
         inflow: existing.inflow,
-        outflow: existing.outflow + expense.amount
+        outflow: existing.outflow + (expense.base_amount || expense.amount)
       });
     });
     
@@ -402,10 +403,10 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       const clientInvoices = invoices.filter(inv => inv.client_id === client.id);
       const clientIncomes = incomes.filter(inc => inc.client_id === client.id);
       
-      const revenue = clientIncomes.reduce((sum, inc) => sum + inc.amount, 0);
+      const revenue = clientIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
       const outstandingAmount = clientInvoices
         .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
-        .reduce((sum, inv) => sum + inv.total, 0);
+        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       
       const lastInvoice = clientInvoices.sort((a, b) => 
         new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -436,16 +437,16 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
     prevExpenses: any[]
   ) => {
     // Current period metrics
-    const totalRevenue = incomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalRevenue = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
     
     // Invoice metrics
-    const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.total, 0);
+    const totalInvoiced = invoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     const totalCollected = invoices
       .filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     const collectionRate = totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
     
     // Calculate average days to payment
@@ -461,19 +462,19 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
     
     // Outstanding amounts
     const totalOutstanding = invoices
-      .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
-      .reduce((sum, inv) => sum + inv.total, 0);
+  .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
+  .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     const overdueAmount = invoices
-      .filter(inv => inv.status === 'overdue')
-      .reduce((sum, inv) => sum + inv.total, 0);
+  .filter(inv => inv.status === 'overdue')
+  .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     
     // Tax metrics
     const taxCollected = incomes.reduce((sum, inc) => sum + (inc.tax_amount || 0), 0);
     const taxPaid = expenses.reduce((sum, exp) => sum + (exp.tax_amount || 0), 0);
     
     // Growth metrics
-    const prevRevenue = prevIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-    const prevExpenseTotal = prevExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const prevRevenue = prevIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+    const prevExpenseTotal = prevExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     
     const revenueGrowth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
     const expenseGrowth = prevExpenseTotal > 0 ? ((totalExpenses - prevExpenseTotal) / prevExpenseTotal) * 100 : 0;
@@ -520,7 +521,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
           expenseCount: 0
         };
       }
-      acc[vendorId].totalSpent += expense.amount;
+      acc[vendorId].totalSpent += (expense.base_amount || expense.amount);
       acc[vendorId].expenseCount += 1;
     }
     return acc;
@@ -555,6 +556,9 @@ const generateInsights = async () => {
       const currentMonthExpenses = expenses.filter(exp => 
         new Date(exp.date) >= currentMonthStart
       );
+      // Calculate with base amounts
+const currentMonthRevenue = currentMonthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+const currentMonthExpenseTotal = currentMonthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
       
       // Calculate last month metrics
       const lastMonthIncomes = incomes.filter(inc => 
@@ -589,14 +593,14 @@ const generateInsights = async () => {
 
           // Use actual months for average calculation
           const avgMonthlyRevenue = monthsOfData >= 6 
-            ? last6MonthsIncomes.reduce((sum, inc) => sum + inc.amount, 0) / 6
-            : incomes.reduce((sum, inc) => sum + inc.amount, 0) / Math.min(monthsOfData, Math.max(1, monthsOfData));
+          ? last6MonthsIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) / 6
+          : incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) / Math.min(monthsOfData, Math.max(1, monthsOfData));
                 
       // Get expense categories
       const expenseByCategory = expenses.reduce((acc, expense) => {
         const category = expense.category?.name || 'Uncategorized';
         if (!acc[category]) acc[category] = 0;
-        acc[category] += expense.amount;
+        acc[category] += (expense.base_amount || expense.amount);
         return acc;
       }, {} as Record<string, number>);
       
@@ -606,11 +610,12 @@ const generateInsights = async () => {
         .slice(0, 5);
       
       // Calculate cash flow metrics
-      const currentBalance = incomes.reduce((sum, inc) => sum + inc.amount, 0) - 
-                            expenses.reduce((sum, exp) => sum + exp.amount, 0);
-      const avgMonthlyExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0) / 6;
+      // Calculate cash flow metrics
+      const currentBalance = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) - 
+           expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+      const avgMonthlyExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0) / 6;
       const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
-      const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + inv.total, 0);
+      const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       const expectedIncome30Days = invoices
         .filter(inv => {
           const dueDate = new Date(inv.due_date);
@@ -618,12 +623,12 @@ const generateInsights = async () => {
           const thirtyDaysFromNow = new Date(today.setDate(today.getDate() + 30));
           return inv.status !== 'paid' && dueDate <= thirtyDaysFromNow;
         })
-        .reduce((sum, inv) => sum + inv.total, 0);
+        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       
       // Calculate tax metrics
-      const categorizedExpenses = expenses.filter(exp => exp.category_id).reduce((sum, exp) => sum + exp.amount, 0);
-      const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-      const quarterlyTaxEstimate = (incomes.reduce((sum, inc) => sum + inc.amount, 0) - totalExpenses) * 0.25; // Rough estimate
+      const categorizedExpenses = expenses.filter(exp => exp.category_id).reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+      const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+      const quarterlyTaxEstimate = (incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) - totalExpenses) * 0.25;
       
       // Get insights
       const insightsData = await InsightsEngine.getAllInsights({
@@ -1208,7 +1213,7 @@ const processFastData = (
           </div>
         </div>
 
-        {/* Smart Insights Panel */}
+        {/* Smart Insights Panel no need more we dump this  */}
         {/* <InsightsPanel 
           insights={insights} 
           onDismiss={handleDismissInsight}

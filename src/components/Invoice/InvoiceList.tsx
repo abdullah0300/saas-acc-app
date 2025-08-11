@@ -50,7 +50,7 @@ interface RecurringInvoice {
 
 export const InvoiceList: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, baseCurrency } = useSettings();
   const queryClient = useQueryClient();
   const { refreshBusinessData } = useData();
   
@@ -261,16 +261,17 @@ const handleBulkExport = () => {
     selectedItems.includes(invoice.id)
   );
   
-  const headers = ['Invoice #', 'Date', 'Due Date', 'Client', 'Amount', 'Status', 'Type'];
+  const headers = ['Invoice #', 'Date', 'Due Date', 'Client', 'Amount', 'Currency', 'Status', 'Type'];
   const csvData = selectedInvoices.map(invoice => [
-    invoice.invoice_number,
-    format(parseISO(invoice.date), 'yyyy-MM-dd'),
-    format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
-    invoice.client?.name || 'No client',
-    invoice.total.toString(),
-    invoice.status,
-    recurringInvoices.has(invoice.id) ? 'Recurring' : 'One-time'
-  ]);
+  invoice.invoice_number,
+  format(parseISO(invoice.date), 'yyyy-MM-dd'),
+  format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
+  invoice.client?.name || 'No client',
+  invoice.total.toString(),
+  invoice.currency || baseCurrency,
+  invoice.status,
+  recurringInvoices.has(invoice.id) ? 'Recurring' : 'One-time'
+]);
   
   const csvContent = [
     headers.join(','),
@@ -287,21 +288,22 @@ const handleBulkExport = () => {
 };
 
   // Calculate stats
-  const stats = React.useMemo(() => {
-    const totalAmount = invoices.reduce((sum, inv) => sum + inv.total, 0);
-    const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
-    const pendingAmount = invoices.filter(inv => inv.status === 'sent').reduce((sum, inv) => sum + inv.total, 0);
-    const overdueAmount = invoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + inv.total, 0);
-    
-    return {
-      totalInvoices: invoices.length,
-      totalAmount,
-      paidAmount,
-      pendingAmount,
-      overdueAmount,
-      averageInvoiceValue: invoices.length > 0 ? totalAmount / invoices.length : 0
-    };
-  }, [invoices]);
+const stats = React.useMemo(() => {
+  // Use base_amount when available for accurate totals
+  const totalAmount = invoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+  const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+  const pendingAmount = invoices.filter(inv => inv.status === 'sent').reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+  const overdueAmount = invoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+  
+  return {
+    totalInvoices: invoices.length,
+    totalAmount,
+    paidAmount,
+    pendingAmount,
+    overdueAmount,
+    averageInvoiceValue: invoices.length > 0 ? totalAmount / invoices.length : 0
+  };
+}, [invoices]);
 
   const handleDelete = (id: string) => {
   const invoice = invoices.find(inv => inv.id === id);
@@ -426,9 +428,9 @@ const handleCancelDelete = () => {
       `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
       itemsSummary +
       `\n━━━━━━━━━━━━━━━━━━━━\n` +
-      `*Subtotal:* ${formatCurrency(invoice.subtotal)}\n` +
-      (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount)}\n` : '') +
-      `💰 *TOTAL DUE:* ${formatCurrency(invoice.total)}\n` +
+      `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
+      (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
+      `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n\n` +
       `📱 *View Full Invoice:*\n` +
       `${window.location.origin}/invoices/${invoice.id}/view\n\n` +
@@ -589,7 +591,7 @@ const handleCancelDelete = () => {
               <span className="text-2xl font-bold">{stats.totalInvoices}</span>
             </div>
             <p className="text-indigo-100 text-sm">Total Invoices</p>
-            <p className="text-indigo-200 text-xs mt-1">Avg: {formatCurrency(stats.averageInvoiceValue)}</p>
+            <p className="text-indigo-200 text-xs mt-1">Avg: {formatCurrency(stats.averageInvoiceValue, baseCurrency)}</p>
           </div>
           
           <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white">
@@ -597,7 +599,7 @@ const handleCancelDelete = () => {
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
                 <DollarSign className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.paidAmount)}</span>
+              <span className="text-2xl font-bold">{formatCurrency(stats.paidAmount, baseCurrency)}</span>
             </div>
             <p className="text-emerald-100 text-sm">Paid</p>
             <p className="text-emerald-200 text-xs mt-1">
@@ -610,7 +612,7 @@ const handleCancelDelete = () => {
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
                 <Clock className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.pendingAmount)}</span>
+              <span className="text-2xl font-bold">{formatCurrency(stats.pendingAmount, baseCurrency)}</span>
             </div>
             <p className="text-amber-100 text-sm">Pending</p>
             <p className="text-amber-200 text-xs mt-1">Awaiting payment</p>
@@ -621,7 +623,7 @@ const handleCancelDelete = () => {
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
                 <AlertCircle className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.overdueAmount)}</span>
+              <span className="text-2xl font-bold">{formatCurrency(stats.overdueAmount, baseCurrency)}</span> 
             </div>
             <p className="text-red-100 text-sm">Overdue</p>
             <p className="text-red-200 text-xs mt-1">Requires attention</p>
@@ -825,15 +827,22 @@ const handleCancelDelete = () => {
                           {format(parseISO(invoice.due_date), 'MMM dd, yyyy')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-gray-900">
-                            {formatCurrency(invoice.total)}
-                          </div>
-                          {invoice.tax_rate > 0 && (
-                            <div className="text-xs text-gray-500">
-                              Incl. {invoice.tax_rate}% tax
-                            </div>
-                          )}
-                        </td>
+  <div className="flex flex-col items-end">
+    <div className="text-sm font-semibold text-gray-900">
+      {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
+    </div>
+    {invoice.currency && invoice.currency !== baseCurrency && (
+      <span className="text-xs text-gray-500 mt-0.5">
+        {invoice.currency}
+      </span>
+    )}
+    {invoice.tax_rate > 0 && (
+      <div className="text-xs text-gray-400 mt-0.5">
+        Incl. {invoice.tax_rate}% tax
+      </div>
+    )}
+  </div>
+</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
                             {getStatusIcon(invoice.status)}

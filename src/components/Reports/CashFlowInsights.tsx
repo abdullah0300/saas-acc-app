@@ -63,7 +63,7 @@ interface OverdueInvoice {
 
 export const CashFlowInsights: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, baseCurrency } = useSettings();
   const [loading, setLoading] = useState(true);
   const [receivablesAging, setReceivablesAging] = useState<ReceivableAging[]>([]);
   const [cashForecast, setCashForecast] = useState<CashForecast[]>([]);
@@ -134,7 +134,7 @@ export const CashFlowInsights: React.FC = () => {
         return daysSinceDue >= bucket.min && daysSinceDue <= bucket.max;
       });
       
-      const amount = invoicesInBucket.reduce((sum, inv) => sum + inv.total, 0);
+      const amount = invoicesInBucket.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       
       return {
         range: bucket.range,
@@ -160,12 +160,12 @@ export const CashFlowInsights: React.FC = () => {
     const today = new Date();
     
     // Get current balance (sum of all past incomes minus expenses)
-    const currentBalance = incomes
-      .filter(inc => new Date(inc.date) <= today)
-      .reduce((sum, inc) => sum + inc.amount, 0) -
-      expenses
-        .filter(exp => new Date(exp.date) <= today)
-        .reduce((sum, exp) => sum + exp.amount, 0);
+   const currentBalance = incomes
+  .filter(inc => new Date(inc.date) <= today)
+  .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) -
+  expenses
+    .filter(exp => new Date(exp.date) <= today)
+    .reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     
     // Generate 30-day forecast
     for (let i = 0; i < 30; i++) {
@@ -174,13 +174,13 @@ export const CashFlowInsights: React.FC = () => {
       
       // Get confirmed income for this date (paid invoices)
       const confirmedIncome = incomes
-        .filter(inc => inc.date === dateStr)
-        .reduce((sum, inc) => sum + inc.amount, 0);
+      .filter(inc => inc.date === dateStr)
+      .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
       
       // Get expected income from unpaid invoices due on this date
       const expectedIncome = invoices
-        .filter(inv => inv.due_date === dateStr && inv.status !== 'paid')
-        .reduce((sum, inv) => sum + inv.total, 0);
+      .filter(inv => inv.due_date === dateStr && inv.status !== 'paid')
+      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       
       // Estimate daily expenses based on last 30 days average
       const last30DaysExpenses = expenses
@@ -188,7 +188,7 @@ export const CashFlowInsights: React.FC = () => {
           const expDate = new Date(exp.date);
           return expDate >= addDays(today, -30) && expDate <= today;
         })
-        .reduce((sum, exp) => sum + exp.amount, 0);
+        .reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
       
       const dailyExpenseAvg = last30DaysExpenses / 30;
       
@@ -221,7 +221,7 @@ export const CashFlowInsights: React.FC = () => {
         id: inv.id,
         invoice_number: inv.invoice_number,
         client_name: inv.client?.name || 'Unknown Client',
-        amount: inv.total,
+        amount: inv.base_amount || inv.total,
         days_overdue: differenceInDays(today, new Date(inv.due_date)),
         due_date: inv.due_date
       }))
@@ -240,7 +240,7 @@ export const CashFlowInsights: React.FC = () => {
     // Total receivables
     const totalReceivables = invoices
       .filter(inv => inv.status !== 'paid' && inv.status !== 'canceled')
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     
     // Overdue amount
     const overdueAmount = invoices
@@ -248,7 +248,7 @@ export const CashFlowInsights: React.FC = () => {
         const dueDate = new Date(inv.due_date);
         return inv.status !== 'paid' && dueDate < today;
       })
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     
     // Average days to payment
     const paidInvoices = invoices.filter(inv => inv.status === 'paid' && inv.paid_date);
@@ -265,33 +265,33 @@ export const CashFlowInsights: React.FC = () => {
         const dueDate = new Date(inv.due_date);
         return inv.status !== 'paid' && dueDate <= thirtyDaysFromNow;
       })
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     
     // Expected inflow this month
-    const expectedInflowThisMonth = invoices
-      .filter(inv => {
-        const dueDate = new Date(inv.due_date);
-        return inv.status !== 'paid' && dueDate >= monthStart && dueDate <= monthEnd;
-      })
-      .reduce((sum, inv) => sum + inv.total, 0);
+      const expectedInflowThisMonth = invoices
+        .filter(inv => {
+          const dueDate = new Date(inv.due_date);
+          return inv.status !== 'paid' && dueDate >= monthStart && dueDate <= monthEnd;
+        })
+        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
     
     // Expected outflow this month (based on average)
-    const lastMonthExpenses = expenses
-      .filter(exp => {
-        const expDate = new Date(exp.date);
-        return expDate >= addDays(monthStart, -30) && expDate < monthStart;
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
+        const lastMonthExpenses = expenses
+        .filter(exp => {
+          const expDate = new Date(exp.date);
+          return expDate >= addDays(monthStart, -30) && expDate < monthStart;
+        })
+        .reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     
     const expectedOutflowThisMonth = lastMonthExpenses;
     
     // Current balance
     const currentBalance = incomes
       .filter(inc => new Date(inc.date) <= today)
-      .reduce((sum, inc) => sum + inc.amount, 0) -
+      .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) -
       expenses
         .filter(exp => new Date(exp.date) <= today)
-        .reduce((sum, exp) => sum + exp.amount, 0);
+        .reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     
     // Projected balance in 30 days
     const projectedBalance30Days = currentBalance + cashIn30Days - (expectedOutflowThisMonth / 30 * 30);
@@ -350,7 +350,7 @@ export const CashFlowInsights: React.FC = () => {
               <span className="text-xs text-blue-600 font-medium">Receivables</span>
             </div>
             <p className="text-2xl font-bold text-blue-700">
-              {formatCurrency(metrics.totalReceivables)}
+             {formatCurrency(metrics.totalReceivables, baseCurrency)}
             </p>
             <p className="text-xs text-blue-600 mt-1">Outstanding invoices</p>
           </div>
@@ -361,7 +361,7 @@ export const CashFlowInsights: React.FC = () => {
               <span className="text-xs text-red-600 font-medium">Overdue</span>
             </div>
             <p className="text-2xl font-bold text-red-700">
-              {formatCurrency(metrics.overdueAmount)}
+              {formatCurrency(metrics.overdueAmount, baseCurrency)}
             </p>
             <p className="text-xs text-red-600 mt-1">
               {metrics.totalReceivables > 0 
@@ -376,7 +376,7 @@ export const CashFlowInsights: React.FC = () => {
               <span className="text-xs text-green-600 font-medium">30-Day Forecast</span>
             </div>
             <p className="text-2xl font-bold text-green-700">
-              {formatCurrency(metrics.projectedBalance30Days)}
+              {formatCurrency(metrics.projectedBalance30Days, baseCurrency)}
             </p>
             <p className="text-xs text-green-600 mt-1">Projected balance</p>
           </div>
@@ -406,7 +406,7 @@ export const CashFlowInsights: React.FC = () => {
                 <XAxis dataKey="range" />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value: any) => formatCurrency(value)}
+                  formatter={(value: any) => formatCurrency(value, baseCurrency)}
                   labelFormatter={(label) => `Age: ${label}`}
                 />
                 <Bar dataKey="amount" radius={[8, 8, 0, 0]}>
@@ -433,7 +433,7 @@ export const CashFlowInsights: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-gray-900">{formatCurrency(bucket.amount)}</p>
+                  <p className="font-bold text-gray-900">{formatCurrency(bucket.amount, baseCurrency)}</p>
                   <p className="text-sm text-gray-500">{bucket.percentage.toFixed(1)}%</p>
                 </div>
               </div>
@@ -472,7 +472,7 @@ export const CashFlowInsights: React.FC = () => {
               />
               <Tooltip 
                 labelFormatter={(date) => format(new Date(date), 'MMM dd, yyyy')}
-                formatter={(value: any) => formatCurrency(value)}
+                formatter={(value: any) => formatCurrency(value, baseCurrency)}
               />
               <Area
                 type="monotone"
@@ -512,7 +512,7 @@ export const CashFlowInsights: React.FC = () => {
               <ArrowRight className="h-4 w-4 text-gray-400" />
             </div>
             <p className="text-xl font-bold text-gray-900">
-              {formatCurrency(metrics.cashIn30Days)}
+              {formatCurrency(metrics.cashIn30Days, baseCurrency)}
             </p>
           </div>
           
@@ -522,7 +522,7 @@ export const CashFlowInsights: React.FC = () => {
               <ArrowDown className="h-4 w-4 text-green-500" />
             </div>
             <p className="text-xl font-bold text-gray-900">
-              {formatCurrency(metrics.expectedInflowThisMonth)}
+              {formatCurrency(metrics.expectedInflowThisMonth, baseCurrency)}
             </p>
           </div>
           
@@ -532,7 +532,7 @@ export const CashFlowInsights: React.FC = () => {
               <ArrowUp className="h-4 w-4 text-red-500" />
             </div>
             <p className="text-xl font-bold text-gray-900">
-              {formatCurrency(metrics.expectedOutflowThisMonth)}
+             {formatCurrency(metrics.expectedOutflowThisMonth, baseCurrency)}
             </p>
           </div>
         </div>
@@ -562,7 +562,7 @@ export const CashFlowInsights: React.FC = () => {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-gray-900">{formatCurrency(invoice.amount)}</p>
+                      <p className="font-bold text-gray-900">{formatCurrency(invoice.amount, baseCurrency)}</p>
                       <a 
                         href={`/invoices/${invoice.id}/view`}
                         className="text-sm text-blue-600 hover:text-blue-700"

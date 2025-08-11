@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
+import {  Users, Clock, RefreshCw, Copy, DollarSign } from 'lucide-react';
 import { 
   Plus, 
   Search, 
@@ -27,7 +28,7 @@ import { Expense, Category } from '../../types';
 
 export const ExpenseList: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency } = useSettings(); // Added formatCurrency
+  const { formatCurrency, baseCurrency } = useSettings();
 const { businessData, businessDataLoading, refreshBusinessData } = useData();
 const { expenses } = businessData;  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
 const { categories: allCategories } = businessData;
@@ -35,6 +36,10 @@ const categories = allCategories.expense; // Use expense categories from DataCon
 const loading = businessDataLoading;
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
+
+  // Expense detail modal state
+const [showDetailModal, setShowDetailModal] = useState(false);
+const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -272,15 +277,16 @@ const searchAllTime = () => {
     selectedItems.includes(expense.id)
   );
   
-  const headers = ['Date', 'Description', 'Category', 'Vendor', 'Amount', 'Receipt'];
-  const csvData = selectedExpenses.map(expense => [
-    format(parseISO(expense.date), 'yyyy-MM-dd'),
-    expense.description,
-    expense.category?.name || 'Uncategorized',
-    expense.vendor || 'No vendor',
-    expense.amount.toString(),
-    expense.receipt_url ? 'Yes' : 'No'
-  ]);
+  const headers = ['Date', 'Description', 'Category', 'Vendor', 'Amount', 'Currency', 'Receipt'];
+const csvData = selectedExpenses.map(expense => [
+  format(parseISO(expense.date), 'yyyy-MM-dd'),
+  expense.description,
+  expense.category?.name || 'Uncategorized',
+  expense.vendor || 'No vendor',
+  expense.amount.toString(),
+  expense.currency || baseCurrency,
+  expense.receipt_url ? 'Yes' : 'No'
+]);
   
   const csvContent = [
     headers.join(','),
@@ -385,6 +391,11 @@ const searchAllTime = () => {
   }
 };
 
+const handleViewDetails = (expense: Expense) => {
+  setSelectedExpense(expense);
+  setShowDetailModal(true);
+};
+
   const exportToCSV = () => {
     const headers = ['Date', 'Description', 'Vendor', 'Category', 'Amount', 'Receipt'];
     const data = filteredExpenses.map(expense => [
@@ -408,7 +419,8 @@ const searchAllTime = () => {
     link.click();
   };
 
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Use base_amount for accurate totals across currencies
+  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + (expense.base_amount || expense.amount), 0);
   const averageExpense = filteredExpenses.length > 0 ? totalExpenses / filteredExpenses.length : 0;
   const expensesWithReceipts = filteredExpenses.filter(e => e.receipt_url).length;
 
@@ -466,7 +478,7 @@ const searchAllTime = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(totalExpenses)}
+            {formatCurrency(totalExpenses, baseCurrency)}
           </p>
           <p className="text-sm text-gray-500 mt-1">
             {filteredExpenses.length} transactions
@@ -481,7 +493,7 @@ const searchAllTime = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {formatCurrency(Math.round(averageExpense))}
+            {formatCurrency(Math.round(averageExpense), baseCurrency)}
           </p>
           <p className="text-sm text-gray-500 mt-1">Per transaction</p>
         </div>
@@ -885,10 +897,17 @@ const searchAllTime = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right">
+                    <div className="flex flex-col items-end">
                       <span className="text-red-600">
-                        {formatCurrency(expense.amount)}
+                        {formatCurrency(expense.amount, expense.currency || baseCurrency)}
                       </span>
-                    </td>
+                      {expense.currency && expense.currency !== baseCurrency && (
+                        <span className="text-xs text-gray-500 mt-0.5">
+                          {expense.currency}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                       {expense.receipt_url ? (
                         <a
@@ -905,6 +924,13 @@ const searchAllTime = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                       <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleViewDetails(expense)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                         <Link
                           to={`/expenses/edit/${expense.id}`}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -1037,6 +1063,253 @@ const searchAllTime = () => {
   </div>
 )}
       </div>
+      {/* Expense Detail Modal */}
+{showDetailModal && selectedExpense && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      {/* Modal Header */}
+      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Expense Details</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Transaction ID: {selectedExpense.id.slice(0, 8)}...
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setShowDetailModal(false);
+              setSelectedExpense(null);
+            }}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+      </div>
+
+      {/* Modal Body */}
+      <div className="p-6 space-y-6">
+        {/* Basic Information */}
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6">
+          <h4 className="text-sm font-semibold text-red-800 mb-4 flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Basic Information
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-600">Date</p>
+              <p className="font-medium text-gray-900">
+                {format(parseISO(selectedExpense.date), 'MMMM dd, yyyy')}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Receipt</p>
+              <p className="font-medium text-gray-900">
+                {selectedExpense.receipt_url ? (
+                  <a 
+                    href={selectedExpense.receipt_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <Receipt className="h-4 w-4" />
+                    View Receipt
+                  </a>
+                ) : (
+                  <span className="text-gray-500">No receipt attached</span>
+                )}
+              </p>
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-sm text-gray-600">Description</p>
+              <p className="font-medium text-gray-900">{selectedExpense.description}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Category & Vendor */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-purple-50 rounded-xl p-6">
+            <h4 className="text-sm font-semibold text-purple-800 mb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Category
+            </h4>
+            <p className="font-medium text-gray-900">
+              {selectedExpense.category?.name || 'Uncategorized'}
+            </p>
+          </div>
+          
+          <div className="bg-orange-50 rounded-xl p-6">
+            <h4 className="text-sm font-semibold text-orange-800 mb-3 flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Vendor
+            </h4>
+            {selectedExpense.vendor ? (
+              <div>
+                <p className="font-medium text-gray-900">{selectedExpense.vendor}</p>
+                {selectedExpense.vendor_detail && (
+                  <>
+                    {selectedExpense.vendor_detail.email && (
+                      <p className="text-sm text-gray-600 mt-1">{selectedExpense.vendor_detail.email}</p>
+                    )}
+                    {selectedExpense.vendor_detail.phone && (
+                      <p className="text-sm text-gray-600">{selectedExpense.vendor_detail.phone}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No vendor assigned</p>
+            )}
+          </div>
+        </div>
+
+        {/* Financial Details */}
+        <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6">
+          <h4 className="text-sm font-semibold text-red-800 mb-4 flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Financial Details
+          </h4>
+          
+          <div className="space-y-4">
+            {/* Original Amount */}
+            <div className="flex justify-between items-center pb-3 border-b border-red-100">
+              <span className="text-gray-600">Amount</span>
+              <span className="font-semibold text-lg text-gray-900">
+                {formatCurrency(selectedExpense.amount, selectedExpense.currency || baseCurrency)}
+              </span>
+            </div>
+
+            {/* Tax Information */}
+            {selectedExpense.tax_rate && selectedExpense.tax_rate > 0 && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Tax Rate</span>
+                  <span className="font-medium">{selectedExpense.tax_rate}%</span>
+                </div>
+                <div className="flex justify-between items-center pb-3 border-b border-red-100">
+                  <span className="text-gray-600">Tax Amount</span>
+                  <span className="font-medium">
+                    {formatCurrency(selectedExpense.tax_amount || 0, selectedExpense.currency || baseCurrency)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pb-3 border-b border-red-100">
+                  <span className="text-gray-600 font-medium">Total with Tax</span>
+                  <span className="font-semibold text-lg">
+                    {formatCurrency(
+                      (selectedExpense.total_with_tax || selectedExpense.amount), 
+                      selectedExpense.currency || baseCurrency
+                    )}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Currency Conversion Details */}
+            {selectedExpense.currency && selectedExpense.currency !== baseCurrency && (
+              <div className="mt-4 pt-4 border-t-2 border-red-200">
+                <h5 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Currency Conversion
+                </h5>
+                
+                <div className="bg-white/50 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Original Currency</span>
+                    <span className="font-medium">{selectedExpense.currency}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Exchange Rate</span>
+                    <span className="font-medium">
+                      1 {baseCurrency} = {selectedExpense.exchange_rate || 1} {selectedExpense.currency}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                    <span className="text-gray-700 font-medium">Amount in {baseCurrency}</span>
+                    <span className="font-bold text-lg text-red-700">
+                      {formatCurrency(selectedExpense.base_amount || selectedExpense.amount, baseCurrency)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Timestamps */}
+        <div className="bg-gray-50 rounded-xl p-6">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Record Information
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-gray-600">Created</p>
+              <p className="font-medium text-gray-900">
+                {format(parseISO(selectedExpense.created_at), 'MMM dd, yyyy HH:mm')}
+              </p>
+            </div>
+            {selectedExpense.updated_at && (
+              <div>
+                <p className="text-gray-600">Last Updated</p>
+                <p className="font-medium text-gray-900">
+                  {format(parseISO(selectedExpense.updated_at), 'MMM dd, yyyy HH:mm')}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <Link
+            to={`/expenses/edit/${selectedExpense.id}`}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            <Edit className="h-4 w-4" />
+            Edit Expense
+          </Link>
+          
+          <button
+            onClick={() => {
+              // Copy details to clipboard
+              const details = `Expense Details
+Date: ${format(parseISO(selectedExpense.date), 'MMMM dd, yyyy')}
+Description: ${selectedExpense.description}
+Amount: ${formatCurrency(selectedExpense.amount, selectedExpense.currency || baseCurrency)}
+${selectedExpense.currency !== baseCurrency ? `Base Amount: ${formatCurrency(selectedExpense.base_amount || selectedExpense.amount, baseCurrency)}` : ''}
+Category: ${selectedExpense.category?.name || 'Uncategorized'}
+Vendor: ${selectedExpense.vendor || 'No vendor'}
+Receipt: ${selectedExpense.receipt_url ? 'Attached' : 'None'}`;
+              
+              navigator.clipboard.writeText(details);
+              alert('Details copied to clipboard!');
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <Copy className="h-4 w-4" />
+            Copy Details
+          </button>
+          
+          <button
+            onClick={() => {
+              handleDelete(selectedExpense.id);
+              setShowDetailModal(false);
+              setSelectedExpense(null);
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

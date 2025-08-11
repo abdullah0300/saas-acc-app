@@ -1,159 +1,167 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Globe, TrendingUp } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
+import React, { useState } from 'react';
+import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../services/supabaseClient';
+import { useAuth } from '../../contexts/AuthContext';
+import { Check, RefreshCw, Globe, Loader2, Plus, X } from 'lucide-react';
 
-interface Currency {
-  code: string;
-  name: string;
-  symbol: string;
-  exchange_rate: number;
-}
-
-const POPULAR_CURRENCIES: Currency[] = [
-  { code: 'USD', name: 'US Dollar', symbol: '$', exchange_rate: 1 },
-  { code: 'EUR', name: 'Euro', symbol: '€', exchange_rate: 0.85 },
-  { code: 'GBP', name: 'British Pound', symbol: '£', exchange_rate: 0.73 },
-  { code: 'JPY', name: 'Japanese Yen', symbol: '¥', exchange_rate: 110.0 },
-  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', exchange_rate: 1.35 },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', exchange_rate: 1.25 },
-  { code: 'INR', name: 'Indian Rupee', symbol: '₹', exchange_rate: 83.0 },
-  { code: 'PKR', name: 'Pakistani Rupee', symbol: 'Rs', exchange_rate: 280.0 },
+// Available currencies constant
+const AVAILABLE_CURRENCIES = [
+  { code: 'USD', name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
+  { code: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺' },
+  { code: 'GBP', name: 'British Pound', symbol: '£', flag: '🇬🇧' },
+  { code: 'JPY', name: 'Japanese Yen', symbol: '¥', flag: '🇯🇵' },
+  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', flag: '🇦🇺' },
+  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', flag: '🇨🇦' },
+  { code: 'INR', name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
+  { code: 'PKR', name: 'Pakistani Rupee', symbol: 'Rs', flag: '🇵🇰' },
+  { code: 'AED', name: 'UAE Dirham', symbol: 'د.إ', flag: '🇦🇪' },
+  { code: 'SAR', name: 'Saudi Riyal', symbol: '﷼', flag: '🇸🇦' }
 ];
 
 export const CurrencySettings: React.FC = () => {
   const { user } = useAuth();
-  const { refreshSettings } = useSettings(); // Added refreshSettings
-  const [baseCurrency, setBaseCurrency] = useState('USD');
-  const [enabledCurrencies, setEnabledCurrencies] = useState<string[]>(['USD']);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const { 
+    userSettings, 
+    baseCurrency, 
+    exchangeRates, 
+    exchangeRatesLoading,
+    exchangeRateStatus,
+    refreshExchangeRates,
+    refreshSettings 
+  } = useSettings();
+  
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showAddCurrency, setShowAddCurrency] = useState(false);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(
+    userSettings?.enabled_currencies || []
+  );
 
-  useEffect(() => {
-    if (user) {
-      loadCurrencySettings();
+  // Get only enabled currencies for display
+  const enabledCurrencies = AVAILABLE_CURRENCIES.filter(
+    currency => selectedCurrencies.includes(currency.code)
+  );
+
+  // Get available currencies for the add modal (excluding already enabled ones)
+  const availableCurrenciesToAdd = AVAILABLE_CURRENCIES.filter(
+    currency => !selectedCurrencies.includes(currency.code)
+  );
+
+  const handleAddCurrency = (currencyCode: string) => {
+    setSelectedCurrencies([...selectedCurrencies, currencyCode]);
+    setShowAddCurrency(false);
+  };
+
+  const handleRemoveCurrency = (currencyCode: string) => {
+    // Don't allow removing base currency
+    if (currencyCode === baseCurrency) {
+      alert("You cannot remove your base currency.");
+      return;
     }
-  }, [user]);
+    
+    setSelectedCurrencies(selectedCurrencies.filter(code => code !== currencyCode));
+  };
 
-  const loadCurrencySettings = async () => {
+  const handleSave = async () => {
     if (!user) return;
     
+    setSaving(true);
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('user_settings')
-        .select('base_currency, enabled_currencies')
-        .eq('user_id', user.id)
-        .single();
+        .update({ 
+          enabled_currencies: selectedCurrencies,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
       
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      if (data) {
-        setBaseCurrency(data.base_currency || 'USD');
-        setEnabledCurrencies(data.enabled_currencies || ['USD']);
-      }
-    } catch (err: any) {
-      console.error('Error loading currency settings:', err);
+      await refreshSettings();
+      alert('Currency settings saved successfully!');
+    } catch (error: any) {
+      console.error('Error saving currency settings:', error);
+      alert('Error saving settings: ' + error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
- const handleSave = async () => {
-  if (!user) return;
-  
-  setLoading(true);
-  setSuccess(false);
-  
-  try {
-    // Change from insert to upsert
-    const { error } = await supabase
-      .from('user_settings')
-      .upsert({
-        user_id: user.id,
-        base_currency: baseCurrency,
-        enabled_currencies: enabledCurrencies,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id' // Specify the conflict column
-      });
-    
-    if (error) throw error;
-    
-    // Refresh settings after save
-    if (refreshSettings) {
-      await refreshSettings();
+  const handleRefreshRates = async () => {
+    setRefreshing(true);
+    try {
+      await refreshExchangeRates();
+    } finally {
+      setRefreshing(false);
     }
-    
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
-  } catch (err: any) {
-    console.error('Error saving settings:', err);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const toggleCurrency = (code: string) => {
-    if (code === baseCurrency) return; // Can't disable base currency
-    
-    setEnabledCurrencies(prev =>
-      prev.includes(code)
-        ? prev.filter(c => c !== code)
-        : [...prev, code]
-    );
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Currency Settings</h2>
-      
-      {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-          Currency settings saved successfully!
-        </div>
-      )}
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Currency Settings</h2>
+        <p className="text-sm text-gray-600">
+          Manage currencies for your invoices and transactions
+        </p>
+      </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Base Currency</h3>
-          <select
-            value={baseCurrency}
-            onChange={(e) => {
-              setBaseCurrency(e.target.value);
-              if (!enabledCurrencies.includes(e.target.value)) {
-                setEnabledCurrencies([...enabledCurrencies, e.target.value]);
-              }
-            }}
-            className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      {/* Base Currency Display */}
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-blue-900">Base Currency</p>
+            <p className="text-lg font-semibold text-blue-700">{baseCurrency}</p>
+          </div>
+          <Globe className="h-8 w-8 text-blue-600" />
+        </div>
+      </div>
+
+      {/* Exchange Rate Status */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${
+            exchangeRateStatus === 'online' ? 'bg-green-500' : 
+            exchangeRateStatus === 'offline' ? 'bg-red-500' : 
+            'bg-yellow-500'
+          }`} />
+          <span className="text-sm text-gray-600">
+            Rates: {exchangeRateStatus === 'online' ? 'Live' : 
+                   exchangeRateStatus === 'offline' ? 'Cached' : 
+                   'Manual'}
+          </span>
+        </div>
+        <button
+          onClick={handleRefreshRates}
+          disabled={refreshing || exchangeRatesLoading}
+          className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh Rates
+        </button>
+      </div>
+
+      {/* Enabled Currencies */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-900">Enabled Currencies</h3>
+          <button
+            onClick={() => setShowAddCurrency(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
-            {POPULAR_CURRENCIES.map((currency) => (
-              <option key={currency.code} value={currency.code}>
-                {currency.code} - {currency.name} ({currency.symbol})
-              </option>
-            ))}
-          </select>
-          <p className="text-sm text-gray-500 mt-2">
-            This will be your default currency for all transactions
-          </p>
+            <Plus className="h-4 w-4" />
+            Add Currency
+          </button>
         </div>
 
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Enabled Currencies</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {POPULAR_CURRENCIES.map((currency) => (
-              <label
-                key={currency.code}
-                className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                  currency.code === baseCurrency ? 'bg-blue-50 border-blue-300' : ''
-                }`}
-              >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {enabledCurrencies.map((currency) => (
+            <div
+              key={currency.code}
+              className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={enabledCurrencies.includes(currency.code)}
-                    onChange={() => toggleCurrency(currency.code)}
-                    disabled={currency.code === baseCurrency}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                  />
+                  <span className="text-2xl">{currency.flag}</span>
                   <div>
                     <p className="font-medium text-gray-900">
                       {currency.symbol} {currency.code}
@@ -162,29 +170,105 @@ export const CurrencySettings: React.FC = () => {
                   </div>
                 </div>
                 {currency.code !== baseCurrency && (
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">1 {baseCurrency} =</p>
-                    <p className="font-medium">
-                      {(POPULAR_CURRENCIES.find(c => c.code === baseCurrency)?.exchange_rate! / currency.exchange_rate).toFixed(4)} {currency.code}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => handleRemoveCurrency(currency.code)}
+                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                    title="Remove currency"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
-              </label>
-            ))}
-          </div>
+              </div>
+              
+              <div className="text-sm text-gray-600">
+                {currency.code === baseCurrency ? (
+                  <span className="text-indigo-600 font-medium">Base Currency</span>
+                ) : exchangeRatesLoading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading rate...
+                  </span>
+                ) : (
+                  <span>
+                    1 {baseCurrency} = {exchangeRates[currency.code]?.toFixed(4) || '...'} {currency.code}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Saving...' : 'Save Settings'}
-          </button>
-        </div>
+        {enabledCurrencies.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <p>No currencies enabled. Add currencies to get started.</p>
+          </div>
+        )}
       </div>
+
+      {/* Save Button */}
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" />
+              Save Settings
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Add Currency Modal */}
+      {showAddCurrency && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Add Currency</h3>
+                <button
+                  onClick={() => setShowAddCurrency(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                {availableCurrenciesToAdd.map((currency) => (
+                  <button
+                    key={currency.code}
+                    onClick={() => handleAddCurrency(currency.code)}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors text-left"
+                  >
+                    <span className="text-2xl">{currency.flag}</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">
+                        {currency.code} - {currency.symbol}
+                      </p>
+                      <p className="text-sm text-gray-500">{currency.name}</p>
+                    </div>
+                    <Plus className="h-5 w-5 text-gray-400" />
+                  </button>
+                ))}
+                
+                {availableCurrenciesToAdd.length === 0 && (
+                  <p className="text-center py-4 text-gray-500">
+                    All available currencies are already enabled.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

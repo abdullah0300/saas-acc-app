@@ -21,7 +21,7 @@ export const ProfitLossReport: React.FC = () => {
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, baseCurrency } = useSettings();
 
   useEffect(() => {
     if (user) {
@@ -187,7 +187,7 @@ export const ProfitLossReport: React.FC = () => {
     csv += 'Date,Description,Category,Amount\n';
     incomeByCategory.forEach(([category, items]) => {
       items.forEach(income => {
-        csv += `${income.date},"${income.description}","${category}",${income.amount}\n`;
+        csv += `${income.date},"${income.description}","${category}",${income.base_amount || income.amount}\n`;
       });
     });
     csv += `\nTotal Income,,,${totalIncome}\n\n`;
@@ -196,7 +196,7 @@ export const ProfitLossReport: React.FC = () => {
     csv += 'Date,Description,Category,Vendor,Amount\n';
     expenseByCategory.forEach(([category, items]) => {
       items.forEach(expense => {
-        csv += `${expense.date},"${expense.description}","${category}","${expense.vendor || ''}",${expense.amount}\n`;
+        csv += `${expense.date},"${expense.description}","${category}","${expense.vendor || ''}",${expense.base_amount || expense.amount}\n`;
       });
     });
     csv += `\nTotal Expenses,,,,${totalExpenses}\n`;
@@ -231,8 +231,8 @@ export const ProfitLossReport: React.FC = () => {
     }, new Map<string, Expense[]>())
   );
 
-  const totalIncome = incomes.reduce((sum, item) => sum + item.amount, 0);
-  const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
+  const totalIncome = incomes.reduce((sum, item) => sum + (item.base_amount || item.amount), 0);
+  const totalExpenses = expenses.reduce((sum, item) => sum + (item.base_amount || item.amount), 0);
   const netProfit = totalIncome - totalExpenses;
 
   if (loading) {
@@ -271,9 +271,9 @@ export const ProfitLossReport: React.FC = () => {
                 Back to Reports
               </button>
               <div className="h-6 w-px bg-gray-300"></div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Profit & Loss Statement
-              </h1>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-700 mb-3">
+                Profit & Loss Statement ({baseCurrency})
+              </h2>
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
@@ -363,13 +363,15 @@ export const ProfitLossReport: React.FC = () => {
                       <tr key={income.id} className="hover:bg-white/50 transition-colors">
                         <td className="py-2 text-gray-600 font-medium">{format(new Date(income.date), 'MMM dd')}</td>
                         <td className="py-2 text-gray-700">{income.description}</td>
-                        <td className="py-2 text-right font-semibold text-gray-900">{formatCurrency(income.amount)}</td>
+                        <td className="py-2 text-right font-semibold text-gray-900">
+                        {formatCurrency(income.base_amount || income.amount, baseCurrency)}
+                      </td>
                       </tr>
                     ))}
                     <tr className="print-subtotal border-t border-emerald-200">
                       <td colSpan={2} className="pt-3 font-semibold text-gray-800">Subtotal {category}</td>
                       <td className="pt-3 text-right font-bold text-emerald-700">
-                        {formatCurrency(items.reduce((sum, item) => sum + item.amount, 0))}
+                        {formatCurrency(items.reduce((sum, item) => sum + (item.base_amount || item.amount), 0))}
                       </td>
                     </tr>
                   </tbody>

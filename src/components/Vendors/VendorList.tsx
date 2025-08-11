@@ -18,6 +18,7 @@ import { getVendors, deleteVendor, getExpenses } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { Vendor, Expense } from '../../types';
 import { format, parseISO, differenceInDays } from 'date-fns';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface VendorWithMetrics extends Vendor {
   totalSpent: number;
@@ -28,7 +29,7 @@ interface VendorWithMetrics extends Vendor {
 }
 
 export const VendorList: React.FC = () => {
-  const { user } = useAuth();
+  const { formatCurrency, baseCurrency } = useSettings();
   const [vendors, setVendors] = useState<VendorWithMetrics[]>([]);
   const [filteredVendors, setFilteredVendors] = useState<VendorWithMetrics[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -36,6 +37,7 @@ export const VendorList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const { user } = useAuth();
 
   // Stats
   const [stats, setStats] = useState({
@@ -88,7 +90,7 @@ export const VendorList: React.FC = () => {
     return vendorList.map(vendor => {
       const vendorExpenses = expenseList.filter(exp => exp.vendor_id === vendor.id);
       
-      const totalSpent = vendorExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const totalSpent = vendorExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
       
       // Get last activity
       const allDates = [
@@ -199,8 +201,8 @@ export const VendorList: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Spent</p>
-              <p className="text-2xl font-bold">${stats.totalSpent.toFixed(2)}</p>
+              <p className="text-sm text-gray-600">Total Spent ({baseCurrency})</p> 
+              <p className="text-2xl font-bold">{formatCurrency(stats.totalSpent, baseCurrency)}</p>
             </div>
             <DollarSign className="h-8 w-8 text-indigo-500" />
           </div>
@@ -209,8 +211,8 @@ export const VendorList: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Avg Spend/Vendor</p>
-              <p className="text-2xl font-bold">${stats.avgVendorSpend.toFixed(2)}</p>
+              <p className="text-sm text-gray-600">Avg Spend/Vendor ({baseCurrency})</p>
+             <p className="text-2xl font-bold">{formatCurrency(stats.avgVendorSpend, baseCurrency)}</p>
             </div>
             <Receipt className="h-8 w-8 text-purple-500" />
           </div>
@@ -259,7 +261,7 @@ export const VendorList: React.FC = () => {
                 Contact
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Total Spent
+                Total Spent ({baseCurrency})
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Expenses
@@ -311,8 +313,8 @@ export const VendorList: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      ${vendor.totalSpent.toFixed(2)}
-                    </div>
+                    {formatCurrency(vendor.totalSpent, baseCurrency)}
+                  </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{vendor.expenseCount}</div>
