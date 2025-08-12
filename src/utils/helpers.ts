@@ -1,10 +1,11 @@
 // src/utils/helpers.ts
 // Utility functions for the application
 
-export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
+export const formatCurrency = (amount: number, currency?: string, baseCurrency: string = 'USD'): string => {
+  const currencyToUse = currency || baseCurrency;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency,
+    currency: currencyToUse,
   }).format(amount);
 };
 

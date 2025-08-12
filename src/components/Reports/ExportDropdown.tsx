@@ -31,7 +31,7 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({
   currentPeriod 
 }) => {
   const { hasFeature, showAnticipationModal } = useSubscription();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, baseCurrency } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showClientList, setShowClientList] = useState(false);
@@ -166,6 +166,7 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({
     
     try {
       await ExportService.exportData(type, userId, options);
+      await ExportService.exportData(type, userId, { ...options, baseCurrency });
       setLastExport(type);
       setTimeout(() => setLastExport(null), 3000);
     } catch (error) {

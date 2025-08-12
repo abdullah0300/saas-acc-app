@@ -268,6 +268,8 @@ export const ClientProfitability: React.FC = () => {
     let csv = 'Client Profitability Report\n';
     csv += `Period: ${format(parseISO(startDate), 'MMM dd, yyyy')} - ${format(parseISO(endDate), 'MMM dd, yyyy')}\n`;
     csv += `Generated: ${format(new Date(), 'MMMM dd, yyyy HH:mm')}\n\n`;
+      csv += `Currency: ${baseCurrency}\n\n`;
+
     
     // Summary
     csv += 'SUMMARY\n';

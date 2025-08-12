@@ -212,6 +212,8 @@ export const ProfitLossReport: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  
+
   // Group by category
   const incomeByCategory = Array.from(
     incomes.reduce((acc, income) => {
@@ -408,13 +410,13 @@ export const ProfitLossReport: React.FC = () => {
                       <tr key={expense.id} className="hover:bg-white/50 transition-colors">
                         <td className="py-2 text-gray-600 font-medium">{format(new Date(expense.date), 'MMM dd')}</td>
                         <td className="py-2 text-gray-700">{expense.description}</td>
-                        <td className="py-2 text-right font-semibold text-gray-900">{formatCurrency(expense.amount)}</td>
+                        <td className="py-2 text-right font-semibold text-gray-900">{formatCurrency(expense.base_amount || expense.amount, baseCurrency)}</td>
                       </tr>
                     ))}
                     <tr className="print-subtotal border-t border-red-200">
                       <td colSpan={2} className="pt-3 font-semibold text-gray-800">Subtotal {category}</td>
                       <td className="pt-3 text-right font-bold text-red-700">
-                        {formatCurrency(items.reduce((sum, item) => sum + item.amount, 0))}
+                        {formatCurrency(items.reduce((sum, item) => sum + (item.base_amount || item.amount), 0), baseCurrency)}
                       </td>
                     </tr>
                   </tbody>

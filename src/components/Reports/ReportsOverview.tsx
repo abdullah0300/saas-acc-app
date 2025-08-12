@@ -312,11 +312,9 @@ const clearOldDismissedInsights = () => {
   };
 
   const exportReport = async () => {
-    if (!user) return;
-  // This function is now deprecated - using ExportDropdown instead
-  // Keeping for backward compatibility if needed
+  if (!user) return;
   const dateRange = getDateRangeForPeriod();
-  await ExportService.exportData('summary', user.id, { dateRange });
+  await ExportService.exportData('summary', user.id, { dateRange, baseCurrency });
 };
 
 const getDateRangeForPeriod = () => {
