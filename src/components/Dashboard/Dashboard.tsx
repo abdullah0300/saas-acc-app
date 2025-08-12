@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { SkeletonCard } from '../Common/Loading';
 import { AIInsightsService, Insight } from '../../services/aiInsightsService';
 import { Brain, RefreshCw } from 'lucide-react';
 import { ContextCollectionModal } from '../AI/ContextCollectionModal';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { 
   Building ,
-  TrendingUp, 
+  TrendingUp,
+  Lock, 
   TrendingDown, 
   DollarSign, 
   FileText,
@@ -103,9 +104,9 @@ const UsageSummaryCard = () => {
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, baseCurrency, loading: settingsLoading } = useSettings();
-  const { limits, usage } = useSubscription();
-  
-  const [subscription, setSubscription] = useState<any>(null);
+  const { limits, usage, subscription } = useSubscription();
+  const navigate = useNavigate();
+
   const [error, setError] = useState('');
   const { businessData, businessDataLoading } = useData();
 const { incomes, expenses, invoices, clients } = businessData;
@@ -189,33 +190,40 @@ const generateMonthlyData = () => {
   return months;
 };
 
-// ADD these functions after the stats calculation
-// REPLACE your existing loadInsights function:
+
+// REPLACE your loadInsights function with this corrected version:
 const loadInsights = async () => {
   try {
     setLoadingInsights(true);
-    const response = await AIInsightsService.getInsights();
     
-    // Add safety checks
-    if (response && response.needsContext) {
-      setNeedsContext(true);
-      setMissingFields(response.missingFields || []);
-      setShowContextModal(true);
+    // ✅ Use the subscription that's already available from line 93
+    // No need to call useSubscription() again
+    
+    // Only Plus users get insights
+    if (subscription?.plan !== 'plus') {
       setInsights([]);
-    } else if (response && response.insights) {
+      setNeedsContext(false);
+      setMissingFields([]);
+      return;
+    }
+    
+    // Get cached insights from today's 3 AM generation
+    const response = await AIInsightsService.getCachedInsights();
+    
+    if (response && response.insights) {
       setInsights(response.insights);
       setLastInsightUpdate(response.generated_at);
       setNeedsContext(false);
-      setMissingFields([]); // Clear any previous missing fields
+      setMissingFields([]);
     } else {
-      // Fallback if response is malformed
+      // No insights generated yet (new user or first day)
       setInsights([]);
       setNeedsContext(false);
       setMissingFields([]);
     }
+    
   } catch (error) {
     console.error('Error loading insights:', error);
-    // Reset states on error
     setInsights([]);
     setNeedsContext(false);
     setMissingFields([]);
@@ -223,26 +231,25 @@ const loadInsights = async () => {
     setLoadingInsights(false);
   }
 };
+// const handleRefreshInsights = async () => {
+//   try {
+//     setRefreshingInsights(true);
+//     const response = await AIInsightsService.regenerateInsights();
+//     setInsights(response.insights);
+//     setLastInsightUpdate(response.generated_at);
+//   } catch (error) {
+//     console.error('Error refreshing insights:', error);
+//   } finally {
+//     setRefreshingInsights(false);
+//   }
+// };
 
-const handleRefreshInsights = async () => {
-  try {
-    setRefreshingInsights(true);
-    const response = await AIInsightsService.regenerateInsights();
-    setInsights(response.insights);
-    setLastInsightUpdate(response.generated_at);
-  } catch (error) {
-    console.error('Error refreshing insights:', error);
-  } finally {
-    setRefreshingInsights(false);
-  }
-};
-
-// Load insights when component mounts (since you don't have useEffect)
+// Load insights only once when subscription is loaded
 React.useEffect(() => {
-  if (user && !businessDataLoading) {
+  if (user && subscription) {
     loadInsights();
   }
-}, [user, businessDataLoading]);
+}, [user, subscription?.plan]); // Only depend on user and plan
 
 const [showAllInsights, setShowAllInsights] = useState(false);
 
@@ -289,23 +296,6 @@ const recentActivity = [
 const recentInvoices = invoices.slice(0, 5);
 const loading = businessDataLoading;
 
-  const loadSubscription = async () => {
-    if (!user) return;
-    
-    try {
-      const { data } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-        
-      setSubscription(data);
-    } catch (err: any) {
-      console.error('Error loading subscription:', err.message);
-    }
-  };
-
- 
 
   const calculateGrowth = () => {
   if (monthlyData.length < 2) return 0;
@@ -413,32 +403,7 @@ const loading = businessDataLoading;
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-       {/* Subscription Status Bar */}
-        {/* {subscription && (
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Crown className="h-6 w-6 text-yellow-500" />
-                <div>
-                  <p className="text-sm text-gray-600">Current Plan</p>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPlanColor(subscription.plan)}`}>
-                    {subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}
-                  </span>
-                </div>
-              </div>
-             
-              
-              {subscription.plan !== 'professional' && (
-                <Link
-                  to="/settings/subscription"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-md text-sm hover:from-purple-700 hover:to-blue-700"
-                >
-                  Upgrade Plan
-                </Link>
-              )}
-            </div>
-          </div>
-        )} */}
+       
 
         {/* Header with Quick Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -551,154 +516,160 @@ const loading = businessDataLoading;
 
 
         {/* AI CFO Insights Section */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-xl">
-                <Brain className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">AI CFO Insights</h2>
-                <p className="text-sm text-gray-500">We get it - here's what the numbers are telling us</p>
-              </div>
-            </div>
-            <button
-              onClick={handleRefreshInsights}
-              disabled={refreshingInsights}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshingInsights ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+<div className="bg-white rounded-2xl shadow-xl p-6">
+  {/* Show locked state for Simple Start users */}
+  {subscription?.plan === 'simple_start' ? (
+    <div className="text-center py-12">
+      <div className="relative inline-block">
+        <Brain className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Lock className="w-8 h-8 text-gray-500" />
+        </div>
+      </div>
+      <h3 className="text-xl font-bold text-gray-900 mb-2">AI CFO Insights</h3>
+      <p className="text-gray-600 mb-6 max-w-md mx-auto">
+        Get personalized financial insights and recommendations powered by AI. 
+        Understand your cash flow, spot trends, and make smarter business decisions.
+      </p>
+      <button
+        onClick={() => navigate('/settings/subscription')}
+        className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg"
+      >
+        <Crown className="w-5 h-5 mr-2" />
+        Upgrade to Plus
+      </button>
+    </div>
+  ) : (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-xl">
+            <Brain className="w-6 h-6 text-purple-600" />
           </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">AI CFO Insights</h2>
+            <p className="text-sm text-gray-500">Your personalized financial advisor</p>
+          </div>
+        </div>
+      </div>
 
-          {/* Last Updated */}
-          {lastInsightUpdate && (
-            <div className="text-xs text-gray-500 mb-4">
-              Last updated: {format(new Date(lastInsightUpdate), 'MMM d, yyyy \'at\' h:mm a')}
-            </div>
-          )}
+      {/* Last Updated */}
+      {lastInsightUpdate && (
+        <div className="text-xs text-gray-500 mb-4">
+          Generated daily at 3 AM your time • Last update: {format(new Date(lastInsightUpdate), 'MMM d, yyyy')}
+        </div>
+      )}
 
-          {/* Loading State */}
-          {loadingInsights ? (
-            <div className="space-y-3">
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-              </div>
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-              </div>
+      {/* Loading State */}
+      {loadingInsights ? (
+        <div className="space-y-3">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+          </div>
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+          </div>
+        </div>
+      ) : (
+        /* Insights Display */
+        <div className="space-y-3">
+          {insights.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">Insights will appear here after 3 AM</p>
+              <p className="text-sm">Your AI CFO analyzes your data daily</p>
             </div>
           ) : (
-            /* Insights */
-            <div className="space-y-3">
-              {insights.length === 0 && !needsContext ? (
-  <div className="text-center py-8 text-gray-500">
-    <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
-    <p className="font-medium">No insights available yet</p>
-    <p className="text-sm">Add some transactions to get AI-powered insights!</p>
-  </div>
-) : needsContext ? (
-  <div className="text-center py-8">
-    <Building className="w-12 h-12 mx-auto mb-3 text-blue-600" />
-    <p className="font-medium text-gray-900 mb-2">Get Personalized Insights</p>
-    <p className="text-sm text-gray-600 mb-4">Tell us about your business to receive tailored financial advice</p>
-    <button
-      onClick={() => setShowContextModal(true)}
-      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-    >
-      Complete Setup
-    </button>
-  </div>
-) : (
-                <>
-                  {/* Show top 2 insights sorted by priority */}
-                  {insights
-                    .sort((a, b) => a.priority - b.priority) // Sort by priority (1 = highest)
-                    .slice(0, showAllInsights ? insights.length : 2) // Show 2 or all
-                    .map((insight) => {
-                      const getInsightIcon = (type: string) => {
-                        switch (type) {
-                          case 'urgent': return '🚨';
-                          case 'warning': return '⚠️';
-                          case 'success': return '💰';
-                          default: return '💡';
-                        }
-                      };
+            <>
+              {/* Show insights */}
+              {insights
+                .sort((a, b) => a.priority - b.priority)
+                .slice(0, showAllInsights ? insights.length : 2)
+                .map((insight) => {
+                  const getInsightIcon = (type: string) => {
+                    switch (type) {
+                      case 'urgent': return '🚨';
+                      case 'warning': return '⚠️';
+                      case 'success': return '💰';
+                      default: return '💡';
+                    }
+                  };
 
-                      const getInsightStyle = (type: string) => {
-                        switch (type) {
-                          case 'urgent': 
-                            return 'border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-red-25';
-                          case 'warning': 
-                            return 'border-l-4 border-yellow-500 bg-gradient-to-r from-yellow-50 to-yellow-25';
-                          case 'success': 
-                            return 'border-l-4 border-green-500 bg-gradient-to-r from-green-50 to-green-25';
-                          default: 
-                            return 'border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-25';
-                        }
-                      };
+                  const getInsightStyle = (type: string) => {
+                    switch (type) {
+                      case 'urgent': 
+                        return 'border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-white';
+                      case 'warning': 
+                        return 'border-l-4 border-yellow-500 bg-gradient-to-r from-yellow-50 to-white';
+                      case 'success': 
+                        return 'border-l-4 border-green-500 bg-gradient-to-r from-green-50 to-white';
+                      default: 
+                        return 'border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-white';
+                    }
+                  };
 
-                      return (
-                        <div
-                          key={insight.id}
-                          className={`rounded-lg p-4 ${getInsightStyle(insight.type)}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className="text-lg flex-shrink-0">
-                              {getInsightIcon(insight.type)}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 mb-1">
-                                {insight.title}
-                              </h3>
-                              <p className="text-gray-700 text-sm mb-2 leading-relaxed">
-                                {insight.message}
-                              </p>
-                              {insight.action && (
-                                <Link
-                                  to={insight.action.link}
-                                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                                >
-                                  {insight.action.label}
-                                  <ArrowRight className="w-4 h-4 ml-1" />
-                                </Link>
-                              )}
-                            </div>
-                          </div>
+                  return (
+                    <div
+                      key={insight.id}
+                      className={`rounded-lg p-4 ${getInsightStyle(insight.type)}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg flex-shrink-0">
+                          {getInsightIcon(insight.type)}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 mb-1">
+                            {insight.title}
+                          </h3>
+                          <p className="text-gray-700 text-sm mb-2 leading-relaxed">
+                            {insight.message}
+                          </p>
+                          {insight.action && (
+                            <Link
+                              to={insight.action.link}
+                              className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              {insight.action.label}
+                              <ArrowRight className="w-4 h-4 ml-1" />
+                            </Link>
+                          )}
                         </div>
-                      );
-                    })}
-
-                  {/* Show More/Less Button */}
-                  {insights.length > 2 && (
-                    <div className="pt-3 border-t border-gray-100">
-                      <button
-                        onClick={() => setShowAllInsights(!showAllInsights)}
-                        className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        {showAllInsights ? (
-                          <>
-                            Show Less
-                            <ChevronUp className="w-4 h-4" />
-                          </>
-                        ) : (
-                          <>
-                            Show {insights.length - 2} More Insights
-                            <ChevronDown className="w-4 h-4" />
-                          </>
-                        )}
-                      </button>
+                      </div>
                     </div>
-                  )}
-                </>
+                  );
+                })}
+
+              {/* Show More/Less Button */}
+              {insights.length > 2 && (
+                <div className="pt-3 border-t border-gray-100">
+                  <button
+                    onClick={() => setShowAllInsights(!showAllInsights)}
+                    className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    {showAllInsights ? (
+                      <>
+                        Show Less
+                        <ChevronUp className="w-4 h-4" />
+                      </>
+                    ) : (
+                      <>
+                        Show {insights.length - 2} More Insights
+                        <ChevronDown className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
+      )}
+    </>
+  )}
+</div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -971,7 +942,7 @@ const loading = businessDataLoading;
       )}
       {/* Context Collection Modal - UPDATE this */}
 
-{showContextModal && (
+{showContextModal && subscription?.plan === 'plus' && (
   <ContextCollectionModal
     isOpen={showContextModal}
     onClose={() => {

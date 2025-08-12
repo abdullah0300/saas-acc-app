@@ -36,6 +36,8 @@ interface DataContextType {
   removeBudgetFromCache: (id: string) => void; // ✅ Add this
   updateIncomeInCache: (id: string, income: any) => void;
     updateExpenseInCache: (id: string, expense: any) => void; // ADD THIS LINE
+    setProcessedReport: (period: string, data: any) => void;
+  getProcessedReport: (period: string) => any | null;
 
 }
 
@@ -65,13 +67,20 @@ const [businessData, setBusinessData] = useState<{
   clients: any[];
   categories: { income: any[]; expense: any[] };
   budgets: any[];
+  processedReports?: {
+    [key: string]: {
+      data: any;
+      timestamp: number;
+    };
+  };
 }>({
   incomes: [],
   expenses: [],
   invoices: [],
   clients: [],
   categories: { income: [], expense: [] },
-  budgets: []
+  budgets: [],
+  processedReports: {}
 });
 
 const [businessDataLoading, setBusinessDataLoading] = useState(false);
@@ -192,6 +201,30 @@ const removeBudgetFromCache = (id: string) => {
   }));
 };
 
+// Add processed report to cache
+const setProcessedReport = (period: string, data: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    processedReports: {
+      ...prev.processedReports,
+      [period]: {
+        data,
+        timestamp: Date.now()
+      }
+    }
+  }));
+};
+
+// Get processed report from cache
+const getProcessedReport = (period: string) => {
+  const cached = businessData.processedReports?.[period];
+  if (!cached) return null;
+  
+  // Cache valid for 5 minutes
+  const isValid = Date.now() - cached.timestamp < 5 * 60 * 1000;
+  return isValid ? cached.data : null;
+};
+
   const loadBusinessData = async (userId?: string) => {
   const userIdToUse = userId || effectiveUserId;
   if (!userIdToUse || businessDataLoading) return;
@@ -237,10 +270,10 @@ const refreshBusinessData = async () => {
 const addIncomeToCache = (newIncome: any) => {
   setBusinessData(prev => ({
     ...prev,
-    incomes: [newIncome, ...prev.incomes]
+    incomes: [newIncome, ...prev.incomes],
+    processedReports: {} // Clear report cache
   }));
-    AIInsightsService.refreshInsightsOnTransaction('income');
-
+  AIInsightsService.refreshInsightsOnTransaction('income');
 };
 
 const updateIncomeInCache = (id: string, updatedIncome: any) => {
@@ -255,10 +288,10 @@ const updateIncomeInCache = (id: string, updatedIncome: any) => {
 const addExpenseToCache = (newExpense: any) => {
   setBusinessData(prev => ({
     ...prev,
-    expenses: [newExpense, ...prev.expenses]
+    expenses: [newExpense, ...prev.expenses],
+    processedReports: {} // Clear report cache
   }));
-    AIInsightsService.refreshInsightsOnTransaction('expense');
-
+  AIInsightsService.refreshInsightsOnTransaction('expense');
 };
 
 const addInvoiceToCache = (newInvoice: any) => {
@@ -297,7 +330,9 @@ const addClientToCache = (newClient: any) => {
     updateBudgetInCache,
      updateExpenseInCache,
      updateIncomeInCache,
-    removeBudgetFromCache
+    removeBudgetFromCache,
+    setProcessedReport, 
+    getProcessedReport   
   }}>
       {children}
     </DataContext.Provider>

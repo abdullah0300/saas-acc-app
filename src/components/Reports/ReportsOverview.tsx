@@ -6,6 +6,7 @@ import { Crown } from 'lucide-react';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonReport } from '../Common/Loading';
+import { useData } from '../../contexts/DataContext';
 
 import { 
   ChevronRight,
@@ -60,8 +61,6 @@ import {
   ZAxis,
   ComposedChart 
 } from 'recharts';
-import { getMonthlySummaries, getCategorySummaries, getClientSummaries, MonthlySummary, CategorySummary, ClientSummary } from '../../services/summaryService';
-import { getIncomes, getExpenses, getInvoices, getClients, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, eachMonthOfInterval, parseISO, isWithinInterval, differenceInDays } from 'date-fns';
@@ -120,6 +119,7 @@ export const ReportsOverview: React.FC = () => {
   const { hasFeature, showAnticipationModal } = useSubscription();
 const navigate = useNavigate();
   const { formatCurrency, baseCurrency } = useSettings();
+  const { getProcessedReport, setProcessedReport } = useData();
   const [period, setPeriod] = useState('6months');
   const [compareMode, setCompareMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -179,496 +179,100 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
 
 
   const loadReportData = async () => {
-    if (!user) return;
+  if (!user) return;
 
-    try {
-      setLoading(true);
+  try {
+    // Check cache first
+    const cachedReport = getProcessedReport(period);
+    if (cachedReport) {
+      // Use cached data instantly
+      setKpiMetrics(cachedReport.kpiMetrics);
+      setMonthlyData(cachedReport.monthlyData);
+      setCategoryData(cachedReport.categoryData);
+      setCashFlowData(cachedReport.cashFlowData);
+      setClientMetrics(cachedReport.clientMetrics);
+      setTopVendors(cachedReport.topVendors);
       
-      // Calculate date range
-      const endDate = new Date();
-      let startDate;
-      let comparisonStartDate;
-      
-      switch (period) {
-        case '1month':
-          startDate = subMonths(endDate, 1);
-          comparisonStartDate = subMonths(startDate, 1);
-          break;
-        case '3months':
-          startDate = subMonths(endDate, 3);
-          comparisonStartDate = subMonths(startDate, 3);
-          break;
-        case '6months':
-          startDate = subMonths(endDate, 6);
-          comparisonStartDate = subMonths(startDate, 6);
-          break;
-        case '1year':
-          startDate = subMonths(endDate, 12);
-          comparisonStartDate = subMonths(startDate, 12);
-          break;
-        case 'ytd':
-          startDate = startOfYear(endDate);
-          comparisonStartDate = startOfYear(subMonths(endDate, 12));
-          break;
-        default:
-          startDate = subMonths(endDate, 6);
-          comparisonStartDate = subMonths(startDate, 6);
-      }
-
-      // Fetch all data
-      const [incomes, expenses, invoices, clients, categories] = await Promise.all([
-        getIncomes(user.id, format(startDate, 'yyyy-MM-dd'), format(endDate, 'yyyy-MM-dd')),
-        getExpenses(user.id, format(startDate, 'yyyy-MM-dd'), format(endDate, 'yyyy-MM-dd')),
-        getInvoices(user.id),
-        getClients(user.id),
-        getCategories(user.id)
-      ]);
-
-      // Fetch comparison data for growth metrics
-      const [prevIncomes, prevExpenses] = await Promise.all([
-        getIncomes(user.id, format(comparisonStartDate, 'yyyy-MM-dd'), format(startDate, 'yyyy-MM-dd')),
-        getExpenses(user.id, format(comparisonStartDate, 'yyyy-MM-dd'), format(startDate, 'yyyy-MM-dd'))
-      ]);
-
-      // Process all data
-      processMonthlyData(incomes, expenses, invoices, startDate, endDate);
-      processCategoryData(incomes, expenses, prevIncomes, prevExpenses);
-      processCashFlowData(incomes, expenses, startDate, endDate);
-      processClientMetrics(clients, incomes, invoices);
-      processKPIMetrics(incomes, expenses, invoices, clients, prevIncomes, prevExpenses);
-      processVendorMetrics(expenses);
-      
-      // Generate insights after all data is processed
-      await generateInsights();
-
-    } catch (err: any) {
-      console.error('Error loading report data:', err);
-    } finally {
-      setLoading(false);
+      // Don't show loading for cached data
+      return;
     }
-  };
-
-  const processMonthlyData = (incomes: any[], expenses: any[], invoices: any[], startDate: Date, endDate: Date) => {
-    const months = eachMonthOfInterval({ start: startDate, end: endDate });
     
-    const data = months.map(monthDate => {
-      const monthStart = startOfMonth(monthDate);
-      const monthEnd = endOfMonth(monthDate);
-      const monthKey = format(monthDate, 'MMM yyyy');
-      
-      // Filter data for this month
-      const monthIncomes = incomes.filter(inc => 
-        isWithinInterval(parseISO(inc.date), { start: monthStart, end: monthEnd })
-      );
-      const monthExpenses = expenses.filter(exp => 
-        isWithinInterval(parseISO(exp.date), { start: monthStart, end: monthEnd })
-      );
-      const monthInvoices = invoices.filter(inv => 
-        isWithinInterval(parseISO(inv.date), { start: monthStart, end: monthEnd })
-      );
-      
-      // Calculate metrics
-      const income = monthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
-      const expenseTotal = monthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
-      const invoiced = monthInvoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-        const collected = monthInvoices
-          .filter(inv => inv.status === 'paid')
-          .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-      const taxCollected = monthIncomes.reduce((sum, inc) => sum + (inc.tax_amount || 0), 0);
-      const taxPaid = monthExpenses.reduce((sum, exp) => sum + (exp.tax_amount || 0), 0);
-      
-      return {
-        month: monthKey,
-        income,
-        expenses: expenseTotal,
-        profit: income - expenseTotal,
-        invoiced,
-        collected,
-        taxCollected,
-        taxPaid
-      };
-    });
+    // If no cache, show loading
+    setLoading(true);
     
-    setMonthlyData(data);
-  };
-
-  const processCategoryData = (incomes: any[], expenses: any[], prevIncomes: any[], prevExpenses: any[]) => {
-    // Process income categories
-    const incomeByCategory = new Map<string, { current: number, previous: number, count: number }>();
+    // Calculate date range
+    const endDate = new Date();
+    let startDate;
+    let comparisonStartDate;
     
-    incomes.forEach(income => {
-      const category = income.category?.name || 'Uncategorized';
-      const existing = incomeByCategory.get(category) || { current: 0, previous: 0, count: 0 };
-      incomeByCategory.set(category, {
-      current: existing.current + (income.base_amount || income.amount),
-      previous: existing.previous,
-      count: existing.count + 1
-        });
-    });
-    
-    prevIncomes.forEach(income => {
-      const category = income.category?.name || 'Uncategorized';
-      const existing = incomeByCategory.get(category) || { current: 0, previous: 0, count: 0 };
-      existing.previous += (income.base_amount || income.amount);
-    });
-    
-    const totalIncome = Array.from(incomeByCategory.values()).reduce((sum, cat) => sum + cat.current, 0);
-    
-    const incomeCategories: CategoryBreakdown[] = Array.from(incomeByCategory.entries())
-      .map(([name, data]) => ({
-        name,
-        value: data.current,
-        percentage: (data.current / totalIncome) * 100,
-        trend: data.previous > 0 ? ((data.current - data.previous) / data.previous) * 100 : 0,
-        count: data.count
-      }))
-      .sort((a, b) => b.value - a.value);
-    
-    // Process expense categories similarly
-    const expenseByCategory = new Map<string, { current: number, previous: number, count: number }>();
-    
-    expenses.forEach(expense => {
-      const category = expense.category?.name || 'Uncategorized';
-      const existing = expenseByCategory.get(category) || { current: 0, previous: 0, count: 0 };
-      expenseByCategory.set(category, {
-        current: existing.current + (expense.base_amount || expense.amount),
-        previous: existing.previous,
-        count: existing.count + 1
-      });
-    });
-    
-    prevExpenses.forEach(expense => {
-      const category = expense.category?.name || 'Uncategorized';
-      const existing = expenseByCategory.get(category) || { current: 0, previous: 0, count: 0 };
-      existing.previous += (expense.base_amount || expense.amount);
-    });
-    
-    const totalExpense = Array.from(expenseByCategory.values()).reduce((sum, cat) => sum + cat.current, 0);
-    
-    const expenseCategories: CategoryBreakdown[] = Array.from(expenseByCategory.entries())
-      .map(([name, data]) => ({
-        name,
-        value: data.current,
-        percentage: (data.current / totalExpense) * 100,
-        trend: data.previous > 0 ? ((data.current - data.previous) / data.previous) * 100 : 0,
-        count: data.count
-      }))
-      .sort((a, b) => b.value - a.value);
-    
-    setCategoryData({ income: incomeCategories, expense: expenseCategories });
-  };
-
-  const processCashFlowData = (incomes: any[], expenses: any[], startDate: Date, endDate: Date) => {
-    // Group by date and calculate running balance
-    const dailyFlow = new Map<string, { inflow: number, outflow: number }>();
-    
-    incomes.forEach(income => {
-      const date = income.date;
-      const existing = dailyFlow.get(date) || { inflow: 0, outflow: 0 };
-      dailyFlow.set(date, {
-        inflow: existing.inflow + (income.base_amount || income.amount),
-        outflow: existing.outflow
-      });
-    });
-    
-    expenses.forEach(expense => {
-      const date = expense.date;
-      const existing = dailyFlow.get(date) || { inflow: 0, outflow: 0 };
-      dailyFlow.set(date, {
-        inflow: existing.inflow,
-        outflow: existing.outflow + (expense.base_amount || expense.amount)
-      });
-    });
-    
-    // Convert to array and calculate running balance
-    const sortedDates = Array.from(dailyFlow.keys()).sort();
-    let runningBalance = 0;
-    
-    const flowData = sortedDates.map(date => {
-      const flow = dailyFlow.get(date)!;
-      runningBalance += flow.inflow - flow.outflow;
-      return {
-        date,
-        inflow: flow.inflow,
-        outflow: flow.outflow,
-        balance: runningBalance
-      };
-    });
-    
-    setCashFlowData(flowData);
-  };
-
-  const processClientMetrics = (clients: any[], incomes: any[], invoices: any[]) => {
-    const metrics: ClientMetrics[] = clients.map(client => {
-      const clientInvoices = invoices.filter(inv => inv.client_id === client.id);
-      const clientIncomes = incomes.filter(inc => inc.client_id === client.id);
-      
-      const revenue = clientIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
-      const outstandingAmount = clientInvoices
-        .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
-        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-      
-      const lastInvoice = clientInvoices.sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      )[0];
-      
-      return {
-        id: client.id,
-        name: client.name,
-        revenue,
-        invoiceCount: clientInvoices.length,
-        avgInvoiceValue: clientInvoices.length > 0 ? revenue / clientInvoices.length : 0,
-        outstandingAmount,
-        lastActivity: lastInvoice ? lastInvoice.date : 'No activity'
-      };
-    })
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 10); // Top 10 clients
-    
-    setClientMetrics(metrics);
-  };
-
-  const processKPIMetrics = (
-    incomes: any[], 
-    expenses: any[], 
-    invoices: any[], 
-    clients: any[],
-    prevIncomes: any[],
-    prevExpenses: any[]
-  ) => {
-    // Current period metrics
-    const totalRevenue = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
-    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
-    const netProfit = totalRevenue - totalExpenses;
-    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-    
-    // Invoice metrics
-    const totalInvoiced = invoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-    const totalCollected = invoices
-      .filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-    const collectionRate = totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
-    
-    // Calculate average days to payment
-    const paidInvoices = invoices.filter(inv => inv.status === 'paid' && inv.paid_date);
-    const avgDaysToPayment = paidInvoices.length > 0
-      ? paidInvoices.reduce((sum, inv) => {
-          const days = Math.floor(
-            (new Date(inv.paid_date!).getTime() - new Date(inv.date).getTime()) / (1000 * 60 * 60 * 24)
-          );
-          return sum + days;
-        }, 0) / paidInvoices.length
-      : 0;
-    
-    // Outstanding amounts
-    const totalOutstanding = invoices
-  .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
-  .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-    const overdueAmount = invoices
-  .filter(inv => inv.status === 'overdue')
-  .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-    
-    // Tax metrics
-    const taxCollected = incomes.reduce((sum, inc) => sum + (inc.tax_amount || 0), 0);
-    const taxPaid = expenses.reduce((sum, exp) => sum + (exp.tax_amount || 0), 0);
-    
-    // Growth metrics
-    const prevRevenue = prevIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
-    const prevExpenseTotal = prevExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
-    
-    const revenueGrowth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
-    const expenseGrowth = prevExpenseTotal > 0 ? ((totalExpenses - prevExpenseTotal) / prevExpenseTotal) * 100 : 0;
-    
-    // Client metrics
-    const activeClients = clients.filter(client => {
-      const hasRecentInvoice = invoices.some(inv => 
-        inv.client_id === client.id && 
-        new Date(inv.date) > subMonths(new Date(), 3)
-      );
-      return hasRecentInvoice;
-    }).length;
-    
-    setKpiMetrics({
-      totalRevenue,
-      totalExpenses,
-      netProfit,
-      profitMargin,
-      totalInvoiced,
-      totalCollected,
-      collectionRate,
-      avgDaysToPayment,
-      totalClients: clients.length,
-      activeClients,
-      totalOutstanding,
-      overdueAmount,
-      taxCollected,
-      taxPaid,
-      revenueGrowth,
-      expenseGrowth,
-      clientGrowth: 0 // Would need historical client data
-    });
-  };
-
-  const processVendorMetrics = (expenses: any[]) => {
-  const vendorSpending = expenses.reduce((acc, expense) => {
-    if (expense.vendor_detail) {
-      const vendorId = expense.vendor_detail.id;
-      if (!acc[vendorId]) {
-        acc[vendorId] = {
-          id: vendorId,
-          name: expense.vendor_detail.name,
-          totalSpent: 0,
-          expenseCount: 0
-        };
-      }
-      acc[vendorId].totalSpent += (expense.base_amount || expense.amount);
-      acc[vendorId].expenseCount += 1;
+    switch (period) {
+      case '1month':
+        startDate = subMonths(endDate, 1);
+        comparisonStartDate = subMonths(startDate, 1);
+        break;
+      case '3months':
+        startDate = subMonths(endDate, 3);
+        comparisonStartDate = subMonths(startDate, 3);
+        break;
+      case '6months':
+        startDate = subMonths(endDate, 6);
+        comparisonStartDate = subMonths(startDate, 6);
+        break;
+      case '1year':
+        startDate = subMonths(endDate, 12);
+        comparisonStartDate = subMonths(startDate, 12);
+        break;
+      case 'ytd':
+        startDate = startOfYear(endDate);
+        comparisonStartDate = startOfYear(subMonths(endDate, 12));
+        break;
+      default:
+        startDate = subMonths(endDate, 6);
+        comparisonStartDate = subMonths(startDate, 6);
     }
-    return acc;
-  }, {} as Record<string, VendorSpending>);
 
-  // Fix: Cast the result or use type assertion
-  const vendors = Object.values(vendorSpending) as VendorSpending[];
-  
-  // Now TypeScript knows the type
-  const sortedVendors = vendors
-    .sort((a, b) => b.totalSpent - a.totalSpent)
-    .slice(0, 5);
-  
-  setTopVendors(sortedVendors);
+    // Call edge function instead of multiple queries
+    const { data: reportData, error } = await supabase.functions.invoke('generate-report-data', {
+      body: {
+        userId: user.id,
+        period,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
+        comparisonStartDate: format(comparisonStartDate, 'yyyy-MM-dd')
+      }
+    });
+
+    if (error) {
+      console.error('Edge function error:', error);
+      throw error;
+    }
+
+    if (!reportData?.data) {
+      throw new Error('No data returned from edge function');
+    }
+
+    // Set all state with processed data from edge function
+    const { data } = reportData;
+    
+    // Cache the processed data
+    setProcessedReport(period, data);
+    
+    // Set all state
+    setKpiMetrics(data.kpiMetrics);
+    setMonthlyData(data.monthlyData);
+    setCategoryData(data.categoryData);
+    setCashFlowData(data.cashFlowData);
+    setClientMetrics(data.clientMetrics);
+    setTopVendors(data.topVendors);
+
+  } catch (err: any) {
+    console.error('Error loading report data:', err);
+  } finally {
+    setLoading(false);
+  }
 };
-const generateInsights = async () => {
-   if (!user) return; 
-    try {
-      setLoadingInsights(true);
-      const incomes = await getIncomes(user.id, format(subMonths(new Date(), 6), 'yyyy-MM-dd'), format(new Date(), 'yyyy-MM-dd'));
-      const expenses = await getExpenses(user.id, format(subMonths(new Date(), 6), 'yyyy-MM-dd'), format(new Date(), 'yyyy-MM-dd'));
-      const invoices = await getInvoices(user.id);
-      const clients = await getClients(user.id);
-      // Prepare data for insights engine
-      const currentMonthStart = startOfMonth(new Date());
-      const lastMonthStart = subMonths(currentMonthStart, 1);
-      
-      // Calculate current month metrics
-      const currentMonthIncomes = incomes.filter(inc => 
-        new Date(inc.date) >= currentMonthStart
-      );
-      const currentMonthExpenses = expenses.filter(exp => 
-        new Date(exp.date) >= currentMonthStart
-      );
-      // Calculate with base amounts
-const currentMonthRevenue = currentMonthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
-const currentMonthExpenseTotal = currentMonthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
-      
-      // Calculate last month metrics
-      const lastMonthIncomes = incomes.filter(inc => 
-        new Date(inc.date) >= lastMonthStart && 
-        new Date(inc.date) < currentMonthStart
-      );
-      const lastMonthExpenses = expenses.filter(exp => 
-        new Date(exp.date) >= lastMonthStart && 
-        new Date(exp.date) < currentMonthStart
-      );
-      
-      // Calculate averages (last 6 months)
-      // Calculate averages and months of data
-        const sixMonthsAgo = subMonths(new Date(), 6);
-        const last6MonthsIncomes = incomes.filter(inc => 
-          new Date(inc.date) >= sixMonthsAgo
-        );
 
-        // Calculate actual months of data (important for new users)
-        let monthsOfData = 1;
-        if (incomes.length > 0 || expenses.length > 0) {
-          const allTransactions = [...incomes, ...expenses];
-          const oldestTransaction = allTransactions
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-          
-          if (oldestTransaction) {
-            monthsOfData = Math.max(1, Math.ceil(
-              differenceInDays(new Date(), new Date(oldestTransaction.date)) / 30
-            ));
-          }
-        }
 
-          // Use actual months for average calculation
-          const avgMonthlyRevenue = monthsOfData >= 6 
-          ? last6MonthsIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) / 6
-          : incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) / Math.min(monthsOfData, Math.max(1, monthsOfData));
-                
-      // Get expense categories
-      const expenseByCategory = expenses.reduce((acc, expense) => {
-        const category = expense.category?.name || 'Uncategorized';
-        if (!acc[category]) acc[category] = 0;
-        acc[category] += (expense.base_amount || expense.amount);
-        return acc;
-      }, {} as Record<string, number>);
-      
-      const topCategories = Object.entries(expenseByCategory)
-        .map(([name, amount]) => ({ name, amount }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 5);
-      
-      // Calculate cash flow metrics
-      // Calculate cash flow metrics
-      const currentBalance = incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) - 
-           expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
-      const avgMonthlyExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0) / 6;
-      const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
-      const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-      const expectedIncome30Days = invoices
-        .filter(inv => {
-          const dueDate = new Date(inv.due_date);
-          const today = new Date();
-          const thirtyDaysFromNow = new Date(today.setDate(today.getDate() + 30));
-          return inv.status !== 'paid' && dueDate <= thirtyDaysFromNow;
-        })
-        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-      
-      // Calculate tax metrics
-      const categorizedExpenses = expenses.filter(exp => exp.category_id).reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
-      const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
-      const quarterlyTaxEstimate = (incomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) - totalExpenses) * 0.25;
-      
-      // Get insights
-      const insightsData = await InsightsEngine.getAllInsights({
-        revenue: {
-          current: currentMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0),
-          previous: lastMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0),
-          average: avgMonthlyRevenue
-        },
-        expenses: {
-          current: currentMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0),
-          previous: lastMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0),
-          byCategory: topCategories
-        },
-        cashFlow: {
-          balance: currentBalance,
-          monthlyExpenses: avgMonthlyExpenses,
-          expectedIncome: expectedIncome30Days,
-          overdueAmount: overdueAmount
-        },
-        invoices: invoices,
-        clients: clients,
-        tax: {
-          categorizedAmount: categorizedExpenses,
-          totalAmount: totalExpenses,
-          quarterlyEstimate: quarterlyTaxEstimate
-        }
-      });
-      
-      // Filter out dismissed insights
-      const activeInsights = insightsData.filter(insight => 
-        !dismissedInsights.includes(insight.id)
-      );
-      
-      setInsights(activeInsights);
-    } catch (error) {
-      console.error('Error generating insights:', error);
-    } finally {
-      setLoadingInsights(false);
-    }
-  };
 
   const handleDismissInsight = (insightId: string) => {
   const newDismissed = [...dismissedInsights, insightId];
@@ -801,150 +405,7 @@ const getDateRangeForPeriod = () => {
   if (loading) {
   return <SkeletonReport />;
 }
-const processFastData = (
-  monthlySummaries: MonthlySummary[],
-  categorySummaries: CategorySummary[],
-  clientSummaries: ClientSummary[],
-  comparisonSummaries: MonthlySummary[],
-  startDate: Date,
-  endDate: Date
-) => {
-  // Process monthly data for charts (fix the type)
-  const monthlyChartData = monthlySummaries.map(summary => ({
-    month: format(new Date(summary.month), 'MMM yyyy'),
-    income: Number(summary.total_income),
-    expenses: Number(summary.total_expenses),
-    profit: Number(summary.net_profit),
-    invoiceCount: summary.invoice_count,
-    // Add missing properties to match MonthlyData type
-    invoiced: Number(summary.total_income), 
-    collected: Number(summary.total_income),
-    taxCollected: 0,
-    taxPaid: 0
-  }));
-  setMonthlyData(monthlyChartData);
 
-  // Process category data (fix the type)
-  const incomeCategories = categorySummaries
-    .filter(cat => cat.category_type === 'income')
-    .reduce((acc, cat) => {
-      const existing = acc.find(item => item.name === cat.category_name);
-      if (existing) {
-        existing.value += Number(cat.total_amount);
-        existing.count += cat.transaction_count;
-      } else {
-        acc.push({
-          name: cat.category_name,
-          value: Number(cat.total_amount),
-          percentage: 0, // Will calculate below
-          trend: 0, // Add missing property
-          count: cat.transaction_count // Add missing property
-        });
-      }
-      return acc;
-    }, [] as CategoryBreakdown[]);
-
-  const expenseCategories = categorySummaries
-    .filter(cat => cat.category_type === 'expense')
-    .reduce((acc, cat) => {
-      const existing = acc.find(item => item.name === cat.category_name);
-      if (existing) {
-        existing.value += Number(cat.total_amount);
-        existing.count += cat.transaction_count;
-      } else {
-        acc.push({
-          name: cat.category_name,
-          value: Number(cat.total_amount),
-          percentage: 0, // Will calculate below
-          trend: 0, // Add missing property
-          count: cat.transaction_count // Add missing property
-        });
-      }
-      return acc;
-    }, [] as CategoryBreakdown[]);
-
-  // Calculate percentages
-  const totalIncome = incomeCategories.reduce((sum, cat) => sum + cat.value, 0);
-  const totalExpenses = expenseCategories.reduce((sum, cat) => sum + cat.value, 0);
-  
-  incomeCategories.forEach(cat => {
-    cat.percentage = totalIncome > 0 ? (cat.value / totalIncome) * 100 : 0;
-  });
-  
-  expenseCategories.forEach(cat => {
-    cat.percentage = totalExpenses > 0 ? (cat.value / totalExpenses) * 100 : 0;
-  });
-
-  setCategoryData({ income: incomeCategories, expense: expenseCategories });
-
-  // Process client metrics
-  const clientMetricsData = clientSummaries
-    .reduce((acc, client) => {
-      const existing = acc.find(item => item.id === client.client_id);
-      if (existing) {
-        existing.revenue += Number(client.revenue);
-        existing.invoiceCount += client.invoice_count;
-        existing.outstandingAmount += Number(client.pending_amount);
-      } else {
-        acc.push({
-          id: client.client_id,
-          name: client.client_name,
-          revenue: Number(client.revenue),
-          invoiceCount: client.invoice_count,
-          avgInvoiceValue: client.invoice_count > 0 ? Number(client.revenue) / client.invoice_count : 0,
-          outstandingAmount: Number(client.pending_amount),
-          lastActivity: format(new Date(), 'yyyy-MM-dd') // Simplified for now
-        });
-      }
-      return acc;
-    }, [] as ClientMetrics[])
-    .sort((a, b) => b.revenue - a.revenue);
-
-  setClientMetrics(clientMetricsData);
-
-  // Calculate KPI metrics
-  const currentPeriodTotals = monthlySummaries.reduce((acc, month) => ({
-    income: acc.income + Number(month.total_income),
-    expenses: acc.expenses + Number(month.total_expenses),
-    profit: acc.profit + Number(month.net_profit),
-    invoices: acc.invoices + month.invoice_count
-  }), { income: 0, expenses: 0, profit: 0, invoices: 0 });
-
-  const comparisonTotals = comparisonSummaries.reduce((acc, month) => ({
-    income: acc.income + Number(month.total_income),
-    expenses: acc.expenses + Number(month.total_expenses),
-    profit: acc.profit + Number(month.net_profit)
-  }), { income: 0, expenses: 0, profit: 0 });
-
-  // Calculate growth rates
-  const revenueGrowth = comparisonTotals.income > 0 
-    ? ((currentPeriodTotals.income - comparisonTotals.income) / comparisonTotals.income) * 100 
-    : 0;
-  
-  const expenseGrowth = comparisonTotals.expenses > 0 
-    ? ((currentPeriodTotals.expenses - comparisonTotals.expenses) / comparisonTotals.expenses) * 100 
-    : 0;
-
-  setKpiMetrics({
-    totalRevenue: currentPeriodTotals.income,
-    totalExpenses: currentPeriodTotals.expenses,
-    netProfit: currentPeriodTotals.profit,
-    profitMargin: currentPeriodTotals.income > 0 ? (currentPeriodTotals.profit / currentPeriodTotals.income) * 100 : 0,
-    totalInvoiced: currentPeriodTotals.income,
-    totalCollected: currentPeriodTotals.income,
-    collectionRate: 100,
-    avgDaysToPayment: 30,
-    totalClients: clientMetricsData.length,
-    activeClients: clientMetricsData.filter(client => client.revenue > 0).length,
-    totalOutstanding: clientMetricsData.reduce((sum, client) => sum + client.outstandingAmount, 0),
-    overdueAmount: 0,
-    taxCollected: 0,
-    taxPaid: 0,
-    revenueGrowth,
-    expenseGrowth,
-    clientGrowth: 0
-  });
-};
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">

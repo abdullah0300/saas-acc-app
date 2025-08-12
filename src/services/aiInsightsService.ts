@@ -24,6 +24,38 @@ export interface InsightsResponse {
 }
 
 export class AIInsightsService {
+  // Get cached insights only (no generation)
+static async getCachedInsights(): Promise<InsightsResponse | null> {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Call edge function to get today's cached insights only
+    const { data, error } = await supabase.functions.invoke('ai-assistant', {
+      body: {
+        userId: user.user.id,
+        feature: 'get_insights'  // This already gets cached insights in your edge function
+      }
+    });
+
+    if (error) throw error;
+    
+    // Only return if insights exist for today
+    if (data && data.insights && data.insights.length > 0) {
+      return data;
+    }
+    
+    return null;
+    
+  } catch (error) {
+    console.error('Error getting cached insights:', error);
+    return null;
+  }
+}
   private static cache: {
     data: InsightsResponse | null;
     timestamp: number;
