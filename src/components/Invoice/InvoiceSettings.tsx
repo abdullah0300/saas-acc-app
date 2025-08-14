@@ -40,6 +40,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
     invoice_prefix: 'INV-',
     invoice_color: '#3B82F6',
     payment_terms: '30',
+    fill_number_gaps: true,
     invoice_notes: '',
     invoice_footer: '',
     
@@ -299,6 +300,24 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                  <div className="mt-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Fill gaps in invoice numbers
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Automatically reuse missing invoice numbers in the sequence
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.fill_number_gaps}
+                      onChange={(e) => setSettings({ ...settings, fill_number_gaps: e.target.checked })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </div>
+                </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -561,6 +561,19 @@ return newInvoice;
 };
 
 export const updateInvoice = async (id: string, updates: any, items?: any[]) => {
+   // Check current invoice status
+  const { data: currentInvoice, error: checkError } = await supabase
+    .from('invoices')
+    .select('status')
+    .eq('id', id)
+    .single();
+  
+  if (checkError) throw checkError;
+  
+  // Prevent updates to paid/canceled invoices
+  if (currentInvoice.status === 'paid' || currentInvoice.status === 'canceled') {
+    throw new Error('Cannot modify paid or canceled invoices for legal compliance');
+  }
   // Update invoice
   const { data: invoiceData, error: invoiceError } = await supabase
     .from('invoices')
@@ -623,31 +636,46 @@ export const getInvoiceByNumber = async (invoiceNumber: string) => {
   return data as Invoice;
 };
 
-export const getNextInvoiceNumber = async (userId: string) => {
+export const getNextInvoiceNumber = async (userId: string): Promise<string> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-next-invoice-number', {
+      body: { userId }
+    });
+
+    if (error) throw error;
+    
+    return data.invoiceNumber;
+  } catch (error) {
+    console.error('Error getting next invoice number:', error);
+    // Fallback to a timestamp-based number if edge function fails
+    const now = new Date();
+    const timestamp = now.getTime();
+    return `INV-${timestamp}`;
+  }
+};
+
+export const checkInvoiceNumberExists = async (
+  userId: string, 
+  invoiceNumber: string, 
+  excludeId?: string
+): Promise<boolean> => {
   const effectiveUserId = await getEffectiveUserId(userId);
   
-  const { data, error } = await supabase
+  let query = supabase
     .from('invoices')
-    .select('invoice_number')
+    .select('id')
     .eq('user_id', effectiveUserId)
-    .order('created_at', { ascending: false })
-    .limit(1);
+    .eq('invoice_number', invoiceNumber);
+  
+  if (excludeId) {
+    query = query.neq('id', excludeId);
+  }
+  
+  const { data, error } = await query;
   
   if (error) throw error;
   
-  if (!data || data.length === 0) {
-    return 'INV-001';
-  }
-  
-  const lastNumber = data[0].invoice_number;
-  const match = lastNumber.match(/INV-(\d+)/);
-  
-  if (match) {
-    const nextNumber = parseInt(match[1]) + 1;
-    return `INV-${nextNumber.toString().padStart(3, '0')}`;
-  }
-  
-  return 'INV-001';
+  return (data && data.length > 0);
 };
 
 // Dashboard statistics - Team aware

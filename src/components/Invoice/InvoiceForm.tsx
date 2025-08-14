@@ -11,6 +11,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { UsageLimitGate } from '../Subscription/FeatureGate';
 import { useData } from '../../contexts/DataContext';
 import { COUNTRY_CODES } from '../../utils/phoneUtils';
+import { checkInvoiceNumberExists } from '../../services/database';
 import { 
   createInvoice, 
   updateInvoice, 
@@ -76,6 +77,21 @@ export const InvoiceForm: React.FC = () => {
   const [showRateWarning, setShowRateWarning] = useState(false);
   const [originalRate, setOriginalRate] = useState<number | null>(null);
   const [useHistoricalRate, setUseHistoricalRate] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+// Monitor online status
+useEffect(() => {
+  const handleOnline = () => setIsOnline(true);
+  const handleOffline = () => setIsOnline(false);
+  
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+  
+  return () => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
+  };
+}, []);
   // Form state
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -545,7 +561,12 @@ export const InvoiceForm: React.FC = () => {
   useEffect(() => {
     if (invoiceData?.invoice) {
       const { invoice, recurringData } = invoiceData;
-      
+      // ADD THIS CHECK:
+    if (invoice.status === 'paid' || invoice.status === 'canceled') {
+      alert('This invoice is locked for compliance and cannot be edited.');
+      navigate('/invoices');
+      return;
+    }
          setFormData({
           invoice_number: invoice.invoice_number,
           client_id: invoice.client_id || '',
@@ -578,6 +599,33 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if online
+  if (!isOnline) {
+    alert('You must be online to create invoices. Please check your internet connection.');
+    return;
+  }
+  
+  // Validate invoice number uniqueness
+if (!isEdit || (isEdit && formData.invoice_number !== invoiceData?.invoice.invoice_number)) {
+    try {
+      const exists = await checkInvoiceNumberExists(
+        user!.id, 
+        formData.invoice_number, 
+        isEdit ? id : undefined
+      );
+      
+      if (exists) {
+        alert(`Invoice number ${formData.invoice_number} already exists. Please use a different number.`);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking invoice number:', error);
+      alert('Error validating invoice number. Please try again.');
+      return;
+    }
+  }
+
     // Calculate exchange rate
  // Calculate exchange rate
     const exchangeRate = formData.currency === baseCurrency 
@@ -667,6 +715,16 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
     <h1 className="text-2xl font-bold text-gray-900">
       {id ? 'Edit Invoice' : 'Create New Invoice'}
     </h1>
+    {!isOnline && (
+  <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+    <div className="flex items-center">
+      <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+      <p className="text-sm text-yellow-800">
+        You are offline. Internet connection is required to create invoices.
+      </p>
+    </div>
+  </div>
+)}
     <button
       type="button"
       onClick={() => setShowSettings(true)}
@@ -730,7 +788,13 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
                 onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
+                disabled={!isEdit && !formData.invoice_number}
               />
+              {!isEdit && !formData.invoice_number && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              )}
             </div>
 
             <div>

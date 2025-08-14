@@ -420,13 +420,23 @@ export const InvoiceView: React.FC = () => {
               </button>
 
               {/* Edit */}
-              <button
-                onClick={() => navigate(`/invoices/${id}/edit`)}
-                className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors"
-                title="Edit"
-              >
-                <Edit className="h-5 w-5" />
-              </button>
+              {invoice && invoice.status !== 'paid' && invoice.status !== 'canceled' ? (
+                <button
+                  onClick={() => navigate(`/invoices/${id}/edit`)}
+                  className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors"
+                  title="Edit"
+                >
+                  <Edit className="h-5 w-5" />
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="p-1.5 text-gray-400 cursor-not-allowed"
+                  title="Locked for compliance"
+                >
+                  <Shield className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -31,7 +31,8 @@ import {
   AlertCircle,
   TrendingUp,
   Activity,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 import { getInvoices, deleteInvoice, updateInvoice } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -230,6 +231,17 @@ React.useEffect(() => {
 const handleBulkDelete = async () => {
   if (selectedItems.length === 0) return;
   
+  // Check if any selected invoices are paid/canceled
+  const lockedInvoices = filteredInvoices.filter(
+    invoice => selectedItems.includes(invoice.id) && 
+    (invoice.status === 'paid' || invoice.status === 'canceled')
+  );
+  
+  if (lockedInvoices.length > 0) {
+    alert(`Cannot delete ${lockedInvoices.length} paid/canceled invoice(s). These are locked for legal compliance.`);
+    return;
+  }
+  
   const confirmed = window.confirm(
     `Are you sure you want to delete ${selectedItems.length} invoice(s)? This action cannot be undone.`
   );
@@ -309,18 +321,15 @@ const stats = React.useMemo(() => {
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return;
 
-  // Check if user has disabled warnings for paid invoices
-  const hideWarning = localStorage.getItem('hideInvoiceDeleteWarning') === 'true';
-  
-  // Show warning for paid invoices (unless user disabled it)
-  if (invoice.status === 'paid' && !hideWarning) {
-    setInvoiceToDelete(invoice);
-    setShowDeleteWarning(true);
-  } else {
-    // Show simple confirmation for unpaid invoices or if warning is disabled
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
-      deleteMutation.mutate(id);
-    }
+  // HMRC COMPLIANCE: Prevent deletion of paid or canceled invoices
+  if (invoice.status === 'paid' || invoice.status === 'canceled') {
+    alert('Cannot delete paid or canceled invoices. This is required for legal compliance (HMRC regulations).');
+    return;
+  }
+
+  // For unpaid invoices, show confirmation
+  if (window.confirm('Are you sure you want to delete this invoice?')) {
+    deleteMutation.mutate(id);
   }
 };
 
@@ -827,26 +836,31 @@ const handleCancelDelete = () => {
                           {format(parseISO(invoice.due_date), 'MMM dd, yyyy')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-  <div className="flex flex-col items-end">
-    <div className="text-sm font-semibold text-gray-900">
-      {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
-    </div>
-    {invoice.currency && invoice.currency !== baseCurrency && (
-      <span className="text-xs text-gray-500 mt-0.5">
-        {invoice.currency}
-      </span>
-    )}
-    {invoice.tax_rate > 0 && (
-      <div className="text-xs text-gray-400 mt-0.5">
-        Incl. {invoice.tax_rate}% tax
-      </div>
-    )}
-  </div>
-</td>
+                        <div className="flex flex-col items-end">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
+                          </div>
+                          {invoice.currency && invoice.currency !== baseCurrency && (
+                            <span className="text-xs text-gray-500 mt-0.5">
+                              {invoice.currency}
+                            </span>
+                          )}
+                          {invoice.tax_rate > 0 && (
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              Incl. {invoice.tax_rate}% tax
+                            </div>
+                          )}
+                        </div>
+                      </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
                             {getStatusIcon(invoice.status)}
                             {invoice.status}
+                            {(invoice.status === 'paid' || invoice.status === 'canceled') && (
+                              <span title="Locked for compliance">
+                              <Shield className="h-3 w-3 ml-1" />
+                            </span>
+                            )}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -870,13 +884,22 @@ const handleCancelDelete = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Link>
-                            <Link
-                              to={`/invoices/${invoice.id}/edit`}
-                              className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                              title="Edit"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Link>
+                            {invoice.status !== 'paid' && invoice.status !== 'canceled' ? (
+                              <Link
+                                to={`/invoices/${invoice.id}/edit`}
+                                className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Link>
+                            ) : (
+                              <span 
+                                className="p-2 text-gray-400 cursor-not-allowed" 
+                                title="Locked for compliance"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </span>
+                            )}
                             
                             {/* Action Menu */}
                             <div className="relative">
