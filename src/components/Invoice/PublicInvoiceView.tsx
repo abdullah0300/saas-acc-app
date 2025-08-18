@@ -583,7 +583,7 @@ export const PublicInvoiceView: React.FC = () => {
                     )}
                     
                     {/* Total Row */}
-                    <div className="bg-gray-900 -mx-4 px-4 py-3">
+                    <div className=" -mx-4 px-4 py-3">
                       <div className="flex justify-between items-center">
                         <span className="text-white font-medium text-sm">
                           {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? 'Gross Total' : 'Total'}
