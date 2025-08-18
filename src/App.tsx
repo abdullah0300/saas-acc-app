@@ -66,7 +66,7 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
-});
+});   
 
 function App() {
   return (
