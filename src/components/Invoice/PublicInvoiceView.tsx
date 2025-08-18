@@ -511,54 +511,92 @@ export const PublicInvoiceView: React.FC = () => {
               </table>
             </div>
 
-            {/* Mobile Cards */}
+            {/* Mobile Cards - Enhanced with VAT/Tax */}
             <div className="lg:hidden space-y-3">
               {invoice.items?.map((item, index) => (
-                <div key={item.id || index} className="bg-white border border-gray-200 rounded-lg p-4">
-                  <div className="mb-3">
-                    <p className="font-medium text-gray-900 text-sm">{item.description}</p>
+                <div key={item.id || index} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Item Header */}
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <p className="font-semibold text-gray-900 text-sm">{item.description}</p>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <p className="text-gray-600">Quantity</p>
-                      <p className="font-medium">{item.quantity}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Rate</p>
-                      <p className="font-medium">{formatCurrency(item.rate, invoice.currency || baseCurrency)}</p>
+                  {/* Item Details */}
+                  <div className="p-4 space-y-3">
+                    {/* Quantity and Rate Row */}
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                      <div className="flex items-center space-x-6">
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase tracking-wide">Quantity</p>
+                          <p className="font-semibold text-gray-900">{item.quantity}</p>
+                        </div>
+                        <div className="text-gray-400">×</div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase tracking-wide">Rate</p>
+                          <p className="font-semibold text-gray-900">{formatCurrency(item.rate, invoice.currency || baseCurrency)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">
+                          {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? 'Net Amount' : 'Subtotal'}
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {formatCurrency(
+                            userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown 
+                              ? (item.net_amount || item.amount)
+                              : item.amount,
+                            invoice.currency || baseCurrency
+                          )}
+                        </p>
+                      </div>
                     </div>
                     
-                    {/* VAT details for UK/EU */}
+                    {/* VAT/Tax Section for UK/EU */}
                     {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown && (
-                      <>
-                        <div>
-                          <p className="text-gray-600">Net Amount</p>
-                          <p className="font-medium">{formatCurrency(item.net_amount || item.amount, invoice.currency || baseCurrency)}</p>
+                      <div className="bg-blue-50 -mx-4 px-4 py-3 border-y border-blue-100">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">
+                              {taxLabel} Rate
+                            </p>
+                            <p className="text-lg font-bold text-blue-900">{item.tax_rate || 0}%</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-blue-600 uppercase tracking-wide font-medium">
+                              {taxLabel} Amount
+                            </p>
+                            <p className="text-lg font-bold text-blue-900">
+                              {formatCurrency(item.tax_amount || 0, invoice.currency || baseCurrency)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-gray-600">{taxLabel}</p>
-                          <p className="font-medium">
-                            {item.tax_rate || 0}% = {formatCurrency(item.tax_amount || 0, invoice.currency || baseCurrency)}
-                          </p>
-                        </div>
-                      </>
+                      </div>
                     )}
-                  </div>
-                  
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">
-                        {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? 'Gross Total' : 'Total'}
-                      </span>
-                      <span className="font-semibold text-sm text-gray-900">
-                        {formatCurrency(
-                          userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown 
-                            ? (item.gross_amount || item.amount)
-                            : item.amount,
-                          invoice.currency || baseCurrency
-                        )}
-                      </span>
+                    
+                    {/* Simple Tax for non-UK */}
+                    {!userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown && invoice.tax_rate > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">{taxLabel} ({invoice.tax_rate}%)</span>
+                        <span className="font-medium text-gray-900">
+                          {formatCurrency((item.amount * invoice.tax_rate) / 100, invoice.currency || baseCurrency)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Total Row */}
+                    <div className="bg-gray-900 -mx-4 px-4 py-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white font-medium text-sm">
+                          {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? 'Gross Total' : 'Total'}
+                        </span>
+                        <span className="text-white font-bold text-lg">
+                          {formatCurrency(
+                            userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown 
+                              ? (item.gross_amount || item.amount)
+                              : item.amount + ((item.amount * (invoice.tax_rate || 0)) / 100),
+                            invoice.currency || baseCurrency
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -758,4 +796,4 @@ export const PublicInvoiceView: React.FC = () => {
       `}</style>
     </div>
   );
-};  
+};
