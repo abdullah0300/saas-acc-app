@@ -6,6 +6,7 @@ import { getClients, createClient } from "../../services/database";
 import { Client } from "../../types";
 import { Plus, X } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
+import { countries } from '../../data/countries';
 import {
   createIncome,
   updateIncome,
@@ -20,6 +21,8 @@ export const IncomeForm: React.FC = () => {
   const { user } = useAuth();
   const { taxRates, defaultTaxRate, formatCurrency, baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol, userSettings } = useSettings();
   const { addIncomeToCache,  addClientToCache , updateIncomeInCache } = useData();
+  const userCountry = countries.find(c => c.code === userSettings?.country);
+  const taxLabel = userCountry?.taxName || 'Tax';
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -398,7 +401,7 @@ const incomeData = {
             {/* Tax Rate - Added this section */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tax Rate
+                {taxLabel} Rate
               </label>
               <select
                 value={formData.tax_rate}
@@ -414,7 +417,7 @@ const incomeData = {
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="0">No Tax</option>
+              <option value="0">No {taxLabel}</option>
                 {taxRates.map((tax) => (
                   <option key={tax.id} value={tax.rate}>
                     {tax.name} ({tax.rate}%)
@@ -422,10 +425,10 @@ const incomeData = {
                 ))}
               </select>
               {parseFloat(formData.tax_rate) > 0 && (
-  <p className="text-sm text-gray-500 mt-1">
-    Tax Amount: {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
-  </p>
-)}
+                <p className="text-sm text-gray-500 mt-1">
+                {taxLabel} Amount: {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
+              </p>
+              )}
             </div>
 
             <div>

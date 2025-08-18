@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useData } from "../../contexts/DataContext";
 import { ArrowLeft, Save, Upload, Plus, X, AlertCircle } from "lucide-react";
 import { AIService, AISuggestion } from "../../services/aiService";
+import { countries } from '../../data/countries';
 import { AISuggestion as AISuggestionComponent } from "../AI/AISuggestion";
 import {
   getVendors,
@@ -33,6 +34,8 @@ export const ExpenseForm: React.FC = () => {
   const { id } = useParams();
   const isEdit = !!id;
   const {  updateExpenseInCache } = useData(); // ADD updateExpenseInCache
+const userCountry = countries.find(c => c.code === userSettings?.country);
+const taxLabel = userCountry?.taxName || 'Tax';
 
   const [formData, setFormData] = useState({
   amount: "",
@@ -610,7 +613,7 @@ const expenseData = {
             {/* Tax Rate - Added this section */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tax Rate
+                {taxLabel} Rate
               </label>
               <select
                 value={formData.tax_rate}
@@ -626,7 +629,7 @@ const expenseData = {
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="0">No Tax</option>
+                <option value="0">No {taxLabel}</option>
                 {taxRates.map((tax) => (
                   <option key={tax.id} value={tax.rate}>
                     {tax.name} ({tax.rate}%)
@@ -635,7 +638,7 @@ const expenseData = {
               </select>
               {parseFloat(formData.tax_rate) > 0 && (
                 <p className="text-sm text-gray-500 mt-1">
-                  Tax Amount: {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
+                  {taxLabel} Amount: {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
                 </p>
               )}
             </div>

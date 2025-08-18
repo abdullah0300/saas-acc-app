@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Client } from '../../types';
 import { getClients } from '../../services/database';
 import { useData } from '../../contexts/DataContext';
-
+import { countries } from '../../data/countries';
 import { SkeletonTable } from '../Common/Loading';
 import { 
   Plus, 
@@ -25,7 +25,8 @@ import {
   Clock,
   RefreshCw,
   Copy,
-  Users 
+  Users,
+  Receipt 
 } from 'lucide-react';
 import { getIncomes, deleteIncome, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -66,7 +67,8 @@ const [selectedItems, setSelectedItems] = useState<string[]>([]);
 const [selectAll, setSelectAll] = useState(false);
 const [showDetailModal, setShowDetailModal] = useState(false);
 const [selectedIncome, setSelectedIncome] = useState<Income | null>(null);
-
+const { userSettings } = useSettings();
+const userCountry = countries.find(c => c.code === userSettings?.country);
   useEffect(() => {
   // Data is already loaded by DataContext, just filter when dateRange changes
   filterAndSortIncomes();
@@ -1124,79 +1126,128 @@ const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes
           </div>
         </div>
 
-        {/* Financial Details */}
-        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6">
-          <h4 className="text-sm font-semibold text-indigo-800 mb-4 flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Financial Details
-          </h4>
-          
-          <div className="space-y-4">
-            {/* Original Amount */}
-            <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
-              <span className="text-gray-600">Amount</span>
-              <span className="font-semibold text-lg text-gray-900">
-                {formatCurrency(selectedIncome.amount, selectedIncome.currency || baseCurrency)}
-              </span>
-            </div>
+            {/* Financial Details */}
+<div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6">
+  <h4 className="text-sm font-semibold text-indigo-800 mb-4 flex items-center gap-2">
+    <DollarSign className="h-4 w-4" />
+    Financial Details
+  </h4>
+  
+  <div className="space-y-4">
+    {/* Net Amount (for tax entries) or Amount */}
+    <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
+      <span className="text-gray-600">
+        {selectedIncome.tax_metadata?.created_from_invoice 
+          ? userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown 
+            ? `Net Amount (ex. ${userCountry?.taxName || 'Tax'})` 
+            : 'Amount'
+          : 'Amount'}
+      </span>
+      <span className="font-semibold text-lg text-gray-900">
+        {formatCurrency(selectedIncome.amount, selectedIncome.currency || baseCurrency)}
+      </span>
+    </div>
 
-            {/* Tax Information */}
-            {selectedIncome.tax_rate && selectedIncome.tax_rate > 0 && (
-              <>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Tax Rate</span>
-                  <span className="font-medium">{selectedIncome.tax_rate}%</span>
-                </div>
-                <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
-                  <span className="text-gray-600">Tax Amount</span>
-                  <span className="font-medium">
-                    {formatCurrency(selectedIncome.tax_amount || 0, selectedIncome.currency || baseCurrency)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
-                  <span className="text-gray-600 font-medium">Total with Tax</span>
-                  <span className="font-semibold text-lg">
-                    {formatCurrency(
-                      (selectedIncome.total_with_tax || selectedIncome.amount), 
-                      selectedIncome.currency || baseCurrency
-                    )}
-                  </span>
-                </div>
-              </>
+    {/* Tax/VAT Information */}
+    {(selectedIncome.tax_rate && selectedIncome.tax_rate > 0) || selectedIncome.tax_amount ? (
+      <>
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">{userCountry?.taxName || 'Tax'} Rate</span>
+          <span className="font-medium">{selectedIncome.tax_rate || 0}%</span>
+        </div>
+        <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
+          <span className="text-gray-600">{userCountry?.taxName || 'Tax'} Amount</span>
+          <span className="font-medium">
+            {formatCurrency(selectedIncome.tax_amount || 0, selectedIncome.currency || baseCurrency)}
+          </span>
+        </div>
+        <div className="flex justify-between items-center pb-3 border-b border-indigo-100">
+          <span className="text-gray-600 font-medium">Gross Total</span>
+          <span className="font-semibold text-lg">
+            {formatCurrency(
+              (selectedIncome.amount + (selectedIncome.tax_amount || 0)), 
+              selectedIncome.currency || baseCurrency
             )}
+          </span>
+        </div>
+      </>
+    ) : null}
 
-            {/* Currency Conversion Details */}
-            {selectedIncome.currency && selectedIncome.currency !== baseCurrency && (
-              <div className="mt-4 pt-4 border-t-2 border-indigo-200">
-                <h5 className="text-sm font-semibold text-indigo-700 mb-3 flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Currency Conversion
-                </h5>
-                
-                <div className="bg-white/50 rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Original Currency</span>
-                    <span className="font-medium">{selectedIncome.currency}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Exchange Rate</span>
-                    <span className="font-medium">
-                      1 {baseCurrency} = {selectedIncome.exchange_rate || 1} {selectedIncome.currency}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                    <span className="text-gray-700 font-medium">Amount in {baseCurrency}</span>
-                    <span className="font-bold text-lg text-indigo-700">
-                      {formatCurrency(selectedIncome.base_amount || selectedIncome.amount, baseCurrency)}
-                    </span>
-                  </div>
+    {/* VAT Breakdown for UK invoices */}
+    {selectedIncome.tax_metadata?.tax_breakdown && Object.keys(selectedIncome.tax_metadata.tax_breakdown).length > 0 && (
+      <div className="mt-4 pt-4 border-t-2 border-indigo-200">
+        <h5 className="text-sm font-semibold text-indigo-700 mb-3 flex items-center gap-2">
+          <Receipt className="h-4 w-4" />
+          {userCountry?.taxName || 'Tax'} Breakdown by Rate
+        </h5>
+        
+        <div className="bg-white/50 rounded-lg p-3 space-y-2">
+          {Object.entries(selectedIncome.tax_metadata.tax_breakdown).map(([rate, breakdown]: [string, any]) => (
+            <div key={rate} className="flex justify-between items-center text-sm">
+              <div className="text-gray-600">
+                <span className="font-medium">{rate}%</span> on {formatCurrency(breakdown.net_amount, selectedIncome.currency || baseCurrency)}
+              </div>
+              <div className="text-right">
+                <div className="font-medium text-gray-900">
+                  {formatCurrency(breakdown.tax_amount, selectedIncome.currency || baseCurrency)}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Total: {formatCurrency(breakdown.gross_amount, selectedIncome.currency || baseCurrency)}
                 </div>
               </div>
-            )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Invoice Reference */}
+    {selectedIncome.tax_metadata?.invoice_number && (
+      <div className="mt-4 pt-4 border-t border-indigo-100">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600">From Invoice</span>
+          <Link 
+            to={`/invoices/${selectedIncome.tax_metadata.invoice_id}/view`}
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+          >
+            <FileText className="h-3 w-3" />
+            #{selectedIncome.tax_metadata.invoice_number}
+          </Link>
+        </div>
+      </div>
+    )}
+
+    {/* Currency Conversion Details */}
+    {selectedIncome.currency && selectedIncome.currency !== baseCurrency && (
+      <div className="mt-4 pt-4 border-t-2 border-indigo-200">
+        <h5 className="text-sm font-semibold text-indigo-700 mb-3 flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Currency Conversion
+        </h5>
+        
+        <div className="bg-white/50 rounded-lg p-3 space-y-2">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-600">Original Currency</span>
+            <span className="font-medium">{selectedIncome.currency}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-600">Exchange Rate</span>
+            <span className="font-medium">
+              1 {baseCurrency} = {(selectedIncome.exchange_rate || 1).toFixed(4)} {selectedIncome.currency}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-sm pt-2 border-t">
+            <span className="text-gray-600 font-medium">Base Amount</span>
+            <span className="font-semibold">
+              {formatCurrency(selectedIncome.base_amount || selectedIncome.amount, baseCurrency)}
+            </span>
           </div>
         </div>
+      </div>
+    )}
+  </div>
+</div>
+            
 
         {/* Timestamps */}
         <div className="bg-gray-50 rounded-xl p-6">

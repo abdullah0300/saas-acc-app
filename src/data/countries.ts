@@ -15,6 +15,22 @@ export interface CountryData {
   taxName: string;
   defaultTaxRate: number;
   states?: StateData[];
+  // Tax system features configuration
+  taxFeatures?: {
+    requiresRegistrationNumber?: boolean;
+    registrationNumberLabel?: string;
+    registrationNumberFormat?: string; // Regex for validation
+    registrationNumberPlaceholder?: string;
+    hasDigitalTaxSubmission?: boolean;
+    digitalSubmissionName?: string; // e.g., "HMRC", "ATO"
+    taxReturnPeriods?: string[]; // e.g., ['monthly', 'quarterly', 'annually']
+    requiresInvoiceTaxBreakdown?: boolean;
+    invoiceLabel?: string; // e.g., "VAT INVOICE", "TAX INVOICE"
+    // VAT specific features
+    hasReverseCharge?: boolean;
+    hasIntraEUSupplies?: boolean;
+    taxSchemes?: string[]; // e.g., ['standard', 'flat_rate', 'cash_accounting']
+  };
 }
 
 export const countries: CountryData[] = [
@@ -108,6 +124,20 @@ export const countries: CountryData[] = [
     dateFormat: 'DD/MM/YYYY',
     taxName: 'VAT',
     defaultTaxRate: 20,
+    taxFeatures: {
+      requiresRegistrationNumber: true,
+      registrationNumberLabel: 'VAT Registration Number',
+      registrationNumberFormat: '^GB[0-9]{9}$|^GB[0-9]{12}$|^GBGD[0-9]{3}$|^GBHA[0-9]{3}$',
+      registrationNumberPlaceholder: 'GB123456789',
+      hasDigitalTaxSubmission: true,
+      digitalSubmissionName: 'HMRC',
+      taxReturnPeriods: ['monthly', 'quarterly'],
+      requiresInvoiceTaxBreakdown: true,
+      invoiceLabel: 'VAT INVOICE',
+      hasReverseCharge: true,
+      hasIntraEUSupplies: true,
+      taxSchemes: ['standard', 'flat_rate', 'cash_accounting']
+    }
   },
   {
     code: 'PK',

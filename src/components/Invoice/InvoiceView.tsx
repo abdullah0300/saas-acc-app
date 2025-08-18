@@ -7,6 +7,7 @@ import { SendEmailDialog } from './SendEmailDialog'; // ADD THIS IMPORT
 import { emailService } from '../../services/emailService'; // ADD THIS IMPORT
 import { useSettings } from '../../contexts/SettingsContext'; // ADD THIS IMPORT
 import { useQueryClient } from '@tanstack/react-query';
+import { countries } from '../../data/countries';
 import { 
   ArrowLeft, 
   Download, 
@@ -34,7 +35,8 @@ import {
   DollarSign,
   User as UserIcon,  // Renamed to avoid conflict
   Hash,
-  Banknote
+  Banknote,
+  Building2
 } from 'lucide-react';
 import { getInvoice, updateInvoice, getProfile } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -69,6 +71,11 @@ export const InvoiceView: React.FC = () => {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false); // ADD THIS STATE
+  const { userSettings } = useSettings();
+  const userCountry = countries.find(c => c.code === userSettings?.country);
+  const taxFeatures = userCountry?.taxFeatures;
+  const taxLabel = userCountry?.taxName || 'Tax';
+  const [taxRegistrationNumber, setTaxRegistrationNumber] = useState<string>('');
 
   useEffect(() => {
     if (user && id) {
@@ -106,6 +113,17 @@ export const InvoiceView: React.FC = () => {
         .single();
       
       setInvoiceSettings(settings);
+
+      // Load tax registration number from user_settings
+      const { data: userSettingsData } = await supabase
+        .from('user_settings')
+        .select('tax_registration_number')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userSettingsData?.tax_registration_number) {
+        setTaxRegistrationNumber(userSettingsData.tax_registration_number);
+      }
       
       // Set default phone number for WhatsApp
       if (invoiceData.client?.phone) {
@@ -118,33 +136,124 @@ export const InvoiceView: React.FC = () => {
     }
   };
 
- const handleStatusChange = async (newStatus: Invoice['status']) => {
+// Complete handleStatusChange function for InvoiceView.tsx
+// REPLACE your entire handleStatusChange function with this:
+
+const handleStatusChange = async (newStatus: Invoice['status']) => {
   if (!invoice || !user) return;
 
   try {
-    // Update the database first
+    // Update the invoice status
     await updateInvoice(invoice.id, { status: newStatus });
     
-    // Update local state immediately for UI responsiveness
+    // If marking as paid, create income entry
+    if (newStatus === 'paid' && invoice.status !== 'paid') {
+      // Check if income already exists
+      const { data: existingIncome } = await supabase
+        .from('income')
+        .select('id')
+        .eq('reference_number', invoice.invoice_number)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (!existingIncome) {
+        // Get invoice items for tax breakdown  
+        const { data: items } = await supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', invoice.id);
+        
+        // Initialize totals and breakdown
+        let totalNetAmount = 0;
+        let totalTaxAmount = 0;
+        let taxBreakdown: Record<string, any> = {};
+        
+        // Check if UK user (with line-item VAT)
+        // Only UK uses GBP and has line-item VAT
+const isUK = invoice.currency === 'GBP' && 
+             items && items.length > 0 &&
+             items.some(item => item.tax_rate !== undefined && item.tax_rate > 0);
+
+
+        if (isUK && items && items.length > 0) {
+          // UK LOGIC - Calculate from line items
+          items.forEach(item => {
+            const rate = (item.tax_rate || 0).toString();
+            const netAmount = item.net_amount || item.amount || 0;
+            const taxAmount = item.tax_amount || 0;
+            
+            if (!taxBreakdown[rate]) {
+              taxBreakdown[rate] = {
+                net_amount: 0,
+                tax_amount: 0,
+                gross_amount: 0
+              };
+            }
+            
+            taxBreakdown[rate].net_amount += netAmount;
+            taxBreakdown[rate].tax_amount += taxAmount;
+            taxBreakdown[rate].gross_amount += netAmount + taxAmount;
+            
+            totalNetAmount += netAmount;
+            totalTaxAmount += taxAmount;
+          });
+        } else {
+          // USA/OTHER COUNTRIES - Use invoice totals directly
+          totalNetAmount = invoice.subtotal;
+          totalTaxAmount = invoice.tax_amount || 0;
+          
+          if (invoice.tax_rate > 0) {
+            taxBreakdown[invoice.tax_rate.toString()] = {
+              net_amount: invoice.subtotal,
+              tax_amount: invoice.tax_amount,
+              gross_amount: invoice.total
+            };
+          }
+        }
+        
+        // Create income entry with CORRECT data
+        const { error: incomeError } = await supabase
+          .from('income')
+          .insert([{
+            user_id: user.id,
+            amount: totalNetAmount, // NET amount (without tax)
+            description: `Payment for Invoice #${invoice.invoice_number}`,
+            date: new Date().toISOString().split('T')[0],
+            client_id: invoice.client_id || null,
+            category_id: invoice.income_category_id || null,
+            reference_number: invoice.invoice_number,
+            currency: invoice.currency || 'USD',
+            exchange_rate: invoice.exchange_rate || 1,
+            base_amount: (totalNetAmount / (invoice.exchange_rate || 1)),
+            tax_rate: invoice.tax_rate || 0,
+            tax_amount: totalTaxAmount, // Correct tax amount
+            // Don't include total_with_tax - it's a generated column
+            tax_metadata: {
+              tax_breakdown: taxBreakdown,
+              invoice_id: invoice.id,
+              invoice_number: invoice.invoice_number,
+              created_from_invoice: true,
+              is_uk_vat: isUK,
+              invoice_date: invoice.date,
+              invoice_total: invoice.total
+            }
+          }]);
+          
+        if (incomeError) {
+          console.error('Error creating income:', incomeError);
+          throw incomeError;
+        }
+      }
+    }
+    
+    // Update local state and refresh
     setInvoice({ ...invoice, status: newStatus });
-    
-    // CRITICAL: Invalidate React Query caches with EXACT query keys
-    queryClient.invalidateQueries({ 
-      queryKey: ['invoices', user.id] // ✅ This must match InvoiceList exactly
-    });
-    queryClient.invalidateQueries({ 
-      queryKey: ['invoice', invoice.id] // ✅ If you have individual invoice cache
-    });
-    
-    // Update DataContext cache for dashboard
+    await queryClient.invalidateQueries({ queryKey: ['invoices', user.id] });
+    await queryClient.invalidateQueries({ queryKey: ['income'] });
     await refreshBusinessData();
     
-    // Optional: Force a refetch to ensure consistency
-    await queryClient.refetchQueries({ 
-      queryKey: ['invoices', user.id] 
-    });
-    
   } catch (err: any) {
+    console.error('Full error:', err);
     alert('Error updating status: ' + err.message);
   }
 };
@@ -485,12 +594,20 @@ export const InvoiceView: React.FC = () => {
                       <p className="whitespace-pre-line">{profile?.company_address || invoiceSettings?.company_address}</p>
                     </div>
                   )}
+                  {/* VAT Registration Number for applicable countries */}
+                  {taxRegistrationNumber && taxFeatures?.requiresRegistrationNumber && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Building2 className="h-4 w-4" />
+                      <p>{taxFeatures.registrationNumberLabel}: {taxRegistrationNumber}</p>
+                    </div>
+                  )}
                   {(profile?.phone || invoiceSettings?.company_phone) && (
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-gray-400" />
                       <p>{profile?.phone || invoiceSettings?.company_phone}</p>
                     </div>
                   )}
+                  
                   {(profile?.email || invoiceSettings?.company_email) && (
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-gray-400" />
@@ -617,80 +734,147 @@ export const InvoiceView: React.FC = () => {
         </div>
 
         {/* Items Table */}
-        <div className="px-8 pb-8">
-          <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
-            Invoice Items
-          </h3>
-          <div className="overflow-hidden bg-white rounded-lg shadow-sm ring-1 ring-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Qty
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Rate
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Amount
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {invoice.items?.map((item, index) => (
-                  <tr key={item.id || index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {item.description}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 text-center">
-                      {item.quantity}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 text-right">
-                      {formatCurrency(item.rate, invoice.currency || baseCurrency)}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
-                      {formatCurrency(item.amount, invoice.currency || baseCurrency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Totals Section */}
-          <div className="mt-6 flex justify-end">
-            <div className="w-full max-w-xs space-y-2">
-              <div className="flex justify-between items-center py-2">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}</span>
-              </div>
-              
-              {invoice.tax_rate > 0 && (
-                <div className="flex justify-between items-center py-2 border-t border-gray-200">
-                  <span className="text-gray-600">Tax ({invoice.tax_rate}%)</span>
-                  <span className="font-medium">{formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}</span>
-                </div>
+<div className="px-8 pb-8">
+  <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4">
+    Invoice Items
+  </h3>
+  <div className="overflow-hidden bg-white rounded-lg shadow-sm ring-1 ring-gray-200">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+            Description
+          </th>
+          <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+            Qty
+          </th>
+          <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+            Rate
+          </th>
+          {/* Add VAT columns for UK/EU */}
+          {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown && (
+            <>
+              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Net Amount
+              </th>
+              <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                {taxLabel} %
+              </th>
+              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                {taxLabel}
+              </th>
+            </>
+          )}
+          <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+            {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? 'Gross Amount' : 'Amount'}
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {invoice.items?.map((item, index) => (
+          <tr key={item.id || index} className="hover:bg-gray-50">
+            <td className="px-6 py-4 text-sm text-gray-900">
+              {item.description}
+            </td>
+            <td className="px-6 py-4 text-sm text-gray-900 text-center">
+              {item.quantity}
+            </td>
+            <td className="px-6 py-4 text-sm text-gray-900 text-right">
+              {formatCurrency(item.rate, invoice.currency || baseCurrency)}
+            </td>
+            {/* Add VAT details for UK/EU */}
+            {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown && (
+              <>
+                <td className="px-6 py-4 text-sm text-gray-900 text-right">
+                  {formatCurrency(item.net_amount || item.amount, invoice.currency || baseCurrency)}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 text-center">
+                  {item.tax_rate || 0}%
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 text-right">
+                  {formatCurrency(item.tax_amount || 0, invoice.currency || baseCurrency)}
+                </td>
+              </>
+            )}
+            <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+              {formatCurrency(
+                userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown 
+                  ? (item.gross_amount || item.amount)
+                  : item.amount, 
+                invoice.currency || baseCurrency
               )}
-              
-              <div className="flex justify-between items-center py-3 border-t-2 border-gray-900">
-                <span className="text-lg font-semibold">Total</span>
-                <div className="text-right">
-                  <span className="text-lg font-bold" style={{ color: primaryColor }}>
-                    {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
-                  </span>
-                  {invoice.currency && invoice.currency !== baseCurrency && invoice.base_amount && (
-                    <div className="text-sm text-gray-500">
-                      ({formatCurrency(invoice.base_amount, baseCurrency)})
-                    </div>
-                  )}
-                </div>
-              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {/* VAT Summary for UK/EU */}
+  {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown && (
+    <div className="mt-6 bg-gray-50 rounded-lg p-4">
+      <h4 className="text-sm font-semibold text-gray-700 mb-3">{taxLabel} Summary</h4>
+      <div className="space-y-2">
+        {(() => {
+          // Group items by tax rate
+          const taxGroups = invoice.items?.reduce((acc, item) => {
+            const rate = item.tax_rate || 0;
+            if (!acc[rate]) {
+              acc[rate] = { net: 0, tax: 0 };
+            }
+            acc[rate].net += item.net_amount || item.amount;
+            acc[rate].tax += item.tax_amount || 0;
+            return acc;
+          }, {} as Record<number, { net: number; tax: number }>);
+
+          return Object.entries(taxGroups || {}).map(([rate, amounts]) => (
+            <div key={rate} className="flex justify-between text-sm">
+              <span className="text-gray-600">
+                {taxLabel} @ {rate}% on {formatCurrency(amounts.net, invoice.currency || baseCurrency)}
+              </span>
+              <span className="font-medium">
+                {formatCurrency(amounts.tax, invoice.currency || baseCurrency)}
+              </span>
             </div>
-          </div>
+          ));
+        })()}
+      </div>
+    </div>
+  )}
+
+  {/* Totals Section */}
+  <div className="mt-6 flex justify-end">
+    <div className="w-full max-w-xs space-y-2">
+      <div className="flex justify-between items-center py-2">
+        <span className="text-gray-600">
+          {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? 'Net Total' : 'Subtotal'}
+        </span>
+        <span className="font-medium">{formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}</span>
+      </div>
+      
+      {invoice.tax_rate > 0 && (
+        <div className="flex justify-between items-center py-2 border-t border-gray-200">
+          <span className="text-gray-600">{taxLabel} ({invoice.tax_rate}%)</span>
+          <span className="font-medium">{formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}</span>
         </div>
+      )}
+      
+      <div className="flex justify-between items-center py-3 border-t-2 border-gray-900">
+        <span className="text-lg font-semibold">Total</span>
+        <div className="text-right">
+          <span className="text-lg font-bold" style={{ color: primaryColor }}>
+            {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
+          </span>
+          {invoice.currency && invoice.currency !== baseCurrency && invoice.base_amount && (
+            <div className="text-sm text-gray-500">
+              ({formatCurrency(invoice.base_amount, baseCurrency)})
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* Payment Info Section */}
         {(invoiceSettings?.bank_name || invoiceSettings?.paypal_email) && (

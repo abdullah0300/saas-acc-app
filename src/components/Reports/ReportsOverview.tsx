@@ -132,6 +132,7 @@ const [dismissedInsights, setDismissedInsights] = useState<string[]>(() => {
   return saved ? JSON.parse(saved) : [];
 });
 const [showAllInsights, setShowAllInsights] = useState(false);
+const { userSettings } = useSettings();
 
   // Data states
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
@@ -564,6 +565,24 @@ const getDateRangeForPeriod = () => {
     <h3 className="text-sm font-medium text-gray-900 mb-1">Client Profitability</h3>
     <p className="text-xs text-gray-500 leading-relaxed">Revenue analysis by client</p>
   </div>
+  {/* VAT Report - Only show for applicable countries */}
+{['GB', 'DE', 'FR', 'ES', 'IT', 'NL'].includes(userSettings?.country || '') && (
+  <Link
+    to="/reports/vat"
+    className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow"
+  >
+    <div className="flex items-center justify-between mb-4">
+      <FileText className="h-8 w-8 text-purple-600" />
+      <span className="text-sm text-gray-500">Tax Report</span>
+    </div>
+    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+      {userSettings?.country === 'GB' ? 'VAT Return' : 'Tax Report'}
+    </h3>
+    <p className="text-sm text-gray-600">
+      View your tax summary, input/output breakdown, and prepare returns
+    </p>
+  </Link>
+)}
 </div>
 
 

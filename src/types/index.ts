@@ -49,7 +49,7 @@ export interface Income {
   reference_number?: string;
   created_at: string;
   updated_at: string;
-  // Add these tax fields
+  // Tax fields
   currency?: string;
   exchange_rate?: number;
   base_amount?: number;
@@ -58,6 +58,25 @@ export interface Income {
   total_with_tax?: number;
   client_id?: string;
   client?: Client;
+  // VAT metadata for UK and other tax systems
+  tax_metadata?: {
+    created_from_invoice?: boolean;
+    invoice_id?: string;
+    invoice_number?: string;
+    invoice_date?: string;
+    invoice_total?: number;
+    source?: string;
+    has_line_item_vat?: boolean;
+    tax_scheme?: string;
+    is_reverse_charge?: boolean;
+    intra_eu_supply?: boolean;
+    tax_breakdown?: Record<string, {
+      net_amount: number;
+      tax_amount: number;
+      gross_amount: number;
+    }>;
+    [key: string]: any; // Allow additional properties for future expansion
+  };
 }
 
 export interface Expense {
@@ -126,7 +145,11 @@ export interface InvoiceItem {
   quantity: number;
   rate: number;
   amount: number;
-  created_at: string;
+  tax_rate?: number;
+  tax_amount?: number;
+  net_amount?: number;
+  gross_amount?: number;
+  created_at?: string;
 }
 
 export interface TaxRate {

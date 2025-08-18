@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
+import { countries } from '../data/countries';
 
 interface TaxRate {
   id: string;
@@ -23,6 +24,8 @@ interface SettingsContextType {
   taxRates: TaxRate[];
   userSettings: UserSettings | null;
   defaultTaxRate: number;
+  taxName: string;
+  userCountry: string;
   baseCurrency: string;
   currencySymbol: string;
   loading: boolean;
@@ -354,6 +357,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       taxRates,
       userSettings,
       defaultTaxRate,
+      taxName: countries.find(c => c.code === userSettings?.country)?.taxName || 'Tax',
+      userCountry: userSettings?.country || '',
       baseCurrency,
       currencySymbol,
       loading,

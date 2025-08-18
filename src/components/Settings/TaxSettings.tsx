@@ -3,7 +3,7 @@ import { Save, Plus, X, Percent, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext'; // Added useSettings import
 import { supabase } from '../../services/supabaseClient';
-
+import { countries } from '../../data/countries';
 interface TaxRate {
   id: string;
   name: string;
@@ -20,10 +20,18 @@ export const TaxSettings: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTax, setNewTax] = useState({ name: '', rate: '' });
   const [error, setError] = useState('');
+  const [userCountry, setUserCountry] = useState<string>('');
+  const [taxRegistrationNumber, setTaxRegistrationNumber] = useState('');
+  const [taxScheme, setTaxScheme] = useState('standard');
+  const [taxReturnPeriod, setTaxReturnPeriod] = useState('quarterly');
+  const [flatRatePercentage, setFlatRatePercentage] = useState<string>('');
+const [isTaxRegistered, setIsTaxRegistered] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadTaxRates();
+      loadUserTaxSettings();
     }
   }, [user]);
 
@@ -41,6 +49,65 @@ export const TaxSettings: React.FC = () => {
       setTaxRates(data || []);
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  const loadUserTaxSettings = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+  .from('user_settings')
+  .select('country, tax_registration_number, tax_scheme, tax_return_period, flat_rate_percentage, is_tax_registered')
+  .eq('user_id', user.id)
+  .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setUserCountry(data.country || '');
+        setTaxRegistrationNumber(data.tax_registration_number || '');
+        setTaxScheme(data.tax_scheme || 'standard');
+        setFlatRatePercentage(data.flat_rate_percentage?.toString() || '');
+setIsTaxRegistered(data.is_tax_registered || false);
+        setTaxReturnPeriod(data.tax_return_period || 'quarterly');
+      }
+    } catch (err: any) {
+      console.error('Error loading tax settings:', err);
+    }
+  };
+
+  const handleSaveTaxSettings = async () => {
+    if (!user) return;
+    
+    setSavingSettings(true);
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .update({
+          tax_registration_number: taxRegistrationNumber,
+          tax_scheme: taxScheme,
+          tax_return_period: taxReturnPeriod,
+          flat_rate_percentage: taxScheme === 'flat_rate' ? parseFloat(flatRatePercentage) : null,
+          is_tax_registered: !!taxRegistrationNumber,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      // Also update profile for invoice display
+      await supabase
+        .from('profiles')
+        .update({ tax_registration_number: taxRegistrationNumber })
+        .eq('id', user.id);
+      
+      await refreshSettings();
+      alert('Tax settings saved successfully!');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -119,6 +186,122 @@ export const TaxSettings: React.FC = () => {
           {error}
         </div>
       )}
+
+      {/* Tax Registration Section - Add this before Tax Rates */}
+      {(() => {
+        const country = countries.find(c => c.code === userCountry);
+        const taxFeatures = country?.taxFeatures;
+        
+        if (country && taxFeatures?.requiresRegistrationNumber) {
+          return (
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Globe className="h-6 w-6 text-blue-600" />
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {country.taxName} Registration
+                  </h2>
+                </div>
+                <button
+                  onClick={handleSaveTaxSettings}
+                  disabled={savingSettings}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingSettings ? 'Saving...' : 'Save Settings'}
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {taxFeatures.registrationNumberLabel}
+                  </label>
+                  <input
+                    type="text"
+                    value={taxRegistrationNumber}
+                    onChange={(e) => setTaxRegistrationNumber(e.target.value.toUpperCase())}
+                    placeholder={taxFeatures.registrationNumberPlaceholder}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    This will appear on all your invoices
+                  </p>
+                </div>
+
+                {taxFeatures.taxSchemes && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {country.taxName} Scheme
+                    </label>
+                    <select
+                      value={taxScheme}
+                      onChange={(e) => setTaxScheme(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {taxFeatures.taxSchemes.map(scheme => (
+                        <option key={scheme} value={scheme}>
+                          {scheme.charAt(0).toUpperCase() + scheme.slice(1).replace('_', ' ')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Flat Rate Percentage - Only show for flat rate scheme */}
+          {taxScheme === 'flat_rate' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Flat Rate Percentage
+              </label>
+              <input
+                type="number"
+                value={flatRatePercentage}
+                onChange={(e) => setFlatRatePercentage(e.target.value)}
+                min="0"
+                max="100"
+                step="0.5"
+                placeholder="e.g., 16.5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Your HMRC flat rate percentage
+              </p>
+            </div>
+          )}
+
+                {taxFeatures.taxReturnPeriods && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {country.taxName} Return Period
+                    </label>
+                    <select
+                      value={taxReturnPeriod}
+                      onChange={(e) => setTaxReturnPeriod(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {taxFeatures.taxReturnPeriods.map(period => (
+                        <option key={period} value={period}>
+                          {period.charAt(0).toUpperCase() + period.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {taxFeatures.hasDigitalTaxSubmission && (
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Digital Tax Submission:</strong> You can submit your {country.taxName} returns directly to {taxFeatures.digitalSubmissionName} from the Reports section.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-6">

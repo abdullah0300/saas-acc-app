@@ -12,6 +12,7 @@ import { UsageLimitGate } from '../Subscription/FeatureGate';
 import { useData } from '../../contexts/DataContext';
 import { COUNTRY_CODES } from '../../utils/phoneUtils';
 import { checkInvoiceNumberExists } from '../../services/database';
+import { countries } from '../../data/countries';
 import { 
   createInvoice, 
   updateInvoice, 
@@ -36,6 +37,10 @@ type FormInvoiceItem = {
   quantity: number;
   rate: number;
   amount: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  net_amount?: number;
+  gross_amount?: number;
 };
 
 
@@ -72,12 +77,15 @@ export const InvoiceForm: React.FC = () => {
   const queryClient = useQueryClient();
   const { addClientToCache } = useData();
   const { addInvoiceToCache } = useData();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, taxRates } = useSettings();
   const { baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol,userSettings  } = useSettings();
   const [showRateWarning, setShowRateWarning] = useState(false);
   const [originalRate, setOriginalRate] = useState<number | null>(null);
   const [useHistoricalRate, setUseHistoricalRate] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const userCountry = countries.find(c => c.code === userSettings?.country);
+  const taxLabel = userCountry?.taxName || 'Tax';
+  const requiresLineItemVAT = userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown || false;
 
 // Monitor online status
 useEffect(() => {
@@ -130,10 +138,37 @@ useEffect(() => {
   const [templateName, setTemplateName] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
 
+  const calculateTotals = () => {
+  if (requiresLineItemVAT) {
+    // For UK/EU - calculate from line items
+    const netTotal = items.reduce((sum, item) => sum + (item.net_amount || 0), 0);
+    const taxTotal = items.reduce((sum, item) => sum + (item.tax_amount || 0), 0);
+    const grossTotal = items.reduce((sum, item) => sum + (item.gross_amount || 0), 0);
+    
+    return {
+      subtotal: netTotal,
+      taxAmount: taxTotal,
+      total: grossTotal
+    };
+  } else {
+    // For other countries - simple calculation
+    const subtotal = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const taxAmount = (subtotal * parseFloat(formData.tax_rate || '0')) / 100;
+    const total = subtotal + taxAmount;
+    
+    return {
+      subtotal,
+      taxAmount,
+      total
+    };
+  }
+};
+
   // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  const taxAmount = (subtotal * parseFloat(formData.tax_rate || '0')) / 100;
-  const total = subtotal + taxAmount;
+    const totals = calculateTotals();
+    const subtotal = totals.subtotal;
+    const taxAmount = totals.taxAmount;
+    const total = totals.total;
 
   // Fetch next invoice number
   const { data: nextInvoiceNumber } = useQuery({
@@ -152,6 +187,13 @@ useEffect(() => {
       setFormData(prev => ({ ...prev, invoice_number: nextInvoiceNumber }));
     }
   }, [nextInvoiceNumber, isEdit, formData.invoice_number]);
+
+  // Recalculate totals when items change
+useEffect(() => {
+  const totals = calculateTotals();
+  // Don't update state here to avoid infinite loop
+  // The totals are calculated inline in the render
+}, [items, formData.tax_rate, requiresLineItemVAT]);
 
   // Fetch clients
   const { data: clients = [] } = useQuery({
@@ -606,8 +648,29 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
     return;
   }
   
-  // Validate invoice number uniqueness
-if (!isEdit || (isEdit && formData.invoice_number !== invoiceData?.invoice.invoice_number)) {
+  // For new invoices, get a fresh invoice number right before creating
+  if (!isEdit) {
+    try {
+      const freshInvoiceNumber = await getNextInvoiceNumber(user!.id);
+      console.log('Fresh invoice number:', freshInvoiceNumber);
+      
+      // Update form data with fresh number
+      formData.invoice_number = freshInvoiceNumber;
+      
+      // Also update the state so UI shows the new number
+      setFormData(prev => ({ ...prev, invoice_number: freshInvoiceNumber }));
+      
+      // Small delay to ensure state update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+    } catch (error) {
+      console.error('Error getting fresh invoice number:', error);
+      alert('Error generating invoice number. Please try again.');
+      return;
+    }
+  }
+ // Validate invoice number uniqueness
+  if (!isEdit || (isEdit && formData.invoice_number !== invoiceData?.invoice.invoice_number)) {
     try {
       const exists = await checkInvoiceNumberExists(
         user!.id, 
@@ -652,7 +715,13 @@ if (!isEdit || (isEdit && formData.invoice_number !== invoiceData?.invoice.invoi
       currency: formData.currency,
     exchange_rate: exchangeRate,
     base_amount: baseAmount,
-      income_category_id: formData.income_category_id || null
+      income_category_id: formData.income_category_id || null,
+      // Add VAT metadata for UK users
+      tax_metadata: userCountry?.code === 'GB' ? {
+       tax_scheme: 'standard', // Default to standard, will be pulled from user settings
+        is_reverse_charge: false, // TODO: Add UI for this
+        intra_eu_supply: false, // TODO: Add UI for this
+      } : null,
     };
     
     if (isEdit && id) {
@@ -664,13 +733,18 @@ if (!isEdit || (isEdit && formData.invoice_number !== invoiceData?.invoice.invoi
   
 
   const addItem = () => {
-    setItems([...items, { 
-      id: Date.now().toString(), 
-      description: '', 
-      quantity: 1, 
-      rate: 0, 
-      amount: 0 
-    }]);
+  const newItem: FormInvoiceItem = {
+    id: Date.now().toString(),
+    description: '',
+    quantity: 1,
+    rate: 0,
+    amount: 0,
+    tax_rate: parseFloat(formData.tax_rate) || 0, // Use invoice default tax rate
+    tax_amount: 0,
+    net_amount: 0,
+    gross_amount: 0
+  };
+    setItems([...items, newItem]);
   };
 
   const removeItem = (id: string) => {
@@ -678,20 +752,32 @@ if (!isEdit || (isEdit && formData.invoice_number !== invoiceData?.invoice.invoi
   };
 
   const updateItem = (id: string, field: keyof FormInvoiceItem, value: any) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updated = { ...item, [field]: value };
+  setItems(items.map(item => {
+    if (item.id === id) {
+      const updatedItem = { ...item, [field]: value };
+      
+      // Recalculate amounts when quantity, rate, or tax changes
+      if (field === 'quantity' || field === 'rate' || field === 'tax_rate') {
+        const quantity = field === 'quantity' ? Number(value) : item.quantity;
+        const rate = field === 'rate' ? Number(value) : item.rate;
+        const taxRate = field === 'tax_rate' ? Number(value) : (item.tax_rate || 0);
         
-        // Recalculate amount if quantity or rate changes
-        if (field === 'quantity' || field === 'rate') {
-          updated.amount = updated.quantity * updated.rate;
-        }
+        const netAmount = quantity * rate;
+        const taxAmount = (netAmount * taxRate) / 100;
+        const grossAmount = netAmount + taxAmount;
         
-        return updated;
+        updatedItem.net_amount = netAmount;
+        updatedItem.tax_amount = taxAmount;
+        updatedItem.gross_amount = grossAmount;
+        updatedItem.amount = requiresLineItemVAT ? grossAmount : netAmount;
       }
-      return item;
+      
+      return updatedItem;
+    }
+    return item;
     }));
   };
+  
 
   const getNextInvoiceDate = () => {
     const today = new Date();
@@ -1013,95 +1099,134 @@ if (!isEdit || (isEdit && formData.invoice_number !== invoiceData?.invoice.invoi
 
             {/* Table Headers */}
             <div className="flex gap-2 items-center mb-2 px-2 text-sm font-medium text-gray-700">
-              <div className="flex-1">Description</div>
-              <div className="w-24 text-center">Qty</div>
-              <div className="w-32 text-right">Rate</div>
-              <div className="w-32 text-right">Amount</div>
-              <div className="w-10"></div>
-            </div>
+            <div className="flex-1">Description</div>
+            <div className="w-24 text-center">Qty</div>
+            <div className="w-32 text-right">Rate</div>
+            {requiresLineItemVAT && (
+              <>
+                <div className="w-24 text-center">{taxLabel} %</div>
+                <div className="w-32 text-right">{taxLabel}</div>
+              </>
+            )}
+            <div className="w-32 text-right">Amount</div>
+            <div className="w-10"></div>
+          </div>
 
             {/* Items */}
             {items.map((item) => (
-              <div key={item.id} className="flex gap-2 items-start mb-3">
-                <input
-                  type="text"
-                  value={item.description}
-                  onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                  placeholder="Item description"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                  min="0"
-                  step="0.01"
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
-                  required
-                />
-                <input
-                  type="number"
-                  value={item.rate}
-                  onChange={(e) => updateItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                  min="0"
-                  step="0.01"
-                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
-                  required
-                />
-                <div className="w-32 px-3 py-2 bg-gray-100 rounded-lg text-right font-medium">
-                 {formatCurrency(item.amount, formData.currency)}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeItem(item.id)}
-                  className="p-2 text-red-600 hover:text-red-700"
-                  disabled={items.length === 1}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+  <div key={item.id} className="flex gap-2 items-start mb-3">
+    <input
+      type="text"
+      value={item.description}
+      onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+      placeholder="Item description"
+      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      required
+    />
+    <input
+      type="number"
+      value={item.quantity}
+      onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
+      min="0"
+      step="any"
+      className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+      required
+    />
+    <input
+      type="number"
+      value={item.rate}
+      onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
+      min="0"
+      step="0.01"
+      placeholder="0.00"
+      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+      required
+    />
+    {requiresLineItemVAT && (
+      <>
+        <select
+          value={item.tax_rate || 0}
+          onChange={(e) => updateItem(item.id, 'tax_rate', e.target.value)}
+          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+        >
+          <option value="0">0%</option>
+          {taxRates.map((tax) => (
+            <option key={tax.id} value={tax.rate}>
+              {tax.rate}%
+            </option>
+          ))}
+        </select>
+        <div className="w-32 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-right text-gray-600">
+          {formatCurrency(item.tax_amount || 0, formData.currency)}
+        </div>
+      </>
+    )}
+    <div className="w-32 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-right font-medium">
+      {formatCurrency(requiresLineItemVAT ? (item.gross_amount || 0) : (item.amount || 0), formData.currency)}
+    </div>
+    <button
+      type="button"
+      onClick={() => removeItem(item.id)}
+      className="p-2 text-red-600 hover:text-red-700"
+    >
+      <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
           </div>
 
-          {/* Summary */}
-          <div className="mt-6 pt-6 border-t">
-            <div className="flex justify-end">
-              <div className="w-64 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(subtotal, formData.currency)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Tax</span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={formData.tax_rate}
-                      onChange={(e) => setFormData({ ...formData, tax_rate: e.target.value })}
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
-                    />
-                    <span>%</span>
-                    <span className="font-medium w-20 text-right">{formatCurrency(taxAmount, formData.currency)}</span>
-                  </div>
-                </div>
-                <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                  <span>Total</span>
-                  <div className="text-right">
-                    <div>{formatCurrency(total, formData.currency)}</div>
-                    {formData.currency !== baseCurrency && (
-                      <div className="text-sm font-normal text-gray-500">
-                        ({formatCurrency(total / (exchangeRates[formData.currency] || 1), baseCurrency)})
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+         {/* Summary */}
+<div className="mt-6 pt-6 border-t">
+  <div className="flex justify-end">
+    <div className="w-64 space-y-2">
+      <div className="flex justify-between">
+        <span className="text-gray-600">Subtotal</span>
+        <span className="font-medium">{formatCurrency(subtotal, formData.currency)}</span>
+      </div>
+      
+      {/* Show tax differently based on VAT type */}
+      {!requiresLineItemVAT ? (
+        // For countries without line item VAT - show dropdown
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">{taxLabel}</span>
+          <div className="flex items-center gap-2">
+            <select
+              value={formData.tax_rate}
+              onChange={(e) => setFormData({ ...formData, tax_rate: e.target.value })}
+              className="w-24 px-2 py-1 border border-gray-300 rounded text-right"
+            >
+              <option value="0">0%</option>
+              {taxRates.map((tax) => (
+                <option key={tax.id} value={tax.rate}>
+                  {tax.rate}%
+                </option>
+              ))}
+            </select>
+            <span className="font-medium w-20 text-right">{formatCurrency(taxAmount, formData.currency)}</span>
           </div>
+        </div>
+      ) : (
+        // For UK/EU - just show the calculated tax
+        <div className="flex justify-between">
+          <span className="text-gray-600">{taxLabel}</span>
+          <span className="font-medium">{formatCurrency(taxAmount, formData.currency)}</span>
+        </div>
+      )}
+      
+      <div className="flex justify-between text-lg font-bold pt-2 border-t">
+        <span>Total</span>
+        <div className="text-right">
+          <div>{formatCurrency(total, formData.currency)}</div>
+          {formData.currency !== baseCurrency && (
+            <div className="text-sm font-normal text-gray-500">
+              ({formatCurrency(total / (exchangeRates[formData.currency] || 1), baseCurrency)})
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
           {/* Notes */}
           <div className="mt-6">

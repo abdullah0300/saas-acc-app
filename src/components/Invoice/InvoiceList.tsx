@@ -130,18 +130,7 @@ const [selectAll, setSelectAll] = useState(false);
   }
 });
 
-  // Update mutation
-  const updateMutation = useMutation({
-  mutationFn: ({ id, updates }: { id: string; updates: Partial<Invoice> }) => 
-    updateInvoice(id, updates),
-  onSuccess: async () => {
-    queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    await refreshBusinessData(); // ✅ Refresh DataContext cache
-  },
-  onError: (error: any) => {
-    alert('Error updating invoice: ' + error.message);
-  }
-});
+
 
   // Filter and sort invoices
   const filteredInvoices = React.useMemo(() => {
@@ -346,9 +335,147 @@ const handleCancelDelete = () => {
   setInvoiceToDelete(null);
 };
 
-  const handleStatusChange = (id: string, status: InvoiceStatus) => {
-    updateMutation.mutate({ id, updates: { status } });
-  };
+
+const handleStatusChange = async (id: string, newStatus: InvoiceStatus) => {
+  try {
+    // First update the invoice status
+    await updateInvoice(id, { status: newStatus });
+    
+    // If marking as paid, create income entry with proper VAT handling
+    if (newStatus === 'paid' && user) {
+      // Get the full invoice data
+      const { data: invoice } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (!invoice) return;
+      
+      // Check if income already exists
+      const { data: existingIncome } = await supabase
+        .from('income')
+        .select('id')
+        .eq('reference_number', invoice.invoice_number)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (!existingIncome) {
+        let totalNetAmount = 0;
+        let totalTaxAmount = 0;
+        let taxBreakdown: Record<string, any> = {};
+        
+        // Get invoice items
+        const { data: items } = await supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', invoice.id);
+        
+        // Check if UK user (with line-item VAT)
+       // Only UK uses GBP and has line-item VAT
+const isUK = invoice.currency === 'GBP' && 
+             items && items.length > 0 &&
+             items.some(item => item.tax_rate !== undefined && item.tax_rate > 0);
+       
+        if (isUK && items && items.length > 0) {
+          // UK LOGIC - Calculate from line items
+          items.forEach(item => {
+            const rate = (item.tax_rate || 0).toString();
+            const netAmount = item.net_amount || item.amount || 0;
+            const taxAmount = item.tax_amount || 0;
+            
+            if (!taxBreakdown[rate]) {
+              taxBreakdown[rate] = {
+                net_amount: 0,
+                tax_amount: 0,
+                gross_amount: 0
+              };
+            }
+            
+            taxBreakdown[rate].net_amount += netAmount;
+            taxBreakdown[rate].tax_amount += taxAmount;
+            taxBreakdown[rate].gross_amount += netAmount + taxAmount;
+            
+            totalNetAmount += netAmount;
+            totalTaxAmount += taxAmount;
+          });
+        } else {
+          // USA/OTHER COUNTRIES - Use invoice totals directly
+          totalNetAmount = invoice.subtotal;
+          totalTaxAmount = invoice.tax_amount || 0;
+          
+          if (invoice.tax_rate > 0) {
+            taxBreakdown[invoice.tax_rate.toString()] = {
+              net_amount: invoice.subtotal,
+              tax_amount: invoice.tax_amount,
+              gross_amount: invoice.total
+            };
+          }
+        }
+        
+        // Create income entry
+        const { error: incomeError } = await supabase
+          .from('income')
+          .insert([{
+            user_id: user.id,
+            amount: totalNetAmount, // NET amount
+            description: `Payment for Invoice #${invoice.invoice_number}`,
+            date: new Date().toISOString().split('T')[0],
+            client_id: invoice.client_id || null,
+            category_id: invoice.income_category_id || null,
+            reference_number: invoice.invoice_number,
+            currency: invoice.currency || 'USD',
+            exchange_rate: invoice.exchange_rate || 1,
+            base_amount: (totalNetAmount / (invoice.exchange_rate || 1)),
+            tax_rate: invoice.tax_rate || 0,
+            tax_amount: totalTaxAmount,
+            tax_metadata: {
+              tax_breakdown: taxBreakdown,
+              invoice_id: invoice.id,
+              invoice_number: invoice.invoice_number,
+              created_from_invoice: true,
+              is_uk_vat: isUK
+            }
+          }]);
+          
+        if (incomeError) throw incomeError;
+      }
+    }
+    
+    // Refresh the data
+    await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    await queryClient.invalidateQueries({ queryKey: ['income'] });
+    await refreshBusinessData();
+    
+  } catch (error: any) {
+    console.error('Error updating invoice status:', error);
+    alert('Error updating invoice status: ' + error.message);
+  }
+};
+
+
+// Also update the updateMutation to use the new handleStatusChange
+// REPLACE the existing updateMutation with this:
+
+const updateMutation = useMutation({
+  mutationFn: async ({ id, updates }: { id: string; updates: Partial<Invoice> }) => {
+    // If updating status to paid, use the new handleStatusChange
+    if (updates.status === 'paid') {
+      await handleStatusChange(id, 'paid');
+      return; // handleStatusChange already handles everything
+    }
+    
+    // For other updates, just update the invoice
+    return await updateInvoice(id, updates);
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    refreshBusinessData();
+  },
+  onError: (error: any) => {
+    alert('Error updating invoice: ' + error.message);
+  }
+});
 
   const sendInvoice = async (invoice: Invoice, method: 'email' | 'whatsapp') => {
   try {

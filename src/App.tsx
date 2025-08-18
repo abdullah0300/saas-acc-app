@@ -24,6 +24,7 @@ import { InvoiceView } from './components/Invoice/InvoiceView';
 import { PublicInvoiceView } from './components/Invoice/PublicInvoiceView';
 import { ReportsOverview } from './components/Reports/ReportsOverview';
 import { ProfitLossReport } from './components/Reports/ProfitLossReport';
+import { VATReport } from './components/Reports/VATReport';
 import { ClientList } from './components/Client/ClientList';
 import { ClientForm } from './components/Client/ClientForm';
 import { SettingsLayout } from './components/Settings/SettingsLayout';
@@ -74,7 +75,7 @@ function App() {
         <AuthProvider>
           <Routes>
             {/* Public routes */}
-            <Route path="/invoices/:id/public" element={<PublicInvoiceView />} />
+            <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -131,14 +132,14 @@ function App() {
                       <Route path="/reports/profit-loss" element={
                         <PlanProtectedRoute feature="profit_loss_statements"
                          featureName="Profit & Loss Statements"     // ADD THIS LINE
-    fallbackPath="/reports">
+                          fallbackPath="/reports">
                           <ProfitLossReport />
                         </PlanProtectedRoute>
                       } />
                       <Route path="/reports/client-profitability" element={
                       <PlanProtectedRoute feature="advanced_reports"
                       featureName="Client Profitability Analysis" // ADD THIS LINE
-    fallbackPath="/reports"
+                      fallbackPath="/reports"
                       >
                         <ClientProfitability />
                       </PlanProtectedRoute>
@@ -147,15 +148,23 @@ function App() {
                       <Route path="/reports/cash-flow" element={
                         <PlanProtectedRoute feature="cash_flow_analysis"
                          featureName="Cash Flow Analysis"           // ADD THIS LINE
-    fallbackPath="/reports">
+                          fallbackPath="/reports">
                           <CashFlowInsights />
                         </PlanProtectedRoute>
                       } />
 
+                      <Route path="/reports/vat" element={
+                      <PlanProtectedRoute feature="advanced_reports"
+                        featureName="VAT/Tax Report"
+                        fallbackPath="/reports">
+                        <VATReport />
+                      </PlanProtectedRoute>
+                    } />
+
                       <Route path="/reports/tax" element={
                         <PlanProtectedRoute feature="advanced_tax_reports"
                         featureName="Advanced Tax Reports"         // ADD THIS LINE
-    fallbackPath="/reports">
+                         fallbackPath="/reports">
                           <TaxReport />
                         </PlanProtectedRoute>
                       } />
