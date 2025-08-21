@@ -901,12 +901,17 @@ const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right">
                       <div className="flex flex-col items-end">
-                        <span className="text-emerald-600">
+                        <span className={income.credit_note_id ? 'text-red-600' : 'text-emerald-600'}>
                           {formatCurrency(income.amount, income.currency || baseCurrency)}
                         </span>
                         {income.currency && income.currency !== baseCurrency && (
                           <span className="text-xs text-gray-500 mt-0.5">
                             {income.currency}
+                          </span>
+                        )}
+                        {income.credit_note_id && (
+                          <span className="mt-1 px-2 py-0.5 text-xs bg-red-100 text-red-800 rounded-full inline-flex items-center">
+                            Credit Note
                           </span>
                         )}
                       </div>

@@ -140,24 +140,26 @@ const { userSettings } = useSettings();
   const [cashFlowData, setCashFlowData] = useState<CashFlowData[]>([]);
   const [clientMetrics, setClientMetrics] = useState<ClientMetrics[]>([]);
   const [kpiMetrics, setKpiMetrics] = useState({
-    totalRevenue: 0,
-    totalExpenses: 0,
-    netProfit: 0,
-    profitMargin: 0,
-    totalInvoiced: 0,
-    totalCollected: 0,
-    collectionRate: 0,
-    avgDaysToPayment: 0,
-    totalClients: 0,
-    activeClients: 0,
-    totalOutstanding: 0,
-    overdueAmount: 0,
-    taxCollected: 0,
-    taxPaid: 0,
-    revenueGrowth: 0,
-    expenseGrowth: 0,
-    clientGrowth: 0
-  });
+  grossRevenue: 0,        // ADD THIS
+  creditNoteAmount: 0,    // ADD THIS
+  totalRevenue: 0,        // This becomes NET revenue
+  totalExpenses: 0,
+  netProfit: 0,
+  profitMargin: 0,
+  totalInvoiced: 0,
+  totalCollected: 0,
+  collectionRate: 0,
+  avgDaysToPayment: 0,
+  totalClients: 0,
+  activeClients: 0,
+  totalOutstanding: 0,
+  overdueAmount: 0,
+  taxCollected: 0,
+  taxPaid: 0,
+  revenueGrowth: 0,
+  expenseGrowth: 0,
+  clientGrowth: 0
+});
 
 
   // Filter states
@@ -587,36 +589,47 @@ const getDateRangeForPeriod = () => {
 
 
 
-
         {/* KPI Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Revenue Card */}
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white relative overflow-hidden">
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
-                  <TrendingUp className="h-6 w-6" />
-                </div>
-                {kpiMetrics.revenueGrowth !== 0 && (
-                  <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                    kpiMetrics.revenueGrowth > 0 
-                      ? 'bg-white/20 text-white' 
-                      : 'bg-red-500/20 text-red-100'
-                  }`}>
-                    {kpiMetrics.revenueGrowth > 0 ? '+' : ''}{kpiMetrics.revenueGrowth.toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
-              <p className="text-3xl font-bold mt-1">{formatCurrency(kpiMetrics.totalRevenue)}</p>
-              <p className="text-emerald-100 text-sm mt-2">
-                {kpiMetrics.totalInvoiced > 0 && (
-                  <span>{kpiMetrics.collectionRate.toFixed(0)}% collected</span>
-                )}
-              </p>
-            </div>
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-          </div>
+          {/* Revenue Card */}
+<div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white relative overflow-hidden">
+  <div className="relative z-10">
+    <div className="flex items-center justify-between mb-4">
+      <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+        <TrendingUp className="h-6 w-6" />
+      </div>
+      {kpiMetrics.revenueGrowth !== 0 && (
+        <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+          kpiMetrics.revenueGrowth > 0 
+            ? 'bg-white/20 text-white' 
+            : 'bg-red-500/20 text-red-100'
+        }`}>
+          {kpiMetrics.revenueGrowth > 0 ? '+' : ''}{kpiMetrics.revenueGrowth.toFixed(1)}%
+        </span>
+      )}
+    </div>
+    <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
+    <p className="text-3xl font-bold mt-1">{formatCurrency(kpiMetrics.totalRevenue)}</p>
+    
+    {/* Add credit note breakdown if exists */}
+    {kpiMetrics.creditNoteAmount > 0 && (
+      <div className="mt-2 pt-2 border-t border-emerald-400/30">
+        <div className="text-xs text-emerald-100 space-y-1">
+          <div>Gross: {formatCurrency(kpiMetrics.grossRevenue)}</div>
+          <div className="text-emerald-200">Credits: -{formatCurrency(kpiMetrics.creditNoteAmount)}</div>
+        </div>
+      </div>
+    )}
+    
+    <p className="text-emerald-100 text-sm mt-2">
+      {kpiMetrics.totalInvoiced > 0 && (
+        <span>{kpiMetrics.collectionRate.toFixed(0)}% collected</span>
+      )}
+    </p>
+  </div>
+  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+</div>
 
           {/* Expenses Card */}
           <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white relative overflow-hidden">
@@ -1188,6 +1201,23 @@ const getDateRangeForPeriod = () => {
   <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-gradient-to-br from-purple-200/20 to-indigo-200/20 rounded-full blur-3xl sm:w-24 sm:h-24"></div>
 </div>
 )}
+
+
+        {/* Credit Notes Card */}
+  <div 
+    onClick={() => navigate('/credit-notes')}
+    className="group cursor-pointer p-4 rounded-xl bg-orange-50/40 border border-orange-100/60 hover:border-orange-200/80 hover:bg-orange-50/70 transition-all duration-300"
+  >
+    <div className="flex items-center justify-between mb-3">
+      <div className="w-8 h-8 rounded-lg bg-orange-100/70 flex items-center justify-center">
+        <CreditCard className="w-4 h-4 text-orange-600" />
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-orange-500 transition-colors" />
+    </div>
+    <h3 className="text-sm font-medium text-gray-900 mb-1">Credit Notes</h3>
+    <p className="text-xs text-gray-500 leading-relaxed">Manage returns & adjustments</p>
+  </div>
+
 
         {/* Tax Analysis */}
         <div className="bg-white rounded-2xl shadow-lg p-6">

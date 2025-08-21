@@ -910,6 +910,8 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
               </div>
             </div>
 
+            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Invoice Date

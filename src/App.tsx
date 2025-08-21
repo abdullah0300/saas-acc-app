@@ -47,6 +47,10 @@ import { VendorList, VendorForm } from './components/Vendors';
 import { ClientProfitability } from './components/Reports/ClientProfitability';
 import { SecuritySettings } from './components/Settings/SecuritySettings';
 import { ImportHistorySettings } from './components/Settings/ImportHistorySettings';
+import { CreditNoteList } from './components/CreditNote/CreditNoteList';
+import { CreditNoteForm } from './components/CreditNote/CreditNoteForm';
+import { CreditNoteView } from './components/CreditNote/CreditNoteView';
+
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -114,7 +118,7 @@ function App() {
               <Route path="/invoices/new" element={<InvoiceForm />} />
               <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
               <Route path="/invoices/:id/view" element={<InvoiceView />} />
-              
+         
               {/* Notifications */}
               <Route path="/notifications" element={<NotificationCenter />} />
               
@@ -122,6 +126,13 @@ function App() {
               <Route path="/clients" element={<ClientList />} />
               <Route path="/clients/new" element={<ClientForm />} />
               <Route path="/clients/edit/:id" element={<ClientForm />} />
+
+              {/* Credit Notes */}
+              <Route path="/credit-notes" element={<CreditNoteList />} />
+              <Route path="/credit-notes/new/:invoiceId?" element={<CreditNoteForm />} />
+              <Route path="/credit-notes/edit/:id" element={<CreditNoteForm />} />
+              <Route path="/credit-notes/:id" element={<CreditNoteView />} />
+              
               {/* Vendors */}
               <Route path="/vendors" element={<VendorList />} />
               <Route path="/vendors/new" element={<VendorForm />} />

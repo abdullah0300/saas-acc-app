@@ -58,6 +58,7 @@ export interface Income {
   total_with_tax?: number;
   client_id?: string;
   client?: Client;
+  credit_note_id?: string;
   // VAT metadata for UK and other tax systems
   tax_metadata?: {
     created_from_invoice?: boolean;
@@ -136,6 +137,17 @@ export interface Invoice {
   created_at: string;
   updated_at: string;
   income_category_id?: string; // Add this line
+  has_credit_notes?: boolean;
+  total_credited?: number;
+  credit_tracking?: {
+    id: string;
+    invoice_id: string;
+    total_credited: number;
+    credit_note_count: number;
+    last_credit_date: string;
+    created_at: string;
+    updated_at: string;
+  }[];
 }
 
 export interface InvoiceItem {
@@ -286,3 +298,52 @@ export interface Vendor {
   created_at: string;
   updated_at: string;
 }
+
+
+
+export type CreditNoteReason = 'return' | 'adjustment' | 'cancellation' | 'other';
+export type CreditNoteStatus = 'draft' | 'issued' | 'applied';
+
+export interface CreditNote {
+  id: string;
+  user_id: string;
+  credit_note_number: string;
+  invoice_id: string;
+  invoice?: Invoice; // Related invoice
+  client_id?: string;
+  client?: Client;
+  date: string;
+  reason: CreditNoteReason;
+  reason_description?: string;
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  status: CreditNoteStatus;
+  notes?: string;
+  currency?: string;
+  exchange_rate?: number;
+  base_amount?: number;
+  applied_to_income: boolean;
+  items?: CreditNoteItem[];
+  created_at: string;
+  updated_at: string;
+   tax_metadata?: any;
+}
+
+export interface CreditNoteItem {
+  id: string;
+  credit_note_id: string;
+  invoice_item_id?: string;
+  description: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  net_amount?: number;
+  gross_amount?: number;
+  created_at?: string;
+}
+
+

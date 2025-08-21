@@ -2,6 +2,37 @@
 import { supabase } from './supabaseClient';
 
 export const pdfService = {
+  async generateCreditNotePDF(creditNoteId: string): Promise<Blob> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      throw new Error('No authentication session');
+    }
+
+    const response = await fetch(
+      `${process.env.REACT_APP_SUPABASE_URL}/functions/v1/generate-credit-note-pdf`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ creditNoteId }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to generate PDF');
+    }
+
+    return await response.blob();
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    throw error;
+  }
+},
+
   async generateInvoicePDF(invoiceId: string): Promise<Blob> {
     try {
       // Get the current session for auth
@@ -49,3 +80,4 @@ export const pdfService = {
     document.body.removeChild(a);
   }
 };
+

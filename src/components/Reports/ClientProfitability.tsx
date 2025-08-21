@@ -44,11 +44,11 @@ import {
   Area,
   AreaChart
 } from 'recharts';
-import { getClients, getInvoices, getIncomes } from '../../services/database';
+import { getClients, getInvoices, getIncomes, getCreditNotes } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, differenceInDays } from 'date-fns';
-import { Client, Invoice, Income } from '../../types';
+import { Client, Invoice, Income, CreditNote } from '../../types';
 
 interface ClientProfitData {
   id: string;
@@ -97,6 +97,7 @@ export const ClientProfitability: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [clientProfitData, setClientProfitData] = useState<ClientProfitData[]>([]);
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [summaryMetrics, setSummaryMetrics] = useState<SummaryMetrics>({
     totalClients: 0,
     activeClients: 0,
@@ -127,18 +128,22 @@ export const ClientProfitability: React.FC = () => {
       setLoading(true);
       
       // Load all data in parallel
-      const [clientsData, invoicesData, incomesData] = await Promise.all([
+      const [clientsData, invoicesData, incomesData, creditNotesData] = await Promise.all([
         getClients(user.id),
         getInvoices(user.id),
-        getIncomes(user.id, startDate, endDate)
+        getIncomes(user.id, startDate, endDate),
+        getCreditNotes(user.id, startDate, endDate)
       ]);
+      
+      setCreditNotes(creditNotesData);
 
       setClients(clientsData);
       setInvoices(invoicesData);
       setIncomes(incomesData);
       
       // Process client profitability data
-      processClientProfitability(clientsData, invoicesData, incomesData);
+      processClientProfitability(clientsData, invoicesData, incomesData, creditNotesData);
+
       
     } catch (err) {
       console.error('Error loading client profitability data:', err);
@@ -150,7 +155,8 @@ export const ClientProfitability: React.FC = () => {
   const processClientProfitability = (
     clientsList: Client[], 
     invoicesList: Invoice[], 
-    incomesList: Income[]
+    incomesList: Income[],
+    creditNotesList: CreditNote[]
   ) => {
     const profitData: ClientProfitData[] = clientsList.map(client => {
       // Filter invoices for this client within date range
@@ -165,8 +171,19 @@ export const ClientProfitability: React.FC = () => {
         inc.client_id === client.id
       );
       
-      // Calculate metrics
-      const totalRevenue = clientIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+      // Calculate revenue excluding credit note entries
+      const totalRevenue = clientIncomes
+        .filter(inc => !inc.credit_note_id)
+        .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+      
+      // Calculate credit notes for this client
+      const clientCreditNotes = creditNotesList.filter((cn: CreditNote) => 
+        cn.client_id === client.id && cn.applied_to_income
+      );
+      const totalCredits = clientCreditNotes.reduce((sum: number, cn: CreditNote) => sum + (cn.base_amount || cn.total), 0);
+      
+      // Net revenue after credits
+      const netRevenue = totalRevenue - totalCredits;
       const paidInvoices = clientInvoices.filter(inv => inv.status === 'paid');
       const pendingInvoices = clientInvoices.filter(inv => inv.status === 'sent');
       const overdueInvoices = clientInvoices.filter(inv => inv.status === 'overdue');
@@ -214,7 +231,7 @@ export const ClientProfitability: React.FC = () => {
         name: client.name,
         email: client.email,
         phone: client.phone,
-        totalRevenue,
+        totalRevenue: netRevenue,
         invoiceCount: clientInvoices.length,
         paidInvoices: paidInvoices.length,
         pendingInvoices: pendingInvoices.length,

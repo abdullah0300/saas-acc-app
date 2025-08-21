@@ -8,6 +8,7 @@ import { emailService } from '../../services/emailService'; // ADD THIS IMPORT
 import { useSettings } from '../../contexts/SettingsContext'; // ADD THIS IMPORT
 import { useQueryClient } from '@tanstack/react-query';
 import { countries } from '../../data/countries';
+import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Download, 
@@ -36,7 +37,8 @@ import {
   User as UserIcon,  // Renamed to avoid conflict
   Hash,
   Banknote,
-  Building2
+  Building2,
+  FileX 
 } from 'lucide-react';
 import { getInvoice, updateInvoice, getProfile } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -90,51 +92,93 @@ export const InvoiceView: React.FC = () => {
   }, [invoice]);
 
   const loadInvoice = async () => {
-    if (!user || !id) return;
+  if (!user || !id) return;
 
-    try {
-      const invoiceData = await getInvoice(id);
-      if (!invoiceData) {
-        setError('Invoice not found');
-        return;
+  try {
+    // Fetch invoice with all related data
+    const { data: invoiceData, error: invoiceError } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        client:clients(*),
+        items:invoice_items(*)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (invoiceError) throw invoiceError;
+    
+    // Separately fetch credit tracking to ensure we get it
+    const { data: creditTracking } = await supabase
+      .from('invoice_credit_tracking')
+      .select('*')
+      .eq('invoice_id', id)
+      .single();
+    
+    // Merge credit tracking into invoice data
+    if (invoiceData) {
+      invoiceData.credit_tracking = creditTracking ? [creditTracking] : [];
+      
+      // Also ensure total_credited is set from tracking if not on invoice
+      if (!invoiceData.total_credited && creditTracking) {
+        invoiceData.total_credited = creditTracking.total_credited;
       }
       
-      setInvoice(invoiceData);
-      
-      // Load user profile
-      const profileData = await getProfile(user.id);
-      setProfile(profileData);
-      
-      // Load invoice settings
-      const { data: settings } = await supabase
-        .from('invoice_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-      
-      setInvoiceSettings(settings);
-
-      // Load tax registration number from user_settings
-      const { data: userSettingsData } = await supabase
-        .from('user_settings')
-        .select('tax_registration_number')
-        .eq('user_id', user.id)
-        .single();
-
-      if (userSettingsData?.tax_registration_number) {
-        setTaxRegistrationNumber(userSettingsData.tax_registration_number);
+      // If still no credited amount but has credit notes flag, fetch from credit notes
+      if (!invoiceData.total_credited && invoiceData.has_credit_notes) {
+        const { data: creditNotes } = await supabase
+          .from('credit_notes')
+          .select('total')
+          .eq('invoice_id', id)
+          .in('status', ['issued', 'applied']);
+        
+        if (creditNotes && creditNotes.length > 0) {
+          invoiceData.total_credited = creditNotes.reduce((sum, cn) => sum + (cn.total || 0), 0);
+        }
       }
-      
-      // Set default phone number for WhatsApp
-      if (invoiceData.client?.phone) {
-        setPhoneNumber(invoiceData.client.phone);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    if (!invoiceData) {
+      setError('Invoice not found');
+      return;
+    }
+    
+    setInvoice(invoiceData);
+    
+    // Load user profile
+    const profileData = await getProfile(user.id);
+    setProfile(profileData);
+    
+    // Load invoice settings
+    const { data: settings } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    setInvoiceSettings(settings);
+
+    // Load tax registration number from user_settings
+    const { data: userSettingsData } = await supabase
+      .from('user_settings')
+      .select('tax_registration_number')
+      .eq('user_id', user.id)
+      .single();
+
+    if (userSettingsData?.tax_registration_number) {
+      setTaxRegistrationNumber(userSettingsData.tax_registration_number);
+    }
+    
+    // Set default phone number for WhatsApp
+    if (invoiceData.client?.phone) {
+      setPhoneNumber(invoiceData.client.phone);
+    }
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
 // Complete handleStatusChange function for InvoiceView.tsx
 // REPLACE your entire handleStatusChange function with this:
@@ -417,6 +461,32 @@ const isUK = invoice.currency === 'GBP' &&
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Credit Note Button */}
+            {(invoice.status === 'paid' || invoice.status === 'sent') && (
+              <div className="">
+                <Link
+                  to={`/credit-notes/new/${invoice.id}`}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  <FileX className="h-5 w-5 mr-2" />
+                  Issue Credit Note
+                </Link>
+                
+            {invoice.has_credit_notes && invoice.total_credited && invoice.total_credited > 0 && (
+              <div className="mt-3 p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Credit Notes Issued:</strong> {formatCurrency(invoice.total_credited || 0, invoice.currency || baseCurrency)}
+                </p>
+                <Link
+                  to={`/credit-notes?invoice=${invoice.id}`}
+                  className="text-sm text-red-600 hover:text-red-800 underline mt-1 inline-block"
+                >
+                  View Related Credit Notes
+                </Link>
+              </div>
+            )}
+              </div>
+            )}
             {/* Status Dropdown */}
             <select
               value={invoice.status}
@@ -429,6 +499,7 @@ const isUK = invoice.currency === 'GBP' &&
               <option value="overdue">Overdue</option>
               <option value="canceled">Canceled</option>
             </select>
+            
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 ml-4">
@@ -550,6 +621,76 @@ const isUK = invoice.currency === 'GBP' &&
           </div>
         </div>
       </div>
+
+ {/* Credit Notes Section */}
+{invoice && (() => {
+  const hasCredits = (invoice.credit_tracking?.[0]?.credit_note_count || 0) > 0;
+  const totalCredited = invoice.credit_tracking?.[0]?.total_credited || 0;
+  const creditCount = invoice.credit_tracking?.[0]?.credit_note_count || 0;
+  const canCreateCredit = invoice.status === 'sent' && invoice.total > totalCredited;
+
+  if (!hasCredits && !canCreateCredit) return null;
+
+  return (
+    <div className="mt-6">
+      {hasCredits ? (
+        // Show full credit note info box if credits exist
+        <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-start">
+            <CreditCard className="h-5 w-5 text-orange-600 mt-0.5 mr-3" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-orange-900">
+                    Credit Notes Applied
+                  </p>
+                  <p className="text-sm text-orange-700 mt-1">
+                    Total Credited: {formatCurrency(totalCredited, invoice.currency || baseCurrency)}
+                    {totalCredited < invoice.total && (
+                      <span className="ml-2 text-orange-600">
+                        ({formatCurrency(invoice.total - totalCredited, invoice.currency || baseCurrency)} remaining)
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    {creditCount} credit note{creditCount > 1 ? 's' : ''} issued
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {canCreateCredit && (
+                    <Link 
+                      to={`/credit-notes/new/${invoice.id}`}
+                      className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+                    >
+                      Add Another
+                    </Link>
+                  )}
+                  <Link 
+                    to={`/credit-notes?invoice=${invoice.id}`}
+                    className="px-3 py-1 text-xs border border-orange-600 text-orange-600 rounded hover:bg-orange-100"
+                  >
+                    View All
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Only show create button if no credits exist but invoice can have credits
+        canCreateCredit && (
+          <Link 
+            to={`/credit-notes/new/${invoice.id}`}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <CreditCard className="h-4 w-4 mr-2" />
+            Create Credit Note
+          </Link>
+        )
+      )}
+    </div>
+  );
+})()} 
 
       {/* Invoice Document */}
       <div ref={invoiceRef} className="bg-white rounded-lg shadow-xl print:shadow-none print:rounded-none">
@@ -732,6 +873,7 @@ const isUK = invoice.currency === 'GBP' &&
             )}
           </div>
         </div>
+        
 
         {/* Items Table */}
 <div className="px-8 pb-8">
@@ -809,6 +951,8 @@ const isUK = invoice.currency === 'GBP' &&
       </tbody>
     </table>
   </div>
+
+  
 
   {/* VAT Summary for UK/EU */}
   {userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown && (

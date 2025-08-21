@@ -165,8 +165,7 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({
     setLastExport(null);
     
     try {
-      await ExportService.exportData(type, userId, options);
-      await ExportService.exportData(type, userId, { ...options, baseCurrency });
+  await ExportService.exportData(type, userId, { ...options, baseCurrency });
       setLastExport(type);
       setTimeout(() => setLastExport(null), 3000);
     } catch (error) {

@@ -14,6 +14,8 @@ import {
 } from '../types';
 import { TeamMember, TeamInvite } from '../types/userManagement';
 import { subscriptionService } from './subscriptionService';
+import { CreditNote, CreditNoteItem } from '../types';
+
 
 // Helper to get the effective user ID for team data access
 export const getEffectiveUserId = async (userId: string): Promise<string> => {
@@ -960,4 +962,421 @@ export const deleteBudget = async (id: string) => {
     .eq('id', id);
   
   if (error) throw error;
+};
+
+
+
+// Credit Note Functions
+
+export const getCreditNotes = async (
+  userId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<CreditNote[]> => {
+  let query = supabase
+    .from('credit_notes')
+    .select(`
+      *,
+      client:clients(*),
+      invoice:invoices(*),
+      items:credit_note_items(*)
+    `)
+    .eq('user_id', userId);
+
+  if (startDate) query = query.gte('date', startDate);
+  if (endDate) query = query.lte('date', endDate);
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as CreditNote[];
+};
+
+export const getCreditNote = async (id: string): Promise<CreditNote> => {
+  const { data, error } = await supabase
+    .from('credit_notes')
+    .select(`
+      *,
+      client:clients(*),
+      invoice:invoices(*),
+      items:credit_note_items(*)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as CreditNote;
+};
+
+export const getNextCreditNoteNumber = async (userId: string): Promise<string> => {
+  const { data, error } = await supabase
+    .rpc('get_next_credit_note_number', { p_user_id: userId });
+
+  if (error) throw error;
+  return data || 'CN-0001';
+};
+
+export const createCreditNote = async (
+  userId: string,
+  creditNote: Partial<CreditNote>,
+  items: Partial<CreditNoteItem>[]
+): Promise<CreditNote> => {
+  // Start a transaction
+  // Get the invoice to inherit currency if not provided
+let invoice = null;
+if (creditNote.invoice_id) {
+  const { data } = await supabase
+    .from('invoices')
+    .select('currency, exchange_rate')
+    .eq('id', creditNote.invoice_id)
+    .single();
+  invoice = data;
+}
+
+// Get user's base currency
+const { data: userSettings } = await supabase
+  .from('user_settings')
+  .select('base_currency')
+  .eq('user_id', userId)
+  .single();
+
+const baseCurrency = userSettings?.base_currency || 'USD';
+
+// Calculate totals
+const subtotal = creditNote.subtotal || 0;
+const tax_amount = creditNote.tax_amount || 0;
+const total = creditNote.total || (subtotal + tax_amount);
+
+const { data: creditNoteData, error: creditNoteError } = await supabase
+  .from('credit_notes')
+  .insert([{
+    ...creditNote,
+    user_id: userId,
+    credit_note_number: creditNote.credit_note_number || await getNextCreditNoteNumber(userId),
+    // Add currency fields
+    currency: creditNote.currency || invoice?.currency || baseCurrency,
+    exchange_rate: creditNote.exchange_rate || invoice?.exchange_rate || 1,
+    base_amount: creditNote.base_amount || (total / (creditNote.exchange_rate || invoice?.exchange_rate || 1)),
+    subtotal,
+    tax_amount,
+    total
+  }])
+    .select()
+    .single();
+
+  if (creditNoteError) throw creditNoteError;
+
+  // Insert credit note items
+  if (items && items.length > 0) {
+    const creditNoteItems = items.map(item => ({
+      ...item,
+      credit_note_id: creditNoteData.id
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('credit_note_items')
+      .insert(creditNoteItems);
+
+    if (itemsError) throw itemsError;
+  }
+
+  // Update invoice to mark it has credit notes
+if (creditNote.invoice_id) {
+  // Get current credit info
+  const { data: currentInvoice } = await supabase
+    .from('invoices')
+    .select('total_credited, has_credit_notes')
+    .eq('id', creditNote.invoice_id)
+    .single();
+  
+  const currentCredited = currentInvoice?.total_credited || 0;
+  const newTotalCredited = currentCredited + (total || 0);
+  
+  // Update both invoice and tracking table
+  const { error: updateError } = await supabase.rpc('update_invoice_credit_metadata', {
+    p_invoice_id: creditNote.invoice_id,
+    p_has_credit_notes: true,
+    p_total_credited: newTotalCredited
+  });
+  
+  if (updateError) {
+    console.error('Failed to update invoice credit metadata:', updateError);
+    // Don't throw - try direct update as fallback
+    
+    // Try direct update on invoice table
+    await supabase
+      .from('invoices')
+      .update({
+        has_credit_notes: true,
+        total_credited: newTotalCredited
+      })
+      .eq('id', creditNote.invoice_id);
+    
+    // Also update tracking table
+    await supabase
+      .from('invoice_credit_tracking')
+      .upsert({
+        invoice_id: creditNote.invoice_id,
+        total_credited: newTotalCredited,
+        credit_note_count: 1,
+        last_credit_date: new Date().toISOString()
+      }, { onConflict: 'invoice_id' });
+  }
+}
+
+  // If status is 'issued', create negative income entry
+  if (creditNote.status === 'issued' && !creditNoteData.applied_to_income) {
+  await applyCreditNote(creditNoteData.id, userId, 'refund');
+}
+
+  return creditNoteData;
+};
+
+export const updateCreditNote = async (
+  id: string,
+  updates: Partial<CreditNote>,
+  items?: Partial<CreditNoteItem>[]
+): Promise<CreditNote> => {
+  // Update credit note
+  const { data: creditNoteData, error: creditNoteError } = await supabase
+    .from('credit_notes')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (creditNoteError) throw creditNoteError;
+
+  // If items are provided, update them
+  if (items) {
+    // Delete existing items
+    await supabase
+      .from('credit_note_items')
+      .delete()
+      .eq('credit_note_id', id);
+
+    // Insert new items
+    if (items.length > 0) {
+      const creditNoteItems = items.map(item => ({
+        ...item,
+        credit_note_id: id
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('credit_note_items')
+        .insert(creditNoteItems);
+
+      if (itemsError) throw itemsError;
+    }
+  }
+
+  return creditNoteData;
+};
+
+export const deleteCreditNote = async (id: string): Promise<void> => {
+  // Only allow deletion of draft credit notes
+  const { data: creditNote, error: fetchError } = await supabase
+    .from('credit_notes')
+    .select('status, invoice_id, total')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  if (creditNote.status !== 'draft') {
+    throw new Error('Only draft credit notes can be deleted');
+  }
+
+  // Update invoice to reduce credited amount
+  if (creditNote.invoice_id) {
+    // First get current total_credited
+    const { data: currentInvoice } = await supabase
+      .from('invoices')
+      .select('total_credited')
+      .eq('id', creditNote.invoice_id)
+      .single();
+    
+    const currentCredited = currentInvoice?.total_credited || 0;
+    const newTotalCredited = Math.max(0, currentCredited - creditNote.total);
+    
+    // Use RPC function that bypasses HMRC restrictions for metadata
+    const { error } = await supabase.rpc('update_invoice_credit_metadata', {
+      p_invoice_id: creditNote.invoice_id,
+      p_has_credit_notes: newTotalCredited > 0,
+      p_total_credited: newTotalCredited
+    });
+
+    if (error) {
+      console.warn('Could not update invoice credit metadata:', error);
+    }
+  }
+
+  // Delete the credit note (items will cascade delete)
+  const { error } = await supabase
+    .from('credit_notes')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
+export const applyCreditNote = async (
+  creditNoteId: string,
+  userId: string,
+  action: 'refund' | 'credit' | 'apply' = 'refund'
+): Promise<void> => {
+  // Get complete credit note data with invoice
+  const { data: creditNote, error: fetchError } = await supabase
+    .from('credit_notes')
+    .select(`
+      *,
+      invoice:invoices(invoice_number, currency, exchange_rate),
+      client:clients(*)
+    `)
+    .eq('id', creditNoteId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  if (creditNote.applied_to_income) {
+    throw new Error('Credit note already applied');
+  }
+
+  // Get user's base currency
+  const { data: userSettings } = await supabase
+    .from('user_settings')
+    .select('base_currency')
+    .eq('user_id', userId)
+    .single();
+
+  const baseCurrency = userSettings?.base_currency || 'USD';
+
+  switch(action) {
+    case 'refund':
+      // Get or create the credit notes category
+      const categoryId = await getOrCreateCreditNotesCategory(userId);
+
+      // Create negative income entry with proper currency fields AND category
+      const { error: incomeError } = await supabase
+        .from('income')
+        .insert([{
+          user_id: userId,
+          amount: -Math.abs(creditNote.total),
+          description: `Credit Note ${creditNote.credit_note_number} for Invoice ${creditNote.invoice?.invoice_number || ''}`,
+          date: creditNote.date,
+          reference_number: creditNote.credit_note_number,
+          credit_note_id: creditNoteId,
+          client_id: creditNote.client_id || null,
+          category_id: categoryId, // ✅ ADDED: Credit Notes category
+          // IMPORTANT: Add currency fields
+          currency: creditNote.currency || baseCurrency,
+          exchange_rate: creditNote.exchange_rate || 1,
+          base_amount: -Math.abs(creditNote.base_amount || (creditNote.total / (creditNote.exchange_rate || 1))),
+          tax_rate: creditNote.tax_rate || 0,
+          tax_amount: creditNote.tax_amount ? -Math.abs(creditNote.tax_amount) : 0
+        }]);
+      
+      if (incomeError) throw incomeError;
+      break;
+      
+    case 'credit':
+      // Update client balance (if you have this feature)
+      await supabase.rpc('update_client_credit_balance', {
+        p_client_id: creditNote.client_id,
+        p_amount: creditNote.total
+      });
+      break;
+      
+    case 'apply':
+      // Apply to unpaid invoice
+      const { data: unpaidInvoice } = await supabase
+        .from('invoices')
+        .select('id, total')
+        .eq('client_id', creditNote.client_id)
+        .eq('status', 'sent')
+        .order('due_date')
+        .limit(1)
+        .single();
+        
+      if (unpaidInvoice) {
+        if (creditNote.total >= unpaidInvoice.total) {
+          await updateInvoice(unpaidInvoice.id, { status: 'paid' });
+        }
+        
+        await supabase.from('income').insert([{
+          user_id: userId,
+          amount: Math.min(creditNote.total, unpaidInvoice.total),
+          description: `Credit Note ${creditNote.credit_note_number} applied to Invoice`,
+          date: creditNote.date,
+          credit_note_id: creditNoteId,
+          client_id: creditNote.client_id,
+          category_id: await getOrCreateCreditNotesCategory(userId), // ADD category here too
+          // Add currency fields
+          currency: creditNote.currency || baseCurrency,
+          exchange_rate: creditNote.exchange_rate || 1,
+          base_amount: Math.min(creditNote.total, unpaidInvoice.total) / (creditNote.exchange_rate || 1)
+        }]);
+      }
+      break;
+  }
+
+  // Mark credit note as applied
+  await supabase
+    .from('credit_notes')
+    .update({ 
+      applied_to_income: true, 
+      status: 'applied' 
+    })
+    .eq('id', creditNoteId);
+};
+
+export const getCreditNotesByInvoice = async (invoiceId: string): Promise<CreditNote[]> => {
+  const { data, error } = await supabase
+    .from('credit_notes')
+    .select(`
+      *,
+      items:credit_note_items(*)
+    `)
+    .eq('invoice_id', invoiceId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as CreditNote[];
+};
+
+
+// Helper function to get or create credit notes category
+export const getOrCreateCreditNotesCategory = async (userId: string): Promise<string | null> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  // Check if credit notes category exists
+  const { data: existing } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('user_id', effectiveUserId)
+    .eq('name', 'Credit Notes & Refunds')
+    .eq('type', 'income')
+    .single();
+  
+  if (existing) return existing.id;
+  
+  // Create it if it doesn't exist
+  const { data: newCategory, error } = await supabase
+    .from('categories')
+    .insert({
+      user_id: effectiveUserId,
+      name: 'Credit Notes & Refunds',
+      type: 'income',
+      color: '#EF4444',
+      description: 'Refunds and credit note adjustments'
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating credit notes category:', error);
+    return null;
+  }
+  
+  return newCategory?.id || null;
 };

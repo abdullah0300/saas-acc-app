@@ -114,10 +114,18 @@ const loading = businessDataLoading;
         .filter(inv => inv.status === 'paid')
         .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
 
+      // Calculate NET revenue (excluding credit note entries)
       const directIncomeRevenue = clientIncomes
+        .filter(inc => !inc.credit_note_id)  // Exclude credit entries
         .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
 
-      const totalRevenue = invoiceRevenue + directIncomeRevenue;
+      // Calculate credit amounts for this client
+      const creditAmount = Math.abs(clientIncomes
+        .filter(inc => inc.credit_note_id)
+        .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0));
+
+      // Net revenue = invoice revenue + direct income - credits
+      const totalRevenue = invoiceRevenue + directIncomeRevenue - creditAmount;
       
       const pendingAmount = clientInvoices
       .filter(inv => inv.status === 'sent' || inv.status === 'overdue')

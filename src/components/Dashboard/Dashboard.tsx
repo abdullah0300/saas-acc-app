@@ -140,12 +140,28 @@ const formatInsightCurrency = (amount: number) => {
   return formatCurrency(amount); // Uses your existing formatCurrency from useSettings
 };
 
-// Calculate stats from current month data
+// Calculate stats from current month data - GROSS METHOD
 const stats = {
-  totalIncome: currentMonthIncomes.reduce((sum, income) => sum + (income.base_amount || income.amount), 0),
+  // Calculate gross income (excluding credit note entries)
+  grossIncome: currentMonthIncomes
+    .filter(income => !income.credit_note_id)
+    .reduce((sum, income) => sum + (income.base_amount || income.amount), 0),
+  
+  // Calculate credit note amounts
+  creditNoteAmount: Math.abs(currentMonthIncomes
+    .filter(income => income.credit_note_id)
+    .reduce((sum, income) => sum + (income.base_amount || income.amount), 0)),
+  
+  // Net income (gross - credits)
+  get totalIncome() {
+    return this.grossIncome - this.creditNoteAmount;
+  },
+  
   totalExpenses: currentMonthExpenses.reduce((sum, expense) => sum + (expense.base_amount || expense.amount), 0),
-  netProfit: currentMonthIncomes.reduce((sum, income) => sum + (income.base_amount || income.amount), 0) - 
-             currentMonthExpenses.reduce((sum, expense) => sum + (expense.base_amount || expense.amount), 0),
+  
+  get netProfit() {
+    return this.totalIncome - this.totalExpenses;
+  },
   pendingInvoices: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue').length,
   totalPending: invoices.filter(inv => inv.status === 'sent' || inv.status === 'overdue')
                        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0),
@@ -176,9 +192,19 @@ const generateMonthlyData = () => {
       return expenseDate >= monthStart && expenseDate <= monthEnd;
     });
     
-    const income = monthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
-    const expenseTotal = monthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+    // Calculate GROSS income (exclude credit note entries)
+    const grossIncome = monthIncomes
+      .filter(inc => !inc.credit_note_id)
+      .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
     
+    // Calculate credit notes
+    const creditAmount = Math.abs(monthIncomes
+      .filter(inc => inc.credit_note_id)
+      .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0));
+    
+    // Net income
+    const income = grossIncome - creditAmount;
+    const expenseTotal = monthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
     months.push({
       month: format(monthDate, 'MMM'),
       income,
@@ -301,6 +327,8 @@ const loading = businessDataLoading;
   if (monthlyData.length < 2) return 0;
   const currentMonth = monthlyData[monthlyData.length - 1];
   const previousMonth = monthlyData[monthlyData.length - 2];
+  
+  // Use net income for growth calculation
   if (!previousMonth?.income || previousMonth.income === 0) return 0;
   const growthPercentage = ((currentMonth.income - previousMonth.income) / previousMonth.income * 100);
   return Math.round(growthPercentage * 10) / 10;
@@ -444,20 +472,39 @@ const loading = businessDataLoading;
         {/* Key Metrics - Modern Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white rounded-2xl shadow-xl shadow-indigo-100 p-6 border border-indigo-100 transform hover:scale-105 transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                {growth > 0 ? '+' : ''}{growth}%
-              </span>
-            </div>
-            <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
-              {formatCurrency(stats?.totalIncome || 0)}
-            </p>
-            <p className="text-sm text-gray-500 mt-2">This month ({baseCurrency})</p>
-          </div>
+  <div className="flex items-center justify-between mb-4">
+    <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl">
+      <TrendingUp className="h-6 w-6 text-white" />
+    </div>
+    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+      {growth > 0 ? '+' : ''}{growth}%
+    </span>
+  </div>
+  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+  
+  {/* Show breakdown if there are credit notes */}
+  {stats?.creditNoteAmount > 0 ? (
+    <div>
+      <p className="text-3xl font-bold text-gray-900 mt-1">
+        {formatCurrency(stats?.totalIncome || 0)}
+      </p>
+      <div className="mt-2 space-y-1">
+        <div className="text-xs text-gray-500">
+          Gross: {formatCurrency(stats?.grossIncome || 0)}
+        </div>
+        <div className="text-xs text-red-600">
+          Credits: -{formatCurrency(stats?.creditNoteAmount || 0)}
+        </div>
+      </div>
+    </div>
+  ) : (
+    <p className="text-3xl font-bold text-gray-900 mt-1">
+      {formatCurrency(stats?.totalIncome || 0)}
+    </p>
+  )}
+  
+  <p className="text-sm text-gray-500 mt-2">This month ({baseCurrency})</p>
+</div>
 
           <div className="bg-white rounded-2xl shadow-xl shadow-red-100 p-6 border border-red-100 transform hover:scale-105 transition-all">
             <div className="flex items-center justify-between mb-4">

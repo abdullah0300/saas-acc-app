@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { getIncomes, getExpenses } from '../../services/database';
+import { getIncomes, getExpenses, getCreditNotes } from '../../services/database';
 import { format, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subQuarters, subYears } from 'date-fns';
 
 interface TaxPeriodData {
@@ -24,6 +24,7 @@ interface TaxPeriodData {
   startDate: string;
   endDate: string;
   taxCollected: number;
+  creditNoteTaxAdjustment: number;  // Add this
   salesAmount: number;
   taxPaid: number;
   purchaseAmount: number;
@@ -31,6 +32,7 @@ interface TaxPeriodData {
   transactionCount: {
     income: number;
     expense: number;
+    creditNotes: number;  // Add this
   };
 }
 
@@ -74,9 +76,10 @@ export const TaxReport: React.FC = () => {
       const endDate = periods[periods.length - 1].endDate;
       
       // Fetch all data for the selected period
-      const [incomes, expenses] = await Promise.all([
+      const [incomes, expenses, creditNotes] = await Promise.all([
         getIncomes(user.id, startDate, endDate),
-        getExpenses(user.id, startDate, endDate)
+        getExpenses(user.id, startDate, endDate),
+        getCreditNotes(user.id, startDate, endDate)
       ]);
       
       // Process data by periods
@@ -89,7 +92,17 @@ export const TaxReport: React.FC = () => {
           exp.date >= period.startDate && exp.date <= period.endDate
         );
         
-        // Calculate tax collected (from income/sales) - using base amounts
+        // Filter credit notes for this period
+        const periodCreditNotes = creditNotes.filter(cn => 
+          cn.date >= period.startDate && cn.date <= period.endDate && cn.applied_to_income
+        );
+        
+        // Calculate tax adjustment from credit notes
+        const creditNoteTaxAdjustment = periodCreditNotes.reduce((sum, cn) => {
+          return sum + (cn.tax_amount || 0);
+        }, 0);
+                // Calculate tax collected (from income/sales) - using base amounts
+
           const taxCollected = periodIncomes.reduce((sum, inc) => {
             // If tax_amount exists, use it; otherwise calculate from base_amount
             const baseAmount = inc.base_amount || inc.amount;
@@ -113,28 +126,31 @@ export const TaxReport: React.FC = () => {
           period: period.label,
           startDate: period.startDate,
           endDate: period.endDate,
-          taxCollected,
+          taxCollected,  // Keep original tax collected (don't subtract here)
+          creditNoteTaxAdjustment,  // Add this field to track credit notes separately
           salesAmount,
           taxPaid,
           purchaseAmount,
-          netTax: taxCollected - taxPaid,
+          netTax: taxCollected - taxPaid - creditNoteTaxAdjustment,  // Subtract credit notes from net
           transactionCount: {
             income: periodIncomes.length,
-            expense: periodExpenses.length
+            expense: periodExpenses.length,
+            creditNotes: periodCreditNotes.length  // Add credit note count
           }
         };
       });
       
       // Calculate totals
       const totalTaxCollected = periodData.reduce((sum, p) => sum + p.taxCollected, 0);
+      const totalCreditNoteAdjustment = periodData.reduce((sum, p) => sum + p.creditNoteTaxAdjustment, 0);
       const totalTaxPaid = periodData.reduce((sum, p) => sum + p.taxPaid, 0);
       const totalSales = periodData.reduce((sum, p) => sum + p.salesAmount, 0);
       
       setTaxSummary({
-        totalTaxCollected,
+        totalTaxCollected: totalTaxCollected - totalCreditNoteAdjustment,  // Show net of credits
         totalTaxPaid,
-        netTaxLiability: totalTaxCollected - totalTaxPaid,
-        averageTaxRate: totalSales > 0 ? (totalTaxCollected / totalSales) * 100 : 0,
+        netTaxLiability: totalTaxCollected - totalTaxPaid - totalCreditNoteAdjustment,
+        averageTaxRate: totalSales > 0 ? ((totalTaxCollected - totalCreditNoteAdjustment) / totalSales) * 100 : 0,
         periods: periodData
       });
       
@@ -425,7 +441,12 @@ export const TaxReport: React.FC = () => {
                       {formatCurrency(period.salesAmount, baseCurrency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600 text-right">
-                      {formatCurrency(period.taxCollected, baseCurrency)}
+                      {formatCurrency(period.taxCollected - period.creditNoteTaxAdjustment, baseCurrency)}
+                      {period.creditNoteTaxAdjustment > 0 && (
+                        <span className="block text-xs text-orange-600">
+                          (Credit: -{formatCurrency(period.creditNoteTaxAdjustment, baseCurrency)})
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
                       {formatCurrency(period.purchaseAmount, baseCurrency)}

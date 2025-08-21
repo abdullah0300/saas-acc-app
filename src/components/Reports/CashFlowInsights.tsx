@@ -33,7 +33,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { getInvoices, getIncomes, getExpenses } from '../../services/database';
+import { getInvoices, getIncomes, getExpenses, getCreditNotes } from '../../services/database';
 import { format, addDays, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
 
 interface ReceivableAging {
@@ -91,10 +91,11 @@ export const CashFlowInsights: React.FC = () => {
       setLoading(true);
       
       // Load all necessary data
-      const [invoices, incomes, expenses] = await Promise.all([
+      const [invoices, incomes, expenses, creditNotes] = await Promise.all([
         getInvoices(user.id),
         getIncomes(user.id),
-        getExpenses(user.id)
+        getExpenses(user.id),
+        getCreditNotes(user.id)
       ]);
       
       // Process receivables aging
@@ -238,9 +239,14 @@ export const CashFlowInsights: React.FC = () => {
     const monthEnd = endOfMonth(today);
     
     // Total receivables
+    // Calculate receivables accounting for credit notes
     const totalReceivables = invoices
       .filter(inv => inv.status !== 'paid' && inv.status !== 'canceled')
-      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+      .reduce((sum, inv) => {
+        const invoiceTotal = inv.base_amount || inv.total;
+        const creditedAmount = inv.total_credited || 0;
+        return sum + Math.max(0, invoiceTotal - creditedAmount);
+      }, 0);
     
     // Overdue amount
     const overdueAmount = invoices
