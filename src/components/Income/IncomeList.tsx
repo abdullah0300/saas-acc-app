@@ -387,14 +387,18 @@ const paginatedIncomes = getPaginatedIncomes();
 };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Description', 'Category', 'Client', 'Amount', 'Currency', 'Reference'];
+    const headers = ['Date', 'Description', 'Category', 'Client', 'Amount', 'Tax', 'Total', 'Currency', 'Base Amount', 'Type', 'Reference'];
 const data = filteredIncomes.map(income => [
   format(parseISO(income.date), 'yyyy-MM-dd'),
   income.description,
   income.category?.name || 'Uncategorized',
   income.client?.name || 'No client',
   income.amount.toString(),
+  (income.tax_amount || 0).toString(),
+  (income.amount + (income.tax_amount || 0)).toString(),
   income.currency || baseCurrency,
+  (income.base_amount || income.amount).toString(),
+  income.credit_note_id ? 'Credit Note' : 'Income',
   income.reference_number || ''
 ]);
     
@@ -411,8 +415,17 @@ const data = filteredIncomes.map(income => [
   };
 
   // Use base_amount for accurate totals across currencies
-const totalIncome = filteredIncomes.reduce((sum, income) => sum + (income.base_amount || income.amount), 0);
-const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes.length : 0;  
+const totalIncome = filteredIncomes.reduce((sum, income) => {
+  // For multi-currency, use base_amount if available
+  const amount = income.base_amount !== undefined && income.base_amount !== null 
+    ? income.base_amount 
+    : income.amount;
+  return sum + amount; // This handles negative amounts correctly
+}, 0);
+const regularIncomes = filteredIncomes.filter(income => !income.credit_note_id);
+const averageIncome = regularIncomes.length > 0 
+  ? regularIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0) / regularIncomes.length 
+  : 0;
 
   if (loading) return <SkeletonTable rows={10} columns={6} hasActions={true} />;
 
@@ -902,7 +915,10 @@ const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right">
                       <div className="flex flex-col items-end">
                         <span className={income.credit_note_id ? 'text-red-600' : 'text-emerald-600'}>
-                          {formatCurrency(income.amount, income.currency || baseCurrency)}
+                          {income.credit_note_id && income.amount < 0 
+                            ? `(${formatCurrency(Math.abs(income.amount), income.currency || baseCurrency)})`
+                            : formatCurrency(income.amount, income.currency || baseCurrency)
+                          }
                         </span>
                         {income.currency && income.currency !== baseCurrency && (
                           <span className="text-xs text-gray-500 mt-0.5">
@@ -1170,9 +1186,10 @@ const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes
           <span className="text-gray-600 font-medium">Gross Total</span>
           <span className="font-semibold text-lg">
             {formatCurrency(
-              (selectedIncome.amount + (selectedIncome.tax_amount || 0)), 
+              Math.abs(selectedIncome.amount) + Math.abs(selectedIncome.tax_amount || 0), 
               selectedIncome.currency || baseCurrency
             )}
+            {selectedIncome.credit_note_id && ' (Refund)'}
           </span>
         </div>
       </>
@@ -1238,7 +1255,7 @@ const averageIncome = filteredIncomes.length > 0 ? totalIncome / filteredIncomes
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-600">Exchange Rate</span>
             <span className="font-medium">
-              1 {baseCurrency} = {(selectedIncome.exchange_rate || 1).toFixed(4)} {selectedIncome.currency}
+              1 {selectedIncome.currency} = {(1 / (selectedIncome.exchange_rate || 1)).toFixed(4)} {baseCurrency}
             </span>
           </div>
           <div className="flex justify-between items-center text-sm pt-2 border-t">

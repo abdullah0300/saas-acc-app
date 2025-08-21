@@ -39,6 +39,7 @@ interface ClientWithMetrics extends Client {
   lastActivityDate: string | null;
   avgPaymentDays: number;
   status: 'active' | 'inactive' | 'overdue';
+  creditAmount: number; // Added to track credit amounts
 }
 
 export const ClientList: React.FC = () => {
@@ -89,6 +90,9 @@ const loading = businessDataLoading;
       getIncomes(user.id)
     ]);
     
+    setInvoices(invoiceList); // Store for later use
+    setIncomes(incomeList);   // Store for later use
+    
     // Process client metrics using existing function
     const enrichedClients = processClientMetrics(rawClients, invoiceList, incomeList);
     setClients(enrichedClients);
@@ -110,26 +114,21 @@ const loading = businessDataLoading;
       const clientInvoices = invoiceList.filter(inv => inv.client_id === client.id);
       const clientIncomes = incomeList.filter(inc => inc.client_id === client.id);
       
-      const invoiceRevenue = clientInvoices
-        .filter(inv => inv.status === 'paid')
-        .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-
-      // Calculate NET revenue (excluding credit note entries)
-      const directIncomeRevenue = clientIncomes
-        .filter(inc => !inc.credit_note_id)  // Exclude credit entries
+      // FIXED: Calculate total revenue from income entries only (includes negatives for credits)
+      // This avoids double-counting invoice revenue
+      const totalRevenue = clientIncomes
         .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
-
-      // Calculate credit amounts for this client
+      
+      // Calculate credit amount separately for display
       const creditAmount = Math.abs(clientIncomes
         .filter(inc => inc.credit_note_id)
         .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0));
-
-      // Net revenue = invoice revenue + direct income - credits
-      const totalRevenue = invoiceRevenue + directIncomeRevenue - creditAmount;
       
-      const pendingAmount = clientInvoices
-      .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
-      .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+      // Calculate pending (unpaid invoice amounts)
+      // Replace lines 119-136 with this:
+const pendingAmount = clientInvoices
+  .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
+  .reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
       
       const paidInvoices = clientInvoices.filter(inv => inv.status === 'paid').length;
       
@@ -148,32 +147,30 @@ const loading = businessDataLoading;
           }, 0) / paidInvoicesWithDates.length
         : 0;
       
-      // Get last activity
-      // Get last activity - include both invoices and direct income
-const allDates = [
-  ...clientInvoices.map(inv => inv.date),
-  ...clientIncomes.map(inc => inc.date), // ADD THIS LINE
-  client.created_at
-];
+      // Get last activity from both invoices and income
+      const allDates = [
+        ...clientInvoices.map(inv => inv.date),
+        ...clientIncomes.map(inc => inc.date),
+        client.created_at
+      ];
       const lastActivityDate = allDates.sort((a, b) => 
         new Date(b).getTime() - new Date(a).getTime()
       )[0];
       
       // Determine status
-      // Determine status - include both invoices and direct income
-let status: 'active' | 'inactive' | 'overdue' = 'inactive';
-if (clientInvoices.some(inv => inv.status === 'overdue')) {
-  status = 'overdue';
-} else if (
-  clientInvoices.some(inv => 
-    new Date(inv.date) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-  ) || 
-  clientIncomes.some(inc => 
-    new Date(inc.date) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-  )
-) {
-  status = 'active';
-}
+      let status: 'active' | 'inactive' | 'overdue' = 'inactive';
+      if (clientInvoices.some(inv => inv.status === 'overdue')) {
+        status = 'overdue';
+      } else if (
+        clientInvoices.some(inv => 
+          new Date(inv.date) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        ) || 
+        clientIncomes.some(inc => 
+          new Date(inc.date) > new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        )
+      ) {
+        status = 'active';
+      }
       
       return {
         ...client,
@@ -183,7 +180,8 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
         pendingAmount,
         lastActivityDate,
         avgPaymentDays,
-        status
+        status,
+        creditAmount
       };
     });
   };
@@ -191,7 +189,12 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
   const calculateStats = (clientList: ClientWithMetrics[]) => {
     const activeClients = clientList.filter(c => c.status === 'active').length;
     const totalRevenue = clientList.reduce((sum, c) => sum + c.totalRevenue, 0);
-    const avgClientValue = clientList.length > 0 ? totalRevenue / clientList.length : 0;
+    
+    // FIXED: Calculate average only among clients with revenue
+    const clientsWithRevenue = clientList.filter(c => c.totalRevenue > 0);
+    const avgClientValue = clientsWithRevenue.length > 0 
+      ? totalRevenue / clientsWithRevenue.length 
+      : 0;
     
     setStats({
       totalClients: clientList.length,
@@ -248,16 +251,34 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
 };
 
   const exportClients = () => {
-    const headers = ['Name', 'Email', 'Phone', `Total Revenue (${baseCurrency})`, 'Invoices', 'Status', 'Last Activity'];
+    // FIXED: Enhanced CSV export with more data
+    const headers = [
+      'Name', 
+      'Email', 
+      'Phone', 
+      `Total Revenue (${baseCurrency})`,
+      `Pending Amount (${baseCurrency})`,
+      `Credits Applied (${baseCurrency})`,
+      'Total Invoices',
+      'Paid Invoices', 
+      'Avg Payment Days',
+      'Status', 
+      'Last Activity'
+    ];
+    
     const data = filteredClients.map(client => [
-  client.name,
-  client.email || '',
-  client.phone || '',
-  client.totalRevenue.toFixed(2),
-  client.invoiceCount.toString(),
-  client.status,
-  client.lastActivityDate ? format(parseISO(client.lastActivityDate), 'yyyy-MM-dd') : ''
-]);
+      client.name,
+      client.email || '',
+      client.phone || '',
+      client.totalRevenue.toFixed(2),
+      client.pendingAmount.toFixed(2),
+      client.creditAmount.toFixed(2),
+      client.invoiceCount.toString(),
+      client.paidInvoices.toString(),
+      Math.round(client.avgPaymentDays).toString(),
+      client.status,
+      client.lastActivityDate ? format(parseISO(client.lastActivityDate), 'yyyy-MM-dd') : ''
+    ]);
     
     const csv = [
       headers.join(','),
@@ -502,8 +523,8 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
                   {/* Contact Info */}
                   <div className="space-y-2">
                     {client.email && (
-                      <a
-                        href={`mailto:${client.email}`}
+                      
+                       <a href={`mailto:${client.email}`}
                         className="flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 transition-colors"
                       >
                         <Mail className="h-4 w-4" />
@@ -511,8 +532,8 @@ if (clientInvoices.some(inv => inv.status === 'overdue')) {
                       </a>
                     )}
                     {client.phone && (
-                      <a
-                        href={`tel:${client.phone}`}
+                      
+                       <a href={`tel:${client.phone}`}
                         className="flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 transition-colors"
                       >
                         <Phone className="h-4 w-4" />

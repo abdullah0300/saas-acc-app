@@ -3,6 +3,54 @@
 import { supabase } from './supabaseClient';
 import { Notification, NotificationType, NotificationPriority } from '../types/notification.types';
 
+// Currency symbols mapping
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  INR: '₹',
+  PKR: 'Rs',
+  JPY: '¥',
+  CAD: 'C$',
+  AUD: 'A$',
+  NGN: '₦',
+  BRL: 'R$',
+  AED: 'د.إ'
+};
+
+// Format currency helper function
+const formatCurrencyAmount = (amount: number, currency: string = 'USD'): string => {
+  const symbol = CURRENCY_SYMBOLS[currency] || currency;
+  const absAmount = Math.abs(amount); // Handle negative amounts properly
+  
+  switch(currency) {
+    case 'EUR':
+      return `${absAmount.toLocaleString('de-DE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })} ${symbol}`;
+    case 'JPY':
+      return `${symbol}${Math.round(absAmount).toLocaleString()}`;
+    case 'INR':
+    case 'PKR':
+      return `${symbol} ${absAmount.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
+    case 'AED':
+    case 'NGN':
+      return `${symbol} ${absAmount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
+    default:
+      return `${symbol}${absAmount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
+  }
+};
+
 // Process email queue - call this after creating notifications or periodically
 export const processEmailQueue = async () => {
   try {
@@ -133,7 +181,7 @@ export const deleteReadNotifications = async (userId: string) => {
   if (error) throw error;
 };
 
-// Create a notification (for internal use)
+// Create a notification (for internal use) - UPDATED WITH CURRENCY FORMATTING
 export const createNotification = async (
   userId: string,
   type: NotificationType,
@@ -146,19 +194,81 @@ export const createNotification = async (
     priority?: NotificationPriority;
   }
 ) => {
-  const { data, error } = await supabase.rpc('create_notification', {
-    p_user_id: userId,
-    p_type: type,
-    p_title: title,
-    p_message: message,
-    p_action_url: options?.actionUrl || null,
-    p_action_label: options?.actionLabel || 'View',
-    p_metadata: options?.metadata || {},
-    p_priority: options?.priority || 'normal'
-  });
+  try {
+    // Fetch user's base currency settings
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('base_currency')
+      .eq('user_id', userId)
+      .single();
 
-  if (error) throw error;
-  return data;
+    const baseCurrency = userSettings?.base_currency || 'USD';
+
+    // Format the message with proper currency
+    let formattedMessage = message;
+    
+    // Handle special cases for credit notes (negative amounts)
+    if (type === 'credit_note_applied' || type === 'credit_note_issued' || type === 'credit_note_created') {
+      if (options?.metadata?.amount !== undefined) {
+        const amount = Math.abs(options.metadata.amount); // Always show positive for credit notes
+        const currency = options.metadata.currency || baseCurrency;
+        const formattedAmount = formatCurrencyAmount(amount, currency);
+        
+        // Replace any placeholder or dollar amounts
+        formattedMessage = message
+          .replace(/\$-?\d+[\d,]*\.?\d*/g, formattedAmount)
+          .replace('{amount}', formattedAmount);
+      }
+    } 
+    // Handle payment notifications (check for refunds)
+    else if (type === 'payment_received' && options?.metadata?.is_refund) {
+      if (options?.metadata?.amount !== undefined) {
+        const amount = Math.abs(options.metadata.amount); // Show positive for refunds
+        const currency = options.metadata.currency || baseCurrency;
+        const formattedAmount = formatCurrencyAmount(amount, currency);
+        
+        formattedMessage = message
+          .replace(/\$-?\d+[\d,]*\.?\d*/g, formattedAmount)
+          .replace('{amount}', formattedAmount);
+      }
+    }
+    // Handle regular notifications with amounts
+    else if (options?.metadata?.amount !== undefined) {
+      const amount = options.metadata.amount;
+      const currency = options.metadata.currency || baseCurrency;
+      const formattedAmount = formatCurrencyAmount(amount, currency);
+      
+      // Replace dollar signs and amount placeholders
+      formattedMessage = message
+        .replace(/\$-?\d+[\d,]*\.?\d*/g, formattedAmount)
+        .replace('{amount}', formattedAmount);
+    }
+
+    // Replace any remaining dollar signs with base currency symbol
+    const baseSymbol = CURRENCY_SYMBOLS[baseCurrency] || baseCurrency;
+    formattedMessage = formattedMessage.replace(/\$/g, baseSymbol);
+
+    const { data, error } = await supabase.rpc('create_notification', {
+      p_user_id: userId,
+      p_type: type,
+      p_title: title,
+      p_message: formattedMessage,
+      p_action_url: options?.actionUrl || null,
+      p_action_label: options?.actionLabel || 'View',
+      p_metadata: {
+        ...options?.metadata,
+        user_base_currency: baseCurrency,
+        formatted_at_creation: true
+      },
+      p_priority: options?.priority || 'normal'
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    throw error;
+  }
 };
 
 // Subscribe to real-time notifications
@@ -209,7 +319,8 @@ export const getNotificationStats = async (userId: string) => {
 
   return stats;
 };
-// Add this function to src/services/notifications.ts
+
+// Create welcome notification
 export const createWelcomeNotification = async (userId: string, userDetails: {
   firstName?: string;
   lastName?: string;
@@ -220,6 +331,15 @@ export const createWelcomeNotification = async (userId: string, userDetails: {
     const userName = userDetails.firstName ? 
       `${userDetails.firstName}${userDetails.lastName ? ' ' + userDetails.lastName : ''}` : 
       userDetails.email.split('@')[0];
+
+    // Get user's base currency for welcome message
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('base_currency')
+      .eq('user_id', userId)
+      .single();
+
+    const baseCurrency = userSettings?.base_currency || 'USD';
 
     // Create the welcome notification
     const { data: notification, error: notificationError } = await supabase
@@ -235,7 +355,8 @@ export const createWelcomeNotification = async (userId: string, userDetails: {
           user_name: userName,
           company_name: userDetails.companyName,
           email: userDetails.email,
-          welcome_step: 'account_created'
+          welcome_step: 'account_created',
+          user_base_currency: baseCurrency
         },
         priority: 'normal',
         is_read: false
@@ -269,4 +390,154 @@ export const createWelcomeNotification = async (userId: string, userDetails: {
   } catch (error) {
     console.error('Error in createWelcomeNotification:', error);
   }
+};
+
+// Create credit note notification - NEW FUNCTION
+export const createCreditNoteNotification = async (
+  userId: string,
+  creditNoteData: {
+    credit_note_number: string;
+    invoice_number?: string;
+    amount: number;
+    currency: string;
+    client_name?: string;
+    reason?: string;
+    credit_note_id: string;
+    action: 'created' | 'issued' | 'applied';
+  }
+) => {
+  const { action, ...data } = creditNoteData;
+  const amount = Math.abs(data.amount); // Always positive for display
+  
+  let title = '';
+  let message = '';
+  let type: NotificationType;
+  
+  switch (action) {
+    case 'created':
+      type = 'credit_note_created';
+      title = `Credit Note ${data.credit_note_number} Created`;
+      message = `Credit note for {amount} has been created${data.invoice_number ? ` for invoice ${data.invoice_number}` : ''}`;
+      break;
+    
+    case 'issued':
+      type = 'credit_note_issued';
+      title = `Credit Note ${data.credit_note_number} Issued`;
+      message = `Credit note for {amount} has been issued to ${data.client_name || 'client'}`;
+      break;
+    
+    case 'applied':
+      type = 'credit_note_applied';
+      title = `Credit Note Applied to Income`;
+      message = `Credit note ${data.credit_note_number} for {amount} has been applied as a refund`;
+      break;
+    
+    default:
+      type = 'credit_note_created';
+      title = `Credit Note Activity`;
+      message = `Credit note ${data.credit_note_number} has been updated`;
+  }
+  
+  return createNotification(userId, type, title, message, {
+    actionUrl: `/credit-notes/${data.credit_note_id}`,
+    actionLabel: 'View Credit Note',
+    metadata: {
+      ...data,
+      amount: amount, // Positive amount for display
+      is_credit_note: true
+    },
+    priority: action === 'applied' ? 'high' : 'normal'
+  });
+};
+
+// Create invoice notification - NEW HELPER FUNCTION
+export const createInvoiceNotification = async (
+  userId: string,
+  invoiceData: {
+    invoice_id: string;
+    invoice_number: string;
+    amount: number;
+    currency: string;
+    client_name?: string;
+    action: 'sent' | 'viewed' | 'paid' | 'overdue';
+  }
+) => {
+  const { action, ...data } = invoiceData;
+  
+  const typeMap: Record<string, NotificationType> = {
+    sent: 'invoice_sent',
+    viewed: 'invoice_viewed',
+    paid: 'invoice_paid',
+    overdue: 'invoice_overdue'
+  };
+  
+  const titleMap = {
+    sent: `Invoice ${data.invoice_number} Sent`,
+    viewed: `Invoice ${data.invoice_number} Viewed`,
+    paid: `Invoice ${data.invoice_number} Paid`,
+    overdue: `Invoice ${data.invoice_number} Overdue`
+  };
+  
+  const messageMap = {
+    sent: `Invoice for {amount} has been sent to ${data.client_name || 'client'}`,
+    viewed: `${data.client_name || 'Client'} has viewed invoice ${data.invoice_number}`,
+    paid: `Payment of {amount} received for invoice ${data.invoice_number}`,
+    overdue: `Invoice ${data.invoice_number} for {amount} is now overdue`
+  };
+  
+  return createNotification(
+    userId,
+    typeMap[action],
+    titleMap[action],
+    messageMap[action],
+    {
+      actionUrl: `/invoices/${data.invoice_id}`,
+      actionLabel: 'View Invoice',
+      metadata: data,
+      priority: action === 'overdue' ? 'high' : 'normal'
+    }
+  );
+};
+
+// Create payment notification - NEW HELPER FUNCTION  
+export const createPaymentNotification = async (
+  userId: string,
+  paymentData: {
+    amount: number;
+    currency: string;
+    description?: string;
+    payment_method?: string;
+    reference?: string;
+    is_refund?: boolean;
+  }
+) => {
+  // Handle refunds (from credit notes) specially
+  if (paymentData.is_refund) {
+    const amount = Math.abs(paymentData.amount);
+    return createNotification(
+      userId,
+      'payment_received',
+      'Refund Processed',
+      `Refund of {amount} has been processed${paymentData.description ? ` for ${paymentData.description}` : ''}`,
+      {
+        metadata: {
+          ...paymentData,
+          amount: amount, // Positive for display
+          is_refund: true
+        },
+        priority: 'normal'
+      }
+    );
+  }
+  
+  return createNotification(
+    userId,
+    'payment_received',
+    'Payment Received',
+    `Payment of {amount} received${paymentData.description ? ` for ${paymentData.description}` : ''}`,
+    {
+      metadata: paymentData,
+      priority: 'normal'
+    }
+  );
 };

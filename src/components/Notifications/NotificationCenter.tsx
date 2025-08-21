@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { formatDistanceToNow, format, isToday, isYesterday, parseISO } from 'date-fns';
-import { notificationConfig, NotificationType } from '../../types';
+import { notificationConfig, NotificationType } from '../../types/notification.types'; // CHANGE THIS LINE
 import * as Icons from 'lucide-react';
 
 export const NotificationCenter: React.FC = () => {
@@ -37,24 +37,30 @@ export const NotificationCenter: React.FC = () => {
   const navigate = useNavigate();
   const { formatCurrency, baseCurrency } = useSettings();
 
-const formatNotificationMessage = (notification: any) => {
-  let message = notification.message;
-  
-  if (notification.metadata?.amount !== undefined) {
-    const amount = notification.metadata.amount;
-    const currency = notification.metadata.currency || baseCurrency;
-    message = message.replace(/\$[\d,]+\.?\d*/g, () => {
-      return formatCurrency(amount, currency);
-    });
-  } else {
-    message = message.replace(/\$[\d,]+\.?\d*/g, (match: string) => {
-      const amount = parseFloat(match.replace(/[$,]/g, ''));
-      return formatCurrency(amount, baseCurrency);
-    });
-  }
-  
-  return message;
-};
+  const formatNotificationMessage = (notification: any) => {
+    let message = notification.message;
+    
+    // Check if notification was already formatted at creation
+    if (notification.metadata?.formatted_at_creation) {
+      return message; // Already formatted, return as-is
+    }
+    
+    // Legacy formatting for old notifications
+    if (notification.metadata?.amount !== undefined) {
+      const amount = notification.metadata.amount;
+      const currency = notification.metadata.currency || baseCurrency;
+      message = message.replace(/\$[\d,]+\.?\d*/g, () => {
+        return formatCurrency(Math.abs(amount), currency);
+      });
+    } else {
+      message = message.replace(/\$[\d,]+\.?\d*/g, (match: string) => {
+        const amount = parseFloat(match.replace(/[$,]/g, ''));
+        return formatCurrency(Math.abs(amount), baseCurrency);
+      });
+    }
+    
+    return message;
+  };
 
   // Filter notifications
   const filteredNotifications = notifications.filter(notification => {
@@ -148,11 +154,12 @@ const formatNotificationMessage = (notification: any) => {
     setSelectedNotifications(new Set());
   };
 
-  // Get notification type counts
+  // Get notification type counts with type safety
   const typeCounts = notifications.reduce((counts, notification) => {
-    counts[notification.type] = (counts[notification.type] || 0) + 1;
+    const type = notification.type as NotificationType;
+    counts[type] = (counts[type] || 0) + 1;
     return counts;
-  }, {} as Record<NotificationType, number>);
+  }, {} as Partial<Record<NotificationType, number>>);
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -317,7 +324,11 @@ const formatNotificationMessage = (notification: any) => {
                   {date}
                 </div>
                 {dateNotifications.map((notification) => {
-                  const config = notificationConfig[notification.type];
+                  const config = notificationConfig[notification.type] || {
+                    icon: 'Bell',
+                    color: 'text-gray-600',
+                    bgColor: 'bg-gray-100'
+                  };
                   const Icon = getIcon(config.icon);
                   const isSelected = selectedNotifications.has(notification.id);
                   

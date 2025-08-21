@@ -1,11 +1,12 @@
 // src/types/notification.types.ts
 
 export type NotificationType = 
+  | 'welcome'
   | 'invoice_sent' 
   | 'invoice_viewed' 
   | 'invoice_paid' 
   | 'invoice_overdue'
-  | 'invoice_generated'  // NEW TYPE
+  | 'invoice_generated'
   | 'payment_received' 
   | 'expense_added' 
   | 'budget_exceeded'
@@ -16,7 +17,10 @@ export type NotificationType =
   | 'subscription_downgraded' 
   | 'subscription_expiring'
   | 'system_update' 
-  | 'feature_announcement';
+  | 'feature_announcement'
+  | 'credit_note_created'
+  | 'credit_note_issued'
+  | 'credit_note_applied';
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
 
@@ -48,11 +52,12 @@ export const notificationConfig: Record<NotificationType, {
   color: string;
   bgColor: string;
 }> = {
+  welcome: { icon: 'Gift', color: 'text-pink-600', bgColor: 'bg-pink-100' },
   invoice_sent: { icon: 'Send', color: 'text-blue-600', bgColor: 'bg-blue-100' },
   invoice_viewed: { icon: 'Eye', color: 'text-indigo-600', bgColor: 'bg-indigo-100' },
   invoice_paid: { icon: 'CheckCircle', color: 'text-green-600', bgColor: 'bg-green-100' },
   invoice_overdue: { icon: 'AlertCircle', color: 'text-red-600', bgColor: 'bg-red-100' },
-  invoice_generated: { icon: 'RefreshCw', color: 'text-blue-600', bgColor: 'bg-blue-100' },  // NEW CONFIG
+  invoice_generated: { icon: 'RefreshCw', color: 'text-blue-600', bgColor: 'bg-blue-100' },
   payment_received: { icon: 'DollarSign', color: 'text-green-600', bgColor: 'bg-green-100' },
   expense_added: { icon: 'Receipt', color: 'text-orange-600', bgColor: 'bg-orange-100' },
   budget_exceeded: { icon: 'TrendingUp', color: 'text-red-600', bgColor: 'bg-red-100' },
@@ -63,5 +68,10 @@ export const notificationConfig: Record<NotificationType, {
   subscription_downgraded: { icon: 'TrendingDown', color: 'text-gray-600', bgColor: 'bg-gray-100' },
   subscription_expiring: { icon: 'Clock', color: 'text-orange-600', bgColor: 'bg-orange-100' },
   system_update: { icon: 'Info', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  feature_announcement: { icon: 'Sparkles', color: 'text-purple-600', bgColor: 'bg-purple-100' }
+  feature_announcement: { icon: 'Sparkles', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+  
+  // Credit Note notifications
+  credit_note_created: { icon: 'FileText', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+  credit_note_issued: { icon: 'Send', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+  credit_note_applied: { icon: 'CheckCircle', color: 'text-green-600', bgColor: 'bg-green-100' }
 };

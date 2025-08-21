@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Check, Trash2, ExternalLink } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
-import { notificationConfig } from '../../types';
+import { notificationConfig, NotificationType } from '../../types/notification.types'; // CHANGE THIS LINE
 import * as Icons from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,16 +24,22 @@ export const NotificationBell: React.FC = () => {
   const formatNotificationMessage = (notification: any) => {
     let message = notification.message;
     
+    // Check if notification was already formatted at creation
+    if (notification.metadata?.formatted_at_creation) {
+      return message; // Already formatted, return as-is
+    }
+    
+    // Legacy formatting for old notifications
     if (notification.metadata?.amount !== undefined) {
       const amount = notification.metadata.amount;
       const currency = notification.metadata.currency || baseCurrency;
       message = message.replace(/\$[\d,]+\.?\d*/g, () => {
-        return formatCurrency(amount, currency);
+        return formatCurrency(Math.abs(amount), currency); // Use Math.abs for credit notes
       });
     } else {
       message = message.replace(/\$[\d,]+\.?\d*/g, (match: string) => {
         const amount = parseFloat(match.replace(/[$,]/g, ''));
-        return formatCurrency(amount, baseCurrency);
+        return formatCurrency(Math.abs(amount), baseCurrency);
       });
     }
     
@@ -100,6 +106,7 @@ export const NotificationBell: React.FC = () => {
 
   // Show badge only if current unread count is higher than last acknowledged
   const shouldShowBadge = unreadCount > lastAcknowledgedCount;
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -168,7 +175,11 @@ export const NotificationBell: React.FC = () => {
             {recentNotifications.length > 0 ? (
               <>
                 {recentNotifications.map((notification) => {
-                  const config = notificationConfig[notification.type];
+                  const config = notificationConfig[notification.type] || {
+                    icon: 'Bell',
+                    color: 'text-gray-600',
+                    bgColor: 'bg-gray-100'
+                  };
                   const Icon = getIcon(config.icon);
                   
                   return (
