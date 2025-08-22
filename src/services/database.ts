@@ -175,6 +175,24 @@ export const createIncome = async (income: Omit<Income, 'id' | 'created_at' | 'u
 };
 
 export const updateIncome = async (id: string, updates: Partial<Income>) => {
+  // Check UK VAT lock first (only affects UK users)
+  const { data: incomeData } = await supabase
+    .from('income')
+    .select('vat_return_id, vat_locked_at, user_id')
+    .eq('id', id)
+    .single();
+
+  if (incomeData?.vat_return_id) {
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('country')
+      .eq('user_id', incomeData.user_id)
+      .single();
+    
+    if (userSettings?.country === 'GB') {
+      throw new Error('Cannot modify this income entry - it has been included in a submitted UK VAT return');
+    }
+  }
   const updateData: any = { ...updates };
 if ('category_id' in updates) updateData.category_id = updates.category_id || null;
 if ('client_id' in updates) updateData.client_id = updates.client_id || null; // ADD THIS LINE
@@ -242,7 +260,10 @@ export const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' |
       user_id: effectiveUserId,
       category_id: expense.category_id || null,
       vendor: expense.vendor || null,
-      receipt_url: expense.receipt_url || null
+      receipt_url: expense.receipt_url || null,
+      is_vat_reclaimable: (expense as any).is_vat_reclaimable ?? true,
+      base_tax_amount: (expense as any).base_tax_amount || 0,
+      tax_point_date: (expense as any).tax_point_date || expense.date
     }])
     .select(`
       *,
@@ -256,11 +277,31 @@ export const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' |
 };
 
 export const updateExpense = async (id: string, updates: Partial<Expense>) => {
+  // Check UK VAT lock first (only affects UK users)
+  const { data: expenseData } = await supabase
+    .from('expenses')
+    .select('vat_return_id, vat_locked_at, user_id')
+    .eq('id', id)
+    .single();
+
+  if (expenseData?.vat_return_id) {
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('country')
+      .eq('user_id', expenseData.user_id)
+      .single();
+    
+    if (userSettings?.country === 'GB') {
+      throw new Error('Cannot modify this expense - it has been included in a submitted UK VAT return');
+    }
+  }
   const updateData: any = { ...updates };
   if ('category_id' in updates) updateData.category_id = updates.category_id || null;
   if ('vendor' in updates) updateData.vendor = updates.vendor || null;
   if ('receipt_url' in updates) updateData.receipt_url = updates.receipt_url || null;
-  
+  if ('is_vat_reclaimable' in updates) updateData.is_vat_reclaimable = (updates as any).is_vat_reclaimable ?? true;
+  if ('base_tax_amount' in updates) updateData.base_tax_amount = (updates as any).base_tax_amount || 0;
+  if ('tax_point_date' in updates) updateData.tax_point_date = (updates as any).tax_point_date || updates.date;
   const { data, error } = await supabase
     .from('expenses')
     .update(updateData)
@@ -576,6 +617,26 @@ export const updateInvoice = async (id: string, updates: any, items?: any[]) => 
   if (currentInvoice.status === 'paid' || currentInvoice.status === 'canceled') {
     throw new Error('Cannot modify paid or canceled invoices for legal compliance');
   }
+
+  // UK VAT lock check - only for UK users
+  const { data: vatCheck } = await supabase
+    .from('invoices')
+    .select('vat_return_id, vat_locked_at, user_id')
+    .eq('id', id)
+    .single();
+  
+  if (vatCheck?.vat_return_id) {
+    // Get user settings to check if UK
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('country')
+      .eq('user_id', vatCheck.user_id)
+      .single();
+    
+    if (userSettings?.country === 'GB') {
+      throw new Error('Cannot modify this invoice - it has been included in a submitted UK VAT return (HMRC compliance)');
+    }
+  }
   // Update invoice
   const { data: invoiceData, error: invoiceError } = await supabase
     .from('invoices')
@@ -613,6 +674,8 @@ export const updateInvoice = async (id: string, updates: any, items?: any[]) => 
 
   return invoiceData;
 };
+
+
 
 export const deleteInvoice = async (id: string) => {
   const { error } = await supabase
@@ -1380,3 +1443,4 @@ export const getOrCreateCreditNotesCategory = async (userId: string): Promise<st
   
   return newCategory?.id || null;
 };
+

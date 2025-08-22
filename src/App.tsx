@@ -50,7 +50,7 @@ import { ImportHistorySettings } from './components/Settings/ImportHistorySettin
 import { CreditNoteList } from './components/CreditNote/CreditNoteList';
 import { CreditNoteForm } from './components/CreditNote/CreditNoteForm';
 import { CreditNoteView } from './components/CreditNote/CreditNoteView';
-
+import { VATReturn } from './components/Reports/VATReturn';
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -118,6 +118,7 @@ function App() {
               <Route path="/invoices/new" element={<InvoiceForm />} />
               <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
               <Route path="/invoices/:id/view" element={<InvoiceView />} />
+              <Route path="/vat-return" element={<VATReturn />} />
          
               {/* Notifications */}
               <Route path="/notifications" element={<NotificationCenter />} />

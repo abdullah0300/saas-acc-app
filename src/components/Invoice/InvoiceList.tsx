@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DeleteInvoiceWarning } from './DeleteInvoiceWarning';
 import { useData } from '../../contexts/DataContext';
 import { SkeletonTable } from '../Common/Loading';
+import { VATAuditService } from '../../services/vatAuditService';
 import { 
   Plus, 
   Search, 
@@ -439,6 +440,31 @@ const isUK = invoice.currency === 'GBP' &&
           }]);
           
         if (incomeError) throw incomeError;
+        // Log UK VAT digital link (only for UK users)
+        if (isUK && !incomeError) {
+          const { data: newIncome } = await supabase
+            .from('income')
+            .select('id')
+            .eq('reference_number', invoice.invoice_number)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (newIncome) {
+            await VATAuditService.logVATLink(
+              user.id,
+              'invoice',
+              invoice.id,
+              'income',
+              newIncome.id,
+              { 
+                invoice_number: invoice.invoice_number, 
+                amount: totalNetAmount, 
+                vat: totalTaxAmount,
+                vat_breakdown: taxBreakdown 
+              }
+            );
+          }
+        }
       }
     }
     

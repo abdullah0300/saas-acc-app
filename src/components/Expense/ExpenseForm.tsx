@@ -36,6 +36,7 @@ export const ExpenseForm: React.FC = () => {
   const {  updateExpenseInCache } = useData(); // ADD updateExpenseInCache
 const userCountry = countries.find(c => c.code === userSettings?.country);
 const taxLabel = userCountry?.taxName || 'Tax';
+const [isVatReclaimable, setIsVatReclaimable] = useState(true);
 
   const [formData, setFormData] = useState({
   amount: "",
@@ -342,6 +343,10 @@ const exchangeRate = formData.currency !== baseCurrency
   : 1;
 const baseAmount = formData.currency !== baseCurrency ? amount / exchangeRate : amount;
 
+// Calculate base tax amount for multi-currency
+const taxAmount = parseFloat(formData.tax_amount) || 0;
+const baseTaxAmount = formData.currency !== baseCurrency ? taxAmount / exchangeRate : taxAmount;
+
 const expenseData = {
   user_id: user.id,
   amount: amount,
@@ -352,10 +357,13 @@ const expenseData = {
   vendor_id: formData.vendor_id || undefined,
   receipt_url: formData.receipt_url || undefined,
   tax_rate: parseFloat(formData.tax_rate) || 0,
-  tax_amount: parseFloat(formData.tax_amount) || 0,
-  currency: formData.currency, // ADD THIS
-  exchange_rate: exchangeRate, // ADD THIS
-  base_amount: baseAmount, // ADD THIS
+  tax_amount: taxAmount,
+  currency: formData.currency,
+  exchange_rate: exchangeRate,
+  base_amount: baseAmount,
+  is_vat_reclaimable: isVatReclaimable, // ADD THIS
+  base_tax_amount: baseTaxAmount, // ADD THIS
+  tax_point_date: formData.date // ADD THIS
 };
 
       if (isEdit && id) {
@@ -636,13 +644,23 @@ const expenseData = {
                   </option>
                 ))}
               </select>
-              {parseFloat(formData.tax_rate) > 0 && (
-                <p className="text-sm text-gray-500 mt-1">
-                  {taxLabel} Amount: {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
-                </p>
+              {/* VAT Reclaimable Checkbox - Only for UK users */}
+              {userCountry?.code === 'GB' && parseFloat(formData.tax_rate) > 0 && (
+                <div className="md:col-span-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isVatReclaimable}
+                      onChange={(e) => setIsVatReclaimable(e.target.checked)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
+                    />
+                    <span className="text-sm text-gray-700">
+                      VAT is reclaimable (can be offset against VAT due)
+                    </span>
+                  </label>
+                </div>
               )}
-            </div>
-
+</div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Vendor

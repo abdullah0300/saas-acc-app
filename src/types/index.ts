@@ -185,6 +185,10 @@ export interface UserSettings {
   notification_preferences?: any;
   created_at: string;
   updated_at: string;
+   tax_id?: string;  // ADD THIS (VAT number)
+  uk_vat_scheme?: 'standard' | 'cash' | 'flat_rate'; // ADD THIS
+  uk_vat_flat_rate?: number; // ADD THIS
+  uk_vat_registration_date?: string; // ADD THIS
 }
 
 export interface InvoiceSettings {
