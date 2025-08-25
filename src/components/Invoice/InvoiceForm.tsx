@@ -13,6 +13,7 @@ import { useData } from '../../contexts/DataContext';
 import { COUNTRY_CODES } from '../../utils/phoneUtils';
 import { checkInvoiceNumberExists } from '../../services/database';
 import { countries } from '../../data/countries';
+import { calculateVATFromNet, aggregateVATByRate } from '../../utils/vatCalculations';
 import { 
   createInvoice, 
   updateInvoice, 
@@ -29,6 +30,7 @@ import { Invoice, InvoiceItem, Client } from '../../types';
 import { format, addDays, parseISO, addWeeks, addMonths } from 'date-fns';
 import { supabase } from '../../services/supabaseClient';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 
 // Create a simplified type for form items that doesn't include database-specific fields
 type FormInvoiceItem = {
@@ -140,15 +142,39 @@ useEffect(() => {
 
   const calculateTotals = () => {
   if (requiresLineItemVAT) {
-    // For UK/EU - calculate from line items
-    const netTotal = items.reduce((sum, item) => sum + (item.net_amount || 0), 0);
-    const taxTotal = items.reduce((sum, item) => sum + (item.tax_amount || 0), 0);
-    const grossTotal = items.reduce((sum, item) => sum + (item.gross_amount || 0), 0);
+    // For UK/EU - Use proper VAT calculation
+    const itemsWithVAT = items.map(item => {
+      const vatCalc = calculateVATFromNet(
+        item.quantity * item.rate, 
+        item.tax_rate || 0
+      );
+      return {
+        ...item,
+        net_amount: vatCalc.net,
+        tax_amount: vatCalc.vat,
+        gross_amount: vatCalc.gross
+      };
+    });
+    
+    // Aggregate by VAT rate for proper HMRC reporting
+    const vatBreakdown = aggregateVATByRate(itemsWithVAT);
+    
+    // Calculate totals from aggregated data
+    let netTotal = 0;
+    let taxTotal = 0;
+    let grossTotal = 0;
+    
+    Object.values(vatBreakdown).forEach(group => {
+      netTotal += group.net;
+      taxTotal += group.vat;
+      grossTotal += group.gross;
+    });
     
     return {
       subtotal: netTotal,
       taxAmount: taxTotal,
-      total: grossTotal
+      total: grossTotal,
+      vatBreakdown // Include breakdown for metadata
     };
   } else {
     // For other countries - simple calculation
@@ -159,16 +185,18 @@ useEffect(() => {
     return {
       subtotal,
       taxAmount,
-      total
+      total,
+      vatBreakdown: null
     };
   }
 };
 
   // Calculate totals
     const totals = calculateTotals();
-    const subtotal = totals.subtotal;
-    const taxAmount = totals.taxAmount;
-    const total = totals.total;
+const subtotal = totals.subtotal;
+const taxAmount = totals.taxAmount;
+const total = totals.total;
+const vatBreakdown = totals.vatBreakdown; // Add this to capture breakdown
 
   // Fetch next invoice number
   const { data: nextInvoiceNumber } = useQuery({
@@ -417,227 +445,321 @@ useEffect(() => {
 };
 
   // Create invoice mutation
-  const createInvoiceMutation = useMutation({
-    mutationFn: async ({ invoiceData, items }: { invoiceData: any, items: FormInvoiceItem[] }) => {
-      if (!user) throw new Error('User not authenticated');
+ const createInvoiceMutation = useMutation({
+  mutationFn: async ({ invoiceData, items }: { invoiceData: any, items: FormInvoiceItem[] }) => {
+    if (!user) throw new Error('User not authenticated');
+    
+    // Remove the local 'id' field before sending to database
+    const itemsForDb = items.map(({ id, ...item }) => item);
+    
+    // ALWAYS use direct insert to avoid RPC issues
+    console.log('Using direct invoice creation');
+    
+    // Direct insert to bypass the RPC function
+    const { data: newInvoice, error: insertError } = await supabase
+      .from('invoices')
+      .insert({
+        ...invoiceData,
+        user_id: user.id,
+        status: 'draft', // Let database handle the enum type
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (insertError) throw insertError;
+    
+    // Add invoice items
+    if (itemsForDb.length > 0) {
+      const invoiceItems = itemsForDb.map(item => ({
+        ...item,
+        invoice_id: newInvoice.id
+      }));
       
-      // Remove the local 'id' field before sending to database
-      const itemsForDb = items.map(({ id, ...item }) => item);
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(invoiceItems);
       
-      try {
-        return await createInvoice(user.id, invoiceData, itemsForDb);
-      } catch (error: any) {
-        // If the error is about discount fields, try a direct insert
-        if (error.message && error.message.includes('discount_type')) {
-          console.log('Falling back to direct invoice creation');
-          
-          // Direct insert to bypass the RPC function
-          const { data: newInvoice, error: insertError } = await supabase
-            .from('invoices')
-            .insert({
-              ...invoiceData,
-              user_id: user.id,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-          
-          if (insertError) throw insertError;
-          
-          // Add invoice items
-          if (itemsForDb.length > 0) {
-            const invoiceItems = itemsForDb.map(item => ({
-              ...item,
-              invoice_id: newInvoice.id
-            }));
-            
-            const { error: itemsError } = await supabase
-              .from('invoice_items')
-              .insert(invoiceItems);
-            
-            if (itemsError) throw itemsError;
-          }
-          
-          // Update invoice settings for next invoice number
-          const { data: settings } = await supabase
-            .from('invoice_settings')
-            .select('next_number')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (settings) {
-            await supabase
-              .from('invoice_settings')
-              .update({ next_number: (settings.next_number || 1) + 1 })
-              .eq('user_id', user.id);
-          }
-          
-          return newInvoice;
-        }
-        
-        throw error;
-      }
-    },
-    onSuccess: async (newInvoice) => {
-      // Handle recurring invoice if needed
-      if (formData.is_recurring) {
-         // Calculate exchange rate here
-    const exchangeRate = formData.currency === baseCurrency 
-      ? 1 
-      : (exchangeRates[formData.currency] || 1);
-        const templateInvoiceData = {
-          invoice_number: formData.invoice_number,
-          client_id: formData.client_id || null,
-          date: formData.date,
-          due_date: formData.due_date,
-          subtotal,
-          tax_rate: parseFloat(formData.tax_rate) || 0,
-          tax_amount: taxAmount,
-          total,
-          notes: formData.notes || null,
-          status: 'draft' as const,
-          currency: formData.currency,
-          exchange_rate: exchangeRate
-        };
-        
-        const recurringData = {
-          user_id: user!.id,
-          invoice_id: newInvoice.id,
-          template_data: {
-            ...templateInvoiceData,
-            items: items.map(({ id, ...item }) => item) // Remove id before storing
-          },
-          frequency: formData.frequency,
-          next_date: getNextInvoiceDate().toISOString().split('T')[0],
-          end_date: formData.recurring_end_date || null,
-          is_active: true
-        };
+      if (itemsError) throw itemsError;
+    }
+    
+    // Update invoice settings for next invoice number
+    const { data: settings } = await supabase
+      .from('invoice_settings')
+      .select('next_number')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (settings) {
+      await supabase
+        .from('invoice_settings')
+        .update({ next_number: (settings.next_number || 1) + 1 })
+        .eq('user_id', user.id);
+    } else {
+      // Create settings if they don't exist
+      await supabase
+        .from('invoice_settings')
+        .insert({
+          user_id: user.id,
+          next_number: 2,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+    }
+    
+    return newInvoice;
+  },
+  onSuccess: async (newInvoice) => {
+  // Handle recurring invoice if needed
+  if (formData.is_recurring) {
+    // Build complete template data
+    const templateInvoiceData = {
+      // Client info - IMPORTANT for edge function
+      client_id: formData.client_id || null,
+      
+      // Financial data
+      subtotal: Number(subtotal.toFixed(2)),
+      tax_rate: Number(parseFloat(formData.tax_rate) || 0),
+      tax_amount: Number(taxAmount.toFixed(2)),
+      total: Number(total.toFixed(2)),
+      
+      // Currency - DON'T store exchange_rate, get fresh when generating
+      currency: formData.currency || baseCurrency,
+      // NO exchange_rate here - edge function will get current rate
+      
+      // Items with proper structure
+      items: items.map(item => ({
+        description: item.description,
+        quantity: Number(item.quantity),
+        rate: Number(item.rate),
+        amount: Number(item.amount),
+        // Include VAT fields
+        tax_rate: item.tax_rate || 0,
+        tax_amount: item.tax_amount || 0,
+        net_amount: item.net_amount || item.amount,
+        gross_amount: item.gross_amount || item.amount
+      })),
+      
+      // Settings
+      notes: formData.notes || null,
+      payment_terms: formData.payment_terms || 30,
+      income_category_id: formData.income_category_id || null,
+      
+      // VAT metadata for UK users
+      tax_metadata: userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? {
+        tax_scheme: userSettings?.uk_vat_scheme || 'standard',
+        vat_breakdown: totals.vatBreakdown,
+        has_line_item_vat: requiresLineItemVAT,
+      } : null
+    };
+    
+    const recurringData = {
+      user_id: user!.id,
+      invoice_id: newInvoice.id,
+      client_id: formData.client_id || null, // Store at top level for edge function
+      template_data: templateInvoiceData,
+      frequency: formData.frequency,
+      next_date: getNextInvoiceDate().toISOString().split('T')[0],
+      end_date: formData.recurring_end_date || null,
+      is_active: true
+    };
 
-        await supabase
-          .from('recurring_invoices')
-          .insert([recurringData]);
-      }
+    console.log('Creating recurring invoice:', recurringData);
 
-       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    const { error: recurringError } = await supabase
+      .from('recurring_invoices')
+      .insert([recurringData]);
+      
+    if (recurringError) {
+      console.error('Error creating recurring invoice:', recurringError);
+      // Don't fail the whole invoice, just notify about recurring setup failure
+      alert('Invoice created successfully, but recurring setup failed. Please try setting up recurring manually.');
+    } else {
+      console.log('Recurring invoice created successfully');
+    }
+  }
+
+  queryClient.invalidateQueries({ queryKey: ['invoices'] });
   queryClient.invalidateQueries({ queryKey: ['recurring-invoices'] });
   queryClient.invalidateQueries({ queryKey: ['nextInvoiceNumber'] });
-  addInvoiceToCache(newInvoice); // ✅ Add to DataContext cache
-
-      
-      navigate('/invoices');
-    },
-    onError: (error: any) => {
-      alert('Error creating invoice: ' + error.message);
-    }
-  });
+  addInvoiceToCache(newInvoice);
+  
+  navigate('/invoices');
+},
+  onError: (error: any) => {
+    alert('Error creating invoice: ' + error.message);
+  }
+});
 
   const [showSettings, setShowSettings] = useState(false);
 
   // Update invoice mutation
-  const updateInvoiceMutation = useMutation({
-    mutationFn: async ({ id, invoiceData, items }: { id: string, invoiceData: any, items: FormInvoiceItem[] }) => {
-      // Remove the local 'id' field before sending to database
-      const itemsForDb = items.map(({ id, ...item }) => item);
-      return await updateInvoice(id, invoiceData, itemsForDb);
-    },
-    onSuccess: async () => {
-      // Handle recurring invoice update
-      if (formData.is_recurring) {
-        // Calculate exchange rate here
-    const exchangeRate = formData.currency === baseCurrency 
-      ? 1 
-      : (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1));
+const updateInvoiceMutation = useMutation({
+  mutationFn: async ({ id, invoiceData, items }: { id: string, invoiceData: any, items: FormInvoiceItem[] }) => {
+    // Remove the local 'id' field before sending to database
+    const itemsForDb = items.map(({ id, ...item }) => item);
+    return await updateInvoice(id, invoiceData, itemsForDb);
+  },
+  onSuccess: async () => {
+    // Handle recurring invoice update
+    if (formData.is_recurring) {
+      // First check if a recurring invoice already exists
+      const { data: existingRecurring } = await supabase
+        .from('recurring_invoices')
+        .select('*')
+        .eq('invoice_id', id)
+        .single();
       
-        const templateInvoiceData = {
-          invoice_number: formData.invoice_number,
-          client_id: formData.client_id || null,
-          date: formData.date,
-          due_date: formData.due_date,
-          subtotal,
-          tax_rate: parseFloat(formData.tax_rate) || 0,
-          tax_amount: taxAmount,
-          total,
-          notes: formData.notes || null,
-          status: 'draft' as const,
-          currency: formData.currency, // Use actual currency
-          exchange_rate: exchangeRate 
-        };
+      const templateInvoiceData = {
+        // Client info
+        client_id: formData.client_id || null,
         
-        const recurringData = {
-          template_data: {
-            ...templateInvoiceData,
-            items: items.map(({ id, ...item }) => item) // Remove id before storing
-          },
-          frequency: formData.frequency,
-          next_date: getNextInvoiceDate().toISOString().split('T')[0],
-          end_date: formData.recurring_end_date || null,
-          is_active: true
-        };
+        // Financial data
+        subtotal: Number(subtotal.toFixed(2)),
+        tax_rate: Number(parseFloat(formData.tax_rate) || 0),
+        tax_amount: Number(taxAmount.toFixed(2)),
+        total: Number(total.toFixed(2)),
+        
+        // Currency only - NO exchange_rate
+        currency: formData.currency || baseCurrency,
+        
+        // Items with proper structure
+        items: items.map(item => ({
+          description: item.description,
+          quantity: Number(item.quantity),
+          rate: Number(item.rate),
+          amount: Number(item.amount),
+          tax_rate: item.tax_rate || 0,
+          tax_amount: item.tax_amount || 0,
+          net_amount: item.net_amount || item.amount,
+          gross_amount: item.gross_amount || item.amount
+        })),
+        
+        // Settings
+        notes: formData.notes || null,
+        payment_terms: formData.payment_terms || 30,
+        income_category_id: formData.income_category_id || null,
+        
+        // VAT metadata
+        tax_metadata: userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? {
+          tax_scheme: userSettings?.uk_vat_scheme || 'standard',
+          vat_breakdown: totals.vatBreakdown,
+          has_line_item_vat: requiresLineItemVAT,
+        } : null
+      };
+      
+      const recurringData = {
+        template_data: templateInvoiceData,
+        frequency: formData.frequency,
+        next_date: getNextInvoiceDate().toISOString().split('T')[0],
+        end_date: formData.recurring_end_date || null,
+        is_active: true,
+        client_id: formData.client_id || null
+      };
 
-        await supabase
+      if (existingRecurring) {
+        // Update existing recurring invoice
+        const { error } = await supabase
           .from('recurring_invoices')
           .update(recurringData)
           .eq('invoice_id', id);
-      } else if (isEdit) {
-        // Remove recurring if it was previously set
-        await supabase
+        
+        if (error) {
+          console.error('Error updating recurring invoice:', error);
+          alert('Failed to update recurring settings');
+        }
+      } else {
+        // Create new recurring invoice
+        const { error } = await supabase
           .from('recurring_invoices')
-          .delete()
-          .eq('invoice_id', id);
+          .insert({
+            user_id: user!.id,
+            invoice_id: id,
+            ...recurringData
+          });
+        
+        if (error) {
+          console.error('Error creating recurring invoice:', error);
+          alert('Failed to create recurring settings');
+        }
       }
-
-      // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['recurring-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['invoice', id] });
-      
-      navigate('/invoices');
-    },
-    onError: (error: any) => {
-      alert('Error updating invoice: ' + error.message);
+    } else if (isEdit) {
+      // Remove recurring if it was previously set
+      await supabase
+        .from('recurring_invoices')
+        .delete()
+        .eq('invoice_id', id);
     }
-  });
 
-  // Load invoice data into form when editing
-  useEffect(() => {
-    if (invoiceData?.invoice) {
-      const { invoice, recurringData } = invoiceData;
-      // ADD THIS CHECK:
+    // Invalidate queries
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    queryClient.invalidateQueries({ queryKey: ['recurring-invoices'] });
+    queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+    
+    navigate('/invoices');
+  },
+  onError: (error: any) => {
+    alert('Error updating invoice: ' + error.message);
+  }
+});
+
+ // Load invoice data into form when editing
+useEffect(() => {
+  if (invoiceData?.invoice) {
+    const { invoice, recurringData } = invoiceData;
+    
     if (invoice.status === 'paid' || invoice.status === 'canceled') {
       alert('This invoice is locked for compliance and cannot be edited.');
       navigate('/invoices');
       return;
     }
-         setFormData({
-          invoice_number: invoice.invoice_number,
-          client_id: invoice.client_id || '',
-          date: invoice.date,
-          due_date: invoice.due_date,
-          tax_rate: invoice.tax_rate.toString(),
-          notes: invoice.notes || '',
-          currency: invoice.currency || baseCurrency,  // ADD THIS LINE
-          is_recurring: !!recurringData,
-          frequency: recurringData?.frequency || 'monthly',
-          recurring_end_date: recurringData?.end_date || '',
-          payment_terms: 30,
-          income_category_id: invoice.income_category_id || ''
-        });
-        // Store original exchange rate
-if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
-  setOriginalRate(invoice.exchange_rate);
-}
+    
+    setFormData({
+      invoice_number: invoice.invoice_number,
+      client_id: invoice.client_id || '',
+      date: invoice.date,
+      due_date: invoice.due_date,
+      tax_rate: invoice.tax_rate.toString(),
+      notes: invoice.notes || '',
+      currency: invoice.currency || baseCurrency,
+      is_recurring: !!recurringData,
+      frequency: recurringData?.frequency || 'monthly',
+      recurring_end_date: recurringData?.end_date || '',
+      payment_terms: 30,
+      income_category_id: invoice.income_category_id || ''
+    });
+    
+    // Store original exchange rate
+    if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
+      setOriginalRate(invoice.exchange_rate);
+    }
+    
+    // FIX: Properly convert InvoiceItem[] to FormInvoiceItem[] with all required fields
+    setItems(invoice.items?.map((item: InvoiceItem) => {
+      const quantity = item.quantity || 1;
+      const rate = item.rate || 0;
+      const taxRate = item.tax_rate || 0;
       
-      // Convert InvoiceItem[] to FormInvoiceItem[]
-      setItems(invoice.items?.map((item: InvoiceItem) => ({
+      // Calculate values based on what we have
+      const netAmount = item.net_amount || (quantity * rate);
+      const taxAmount = item.tax_amount || ((netAmount * taxRate) / 100);
+      const grossAmount = item.gross_amount || (netAmount + taxAmount);
+      
+      return {
         id: item.id,
         description: item.description,
-        quantity: item.quantity,
-        rate: item.rate,
-        amount: item.amount
-      })) || []);
-    }
-  }, [invoiceData]);
+        quantity: quantity,
+        rate: rate,
+        amount: item.amount || netAmount,
+        tax_rate: taxRate,
+        tax_amount: taxAmount,
+        net_amount: netAmount,
+        gross_amount: grossAmount
+      };
+    }) || []);
+  }
+}, [invoiceData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -695,8 +817,10 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
       ? 1 
       : (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1));
     
-  // Calculate base amount (amount in base currency)
-  const baseAmount = total / exchangeRate;
+  // Calculate base amount (NET amount in base currency, excluding VAT)
+// CRITICAL: Use subtotal not total to avoid VAT being included in base currency calculations
+const baseAmount = subtotal / exchangeRate;
+const baseTaxAmount = taxAmount / exchangeRate;
     
     if (!user) return;
     
@@ -711,17 +835,20 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
       tax_amount: Number(taxAmount.toFixed(2)),
       total: Number(total.toFixed(2)),
       notes: formData.notes || null,
-      status: 'draft' as const,
+      // status: 'draft' ,
+      exchange_rate: exchangeRate,
       currency: formData.currency,
-    exchange_rate: exchangeRate,
     base_amount: baseAmount,
+    base_tax_amount: baseTaxAmount,
       income_category_id: formData.income_category_id || null,
-      // Add VAT metadata for UK users
-      tax_metadata: userCountry?.code === 'GB' ? {
-       tax_scheme: 'standard', // Default to standard, will be pulled from user settings
-        is_reverse_charge: false, // TODO: Add UI for this
-        intra_eu_supply: false, // TODO: Add UI for this
-      } : null,
+      // Add VAT metadata with breakdown for UK users
+tax_metadata: userCountry?.code === 'GB' ? {
+  tax_scheme: userSettings?.uk_vat_scheme || 'standard',
+  is_reverse_charge: false, // TODO: Add UI for this
+  intra_eu_supply: false, // TODO: Add UI for this
+  vat_breakdown: totals.vatBreakdown, // Include the VAT breakdown
+  has_line_item_vat: requiresLineItemVAT,
+} : null,
     };
     
     if (isEdit && id) {
@@ -733,19 +860,23 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
   
 
   const addItem = () => {
+  const defaultTaxRate = requiresLineItemVAT 
+    ? 20 // Default to standard VAT rate for UK
+    : parseFloat(formData.tax_rate) || 0;
+    
   const newItem: FormInvoiceItem = {
     id: Date.now().toString(),
     description: '',
     quantity: 1,
     rate: 0,
     amount: 0,
-    tax_rate: parseFloat(formData.tax_rate) || 0, // Use invoice default tax rate
+    tax_rate: defaultTaxRate,
     tax_amount: 0,
     net_amount: 0,
     gross_amount: 0
   };
-    setItems([...items, newItem]);
-  };
+  setItems([...items, newItem]);
+};
 
   const removeItem = (id: string) => {
     setItems(items.filter(item => item.id !== id));
@@ -762,21 +893,31 @@ if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
         const rate = field === 'rate' ? Number(value) : item.rate;
         const taxRate = field === 'tax_rate' ? Number(value) : (item.tax_rate || 0);
         
-        const netAmount = quantity * rate;
-        const taxAmount = (netAmount * taxRate) / 100;
-        const grossAmount = netAmount + taxAmount;
-        
-        updatedItem.net_amount = netAmount;
-        updatedItem.tax_amount = taxAmount;
-        updatedItem.gross_amount = grossAmount;
-        updatedItem.amount = requiresLineItemVAT ? grossAmount : netAmount;
+        if (requiresLineItemVAT) {
+          // Use proper VAT calculation for UK/EU
+          const vatCalc = calculateVATFromNet(quantity * rate, taxRate);
+          updatedItem.net_amount = vatCalc.net;
+          updatedItem.tax_amount = vatCalc.vat;
+          updatedItem.gross_amount = vatCalc.gross;
+          updatedItem.amount = vatCalc.gross;
+        } else {
+          // Simple calculation for other countries
+          const netAmount = quantity * rate;
+          const taxAmount = (netAmount * taxRate) / 100;
+          const grossAmount = netAmount + taxAmount;
+          
+          updatedItem.net_amount = netAmount;
+          updatedItem.tax_amount = taxAmount;
+          updatedItem.gross_amount = grossAmount;
+          updatedItem.amount = netAmount;
+        }
       }
       
       return updatedItem;
     }
     return item;
-    }));
-  };
+  }));
+};
   
 
   const getNextInvoiceDate = () => {

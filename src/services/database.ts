@@ -490,7 +490,7 @@ export const createInvoice = async (
 ): Promise<Invoice> => {
   const effectiveUserId = await getEffectiveUserId(userId);
   
-  // First check if user can create invoice
+  // Check limits first (keep existing code)
   const { data: limitCheck, error: limitError } = await supabase
     .rpc('check_invoice_limit', { p_user_id: effectiveUserId });
   
@@ -504,118 +504,73 @@ export const createInvoice = async (
     );
   }
   
-  // Use the new RPC function for plans with limits
-  if (limitCheck.limit > 0) {
-    const invoiceData: any = {
-      p_user_id: effectiveUserId,
-      p_invoice_data: {
-        invoice_number: invoice.invoice_number,
-        client_id: invoice.client_id,
-        date: invoice.date,
-        due_date: invoice.due_date,
-        status: invoice.status || 'draft',
-        subtotal: invoice.subtotal,
-        tax_rate: invoice.tax_rate,
-        tax_amount: invoice.tax_amount,
-        total: invoice.total,
-        notes: invoice.notes,
-        currency: invoice.currency || 'USD'
-      }
-    };
-
-    // Only include optional fields if they exist
-    if ('discount_type' in invoice) invoiceData.p_invoice_data.discount_type = invoice.discount_type;
-    if ('discount_value' in invoice) invoiceData.p_invoice_data.discount_value = invoice.discount_value;
-    if ('exchange_rate' in invoice) invoiceData.p_invoice_data.exchange_rate = invoice.exchange_rate || 1;
-
-    const { data: result, error: createError } = await supabase
-      .rpc('create_invoice_with_limit', invoiceData);
-    
-    if (createError) throw createError;
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create invoice');
-    }
-    
-    // Now add invoice items
-    if (items.length > 0) {
-      const invoiceItems = items.map(item => ({
-        ...item,
-        invoice_id: result.invoice_id
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('invoice_items')
-        .insert(invoiceItems);
-      
-      if (itemsError) throw itemsError;
-    }
-    
-    // Fetch and return the complete invoice
-    const { data: newInvoice, error: fetchError } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('id', result.invoice_id)
-      .single();
-    
-    if (fetchError) throw fetchError;
-    // ADD THESE LINES:
-// Check if we should show anticipation modal after successful creation
-const currentUsage = limitCheck.usage + 1; // We just created one
-const usagePercentage = (currentUsage / limitCheck.limit) * 100;
-if (usagePercentage >= 80 && usagePercentage < 100) {
-  // Dispatch custom event that SubscriptionContext will listen for
-  window.dispatchEvent(new CustomEvent('invoiceCreated', { 
-    detail: { 
-      usage: currentUsage, 
-      limit: limitCheck.limit 
-    } 
-  }));
-}
-
-return newInvoice;
-    return newInvoice;
-  } else {
-    // For unlimited plans, use regular insert
-    const { data, error } = await supabase
-      .from('invoices')
-      .insert({ ...invoice, user_id: effectiveUserId })
-      .select()
-      .single();
-    
-    if (error) throw error;
-    
-    // Add invoice items
-    if (items.length > 0) {
-      const invoiceItems = items.map(item => ({
-        ...item,
-        invoice_id: data.id
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('invoice_items')
-        .insert(invoiceItems);
-      
-      if (itemsError) throw itemsError;
-    }
-    
-    return data;
+  // Use atomic creation - DON'T pass invoice_number, it will be generated
+  const invoiceData = { ...invoice };
+  delete invoiceData.invoice_number; // Remove if exists
+  
+  const { data, error } = await supabase
+    .rpc('create_invoice_atomic', {
+      p_invoice: {
+        ...invoiceData,
+        user_id: effectiveUserId
+      },
+      p_items: items.map(item => ({
+        description: item.description,
+        quantity: item.quantity || 1,
+        rate: item.rate || 0,
+        amount: item.amount || 0,
+        tax_rate: item.tax_rate || 0,
+        tax_amount: item.tax_amount || 0,
+        net_amount: item.net_amount || item.amount || 0,
+        gross_amount: item.gross_amount || ((item.amount || 0) + (item.tax_amount || 0))
+      }))
+    });
+  
+  if (error) {
+    console.error('Invoice creation error:', error);
+    throw error;
   }
+  
+  // Check usage warning (keep existing code)
+  const currentUsage = limitCheck.usage + 1;
+  const usagePercentage = (currentUsage / limitCheck.limit) * 100;
+  if (usagePercentage >= 80 && usagePercentage < 100) {
+    window.dispatchEvent(new CustomEvent('invoiceCreated', { 
+      detail: { 
+        usage: currentUsage, 
+        limit: limitCheck.limit 
+      } 
+    }));
+  }
+  
+  return data as Invoice;
 };
 
 export const updateInvoice = async (id: string, updates: any, items?: any[]) => {
-   // Check current invoice status
-  const { data: currentInvoice, error: checkError } = await supabase
-    .from('invoices')
-    .select('status')
-    .eq('id', id)
-    .single();
+  // Check if this is ONLY updating credit metadata
+  const isCreditUpdate = Object.keys(updates).every(key => 
+    ['has_credit_notes', 'total_credited'].includes(key)
+  );
   
-  if (checkError) throw checkError;
-  
-  // Prevent updates to paid/canceled invoices
-  if (currentInvoice.status === 'paid' || currentInvoice.status === 'canceled') {
-    throw new Error('Cannot modify paid or canceled invoices for legal compliance');
+  if (!isCreditUpdate) {
+    // Only check status for non-credit updates
+    const { data: currentInvoice, error: checkError } = await supabase
+      .from('invoices')
+      .select('status')
+      .eq('id', id)
+      .single();
+    
+    if (checkError) throw checkError;
+    
+    // Block modifications to canceled invoices
+    if (currentInvoice.status === 'canceled') {
+      throw new Error('Cannot modify canceled invoices');
+    }
+    
+    // Block non-credit modifications to paid invoices
+    if (currentInvoice.status === 'paid') {
+      throw new Error('Cannot modify paid invoices except for credit notes');
+    }
   }
 
   // UK VAT lock check - only for UK users
@@ -637,6 +592,7 @@ export const updateInvoice = async (id: string, updates: any, items?: any[]) => 
       throw new Error('Cannot modify this invoice - it has been included in a submitted UK VAT return (HMRC compliance)');
     }
   }
+
   // Update invoice
   const { data: invoiceData, error: invoiceError } = await supabase
     .from('invoices')
@@ -702,17 +658,19 @@ export const getInvoiceByNumber = async (invoiceNumber: string) => {
 };
 
 export const getNextInvoiceNumber = async (userId: string): Promise<string> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
   try {
-    const { data, error } = await supabase.functions.invoke('get-next-invoice-number', {
-      body: { userId }
-    });
-
-    if (error) throw error;
+    // Call the SQL function directly (no edge function needed)
+    const { data, error } = await supabase
+      .rpc('get_next_invoice_number', { p_user_id: effectiveUserId });
     
-    return data.invoiceNumber;
+    if (error) throw error;
+    return data;
+    
   } catch (error) {
     console.error('Error getting next invoice number:', error);
-    // Fallback to a timestamp-based number if edge function fails
+    // Fallback to timestamp-based number
     const now = new Date();
     const timestamp = now.getTime();
     return `INV-${timestamp}`;
@@ -1084,117 +1042,35 @@ export const createCreditNote = async (
   creditNote: Partial<CreditNote>,
   items: Partial<CreditNoteItem>[]
 ): Promise<CreditNote> => {
-  // Start a transaction
-  // Get the invoice to inherit currency if not provided
-let invoice = null;
-if (creditNote.invoice_id) {
-  const { data } = await supabase
-    .from('invoices')
-    .select('currency, exchange_rate')
-    .eq('id', creditNote.invoice_id)
-    .single();
-  invoice = data;
-}
+  
+  const cleanItems = items.map(item => ({
+    invoice_item_id: item.invoice_item_id || null,
+    description: item.description || '',
+    quantity: item.quantity || 1,
+    rate: item.rate || 0,
+    amount: item.amount || 0,
+    tax_rate: item.tax_rate || 0,
+    tax_amount: item.tax_amount || 0,
+    net_amount: item.net_amount || item.amount || 0,
+    gross_amount: item.gross_amount || ((item.amount || 0) + (item.tax_amount || 0))
+  }));
 
-// Get user's base currency
-const { data: userSettings } = await supabase
-  .from('user_settings')
-  .select('base_currency')
-  .eq('user_id', userId)
-  .single();
+  const { data, error } = await supabase
+    .rpc('create_credit_note_with_items', {
+      p_credit_note: {
+        ...creditNote,
+        user_id: userId
+      },
+      p_items: cleanItems
+    });
 
-const baseCurrency = userSettings?.base_currency || 'USD';
-
-// Calculate totals
-const subtotal = creditNote.subtotal || 0;
-const tax_amount = creditNote.tax_amount || 0;
-const total = creditNote.total || (subtotal + tax_amount);
-
-const { data: creditNoteData, error: creditNoteError } = await supabase
-  .from('credit_notes')
-  .insert([{
-    ...creditNote,
-    user_id: userId,
-    credit_note_number: creditNote.credit_note_number || await getNextCreditNoteNumber(userId),
-    // Add currency fields
-    currency: creditNote.currency || invoice?.currency || baseCurrency,
-    exchange_rate: creditNote.exchange_rate || invoice?.exchange_rate || 1,
-    base_amount: creditNote.base_amount || (total / (creditNote.exchange_rate || invoice?.exchange_rate || 1)),
-    subtotal,
-    tax_amount,
-    total
-  }])
-    .select()
-    .single();
-
-  if (creditNoteError) throw creditNoteError;
-
-  // Insert credit note items
-  if (items && items.length > 0) {
-    const creditNoteItems = items.map(item => ({
-      ...item,
-      credit_note_id: creditNoteData.id
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('credit_note_items')
-      .insert(creditNoteItems);
-
-    if (itemsError) throw itemsError;
+  if (error) {
+    console.error('Credit note creation failed:', error);
+    throw error;
   }
 
-  // Update invoice to mark it has credit notes
-if (creditNote.invoice_id) {
-  // Get current credit info
-  const { data: currentInvoice } = await supabase
-    .from('invoices')
-    .select('total_credited, has_credit_notes')
-    .eq('id', creditNote.invoice_id)
-    .single();
-  
-  const currentCredited = currentInvoice?.total_credited || 0;
-  const newTotalCredited = currentCredited + (total || 0);
-  
-  // Update both invoice and tracking table
-  const { error: updateError } = await supabase.rpc('update_invoice_credit_metadata', {
-    p_invoice_id: creditNote.invoice_id,
-    p_has_credit_notes: true,
-    p_total_credited: newTotalCredited
-  });
-  
-  if (updateError) {
-    console.error('Failed to update invoice credit metadata:', updateError);
-    // Don't throw - try direct update as fallback
-    
-    // Try direct update on invoice table
-    await supabase
-      .from('invoices')
-      .update({
-        has_credit_notes: true,
-        total_credited: newTotalCredited
-      })
-      .eq('id', creditNote.invoice_id);
-    
-    // Also update tracking table
-    await supabase
-      .from('invoice_credit_tracking')
-      .upsert({
-        invoice_id: creditNote.invoice_id,
-        total_credited: newTotalCredited,
-        credit_note_count: 1,
-        last_credit_date: new Date().toISOString()
-      }, { onConflict: 'invoice_id' });
-  }
-}
-
-  // If status is 'issued', create negative income entry
-  if (creditNote.status === 'issued' && !creditNoteData.applied_to_income) {
-  await applyCreditNote(creditNoteData.id, userId, 'refund');
-}
-
-  return creditNoteData;
+  return data as CreditNote;
 };
-
 export const updateCreditNote = async (
   id: string,
   updates: Partial<CreditNote>,
@@ -1334,7 +1210,7 @@ export const applyCreditNote = async (
           // IMPORTANT: Add currency fields
           currency: creditNote.currency || baseCurrency,
           exchange_rate: creditNote.exchange_rate || 1,
-          base_amount: -Math.abs(creditNote.base_amount || (creditNote.total / (creditNote.exchange_rate || 1))),
+          base_amount: -Math.abs(creditNote.base_amount || (creditNote.subtotal / (creditNote.exchange_rate || 1))),
           tax_rate: creditNote.tax_rate || 0,
           tax_amount: creditNote.tax_amount ? -Math.abs(creditNote.tax_amount) : 0
         }]);
@@ -1408,7 +1284,6 @@ export const getCreditNotesByInvoice = async (invoiceId: string): Promise<Credit
 };
 
 
-// Helper function to get or create credit notes category
 export const getOrCreateCreditNotesCategory = async (userId: string): Promise<string | null> => {
   const effectiveUserId = await getEffectiveUserId(userId);
   
@@ -1423,7 +1298,7 @@ export const getOrCreateCreditNotesCategory = async (userId: string): Promise<st
   
   if (existing) return existing.id;
   
-  // Create it if it doesn't exist
+  // Create it if it doesn't exist - WITH description now that column exists
   const { data: newCategory, error } = await supabase
     .from('categories')
     .insert({
@@ -1431,7 +1306,7 @@ export const getOrCreateCreditNotesCategory = async (userId: string): Promise<st
       name: 'Credit Notes & Refunds',
       type: 'income',
       color: '#EF4444',
-      description: 'Refunds and credit note adjustments'
+      description: 'Refunds and credit note adjustments' // Can include now!
     })
     .select()
     .single();

@@ -578,7 +578,7 @@ const getDateRangeForPeriod = () => {
       <span className="text-sm text-gray-500">Tax Report</span>
     </div>
     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-      {userSettings?.country === 'GB' ? 'VAT Return' : 'Tax Report'}
+      {userSettings?.country === 'GB' ? 'VAT Analysis Report' : 'Tax Report'}
     </h3>
     <p className="text-sm text-gray-600">
       View your tax summary, input/output breakdown, and prepare returns

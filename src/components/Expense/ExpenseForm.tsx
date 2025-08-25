@@ -412,16 +412,27 @@ const expenseData = {
                 Amount *
               </label>
               <input
-                type="number"
-                step="0.01"
-                required
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData({ ...formData, amount: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
+  type="number"
+  step="0.01"
+  required
+  value={formData.amount}
+  onChange={(e) => {
+    const newAmount = e.target.value;
+    const rate = parseFloat(formData.tax_rate) || 0;
+    const netAmount = parseFloat(newAmount) || 0;
+    
+    // Recalculate tax when amount changes
+    const taxAmount = ((netAmount * rate) / 100).toFixed(2);
+    
+    setFormData({ 
+      ...formData, 
+      amount: newAmount,
+      tax_amount: taxAmount
+    });
+  }}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+  placeholder="0.00"
+/>
             </div>
 
             <div>
@@ -504,6 +515,12 @@ const expenseData = {
                 value={formData.category_id}
                onChange={(e) => {
     const newCategoryId = e.target.value;
+
+    // Handle "Add category" option
+  if (newCategoryId === "new") {
+    setShowAddCategory(true);
+    return;
+  }
     
     // ✅ CORRECT: Update category_id field
     setFormData({ ...formData, category_id: newCategoryId });
@@ -729,23 +746,50 @@ const expenseData = {
             </div>
           </div>
           {/* Total Summary */}
-{formData.amount && (
-  <div className="bg-gray-50 rounded-lg p-4">
-    <div className="flex justify-between items-center">
-      <span className="text-sm font-medium text-gray-700">Total Amount:</span>
-      <div className="text-right">
-        <div className="text-lg font-semibold text-gray-900">
-          {formatCurrency(parseFloat(formData.amount) || 0, formData.currency)}
-        </div>
-        {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
-          <div className="text-sm text-gray-500">
-            ≈ {formatCurrency((parseFloat(formData.amount) || 0) / exchangeRates[formData.currency], baseCurrency)}
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+            {formData.amount && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Net Amount:</span>
+                    <span className="text-sm font-medium">
+                      {formatCurrency(parseFloat(formData.amount) || 0, formData.currency)}
+                    </span>
+                  </div>
+                  
+                  {parseFloat(formData.tax_rate) > 0 && (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">{taxLabel} ({formData.tax_rate}%):</span>
+                        <span className="text-sm font-medium">
+                          {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
+                        </span>
+                      </div>
+                      <div className="border-t pt-2" />
+                    </>
+                  )}
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold text-gray-900">
+                        {formatCurrency(
+                          (parseFloat(formData.amount) || 0) + (parseFloat(formData.tax_amount) || 0), 
+                          formData.currency
+                        )}
+                      </div>
+                      {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+                        <div className="text-sm text-gray-500">
+                          ≈ {formatCurrency(
+                            (parseFloat(formData.amount) || 0) / exchangeRates[formData.currency], 
+                            baseCurrency
+                          )} (net)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
           <div className="flex justify-end space-x-4">
             <button

@@ -164,143 +164,127 @@ export const CreditNoteForm: React.FC = () => {
  };
 
  const loadInvoiceForCredit = async () => {
-   if (!invoiceId || !user) return;
-   
-   // Get fresh invoice data with credit tracking
-const { data: invoiceData } = await supabase
-  .from('invoices')
-  .select(`
-    *,
-    client:clients(*),
-    items:invoice_items(*)
-  `)
-  .eq('id', invoiceId)
-  .single();
+  if (!invoiceId || !user) return;
+  
+  // Get fresh invoice data with credit tracking
+  const { data: invoiceData } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      client:clients(*),
+      items:invoice_items(*)
+    `)
+    .eq('id', invoiceId)
+    .single();
 
-// Get credit tracking separately
-const { data: creditTracking } = await supabase
-  .from('invoice_credit_tracking')
-  .select('total_credited')
-  .eq('invoice_id', invoiceId)
-  .single();
+  // ✅ UPDATED: Safe credit tracking check
+  // Get credit tracking - handle if it doesn't exist
+  let alreadyCredited = 0;
+  if (invoiceData) {
+    // First try the invoice field
+    alreadyCredited = invoiceData.total_credited || 0;
+    
+    // Then try the tracking table if needed
+    if (alreadyCredited === 0) {
+      try {
+        const { data: tracking } = await supabase
+          .from('invoice_credit_tracking')
+          .select('total_credited')
+          .eq('invoice_id', invoiceId)
+          .maybeSingle();
+        
+        if (tracking) {
+          alreadyCredited = tracking.total_credited;
+        }
+      } catch (error) {
+        console.log('Credit tracking not found, using default');
+      }
+    }
+  }
 
-// Use the most accurate credited amount
-const alreadyCredited = creditTracking?.total_credited || invoiceData?.total_credited || 0;
+  if (!invoiceData) throw new Error('Invoice not found');
+  setInvoice({ ...invoiceData, total_credited: alreadyCredited });
+  
+  if (alreadyCredited >= invoiceData.total) {
+    throw new Error('This invoice has been fully credited');
+  }
+  
+  // Set form data from invoice
+  setFormData(prev => ({
+    ...prev,
+    invoice_id: invoiceId,
+    client_id: invoiceData.client_id || '',
+    currency: invoiceData.currency || baseCurrency,
+    exchange_rate: invoiceData.exchange_rate || 1,
+    tax_rate: invoiceData.tax_rate || 0,
+  }));
 
-if (!invoiceData) throw new Error('Invoice not found');
-setInvoice({ ...invoiceData, total_credited: alreadyCredited });
-   if (alreadyCredited >= invoiceData.total) {
-     throw new Error('This invoice has been fully credited');
-   }
-   
-   // Set form data from invoice
-   setFormData(prev => ({
-     ...prev,
-     invoice_id: invoiceId,
-     client_id: invoiceData.client_id || '',
-     currency: invoiceData.currency || baseCurrency,
-     exchange_rate: invoiceData.exchange_rate || 1,
-     tax_rate: invoiceData.tax_rate || 0,
-   }));
+  // Get the credit notes category that will be used
+  if (user) {
+    const categoryId = await getOrCreateCreditNotesCategory(user.id);
+    if (categoryId) {
+      setInheritedCategory({ 
+        id: categoryId, 
+        name: 'Credit Notes & Refunds'
+      });
+    }
+  }
 
-   // Get the credit notes category that will be used
-   if (user) {
-     const categoryId = await getOrCreateCreditNotesCategory(user.id);
-     if (categoryId) {
-       setInheritedCategory({ 
-         id: categoryId, 
-         name: 'Credit Notes & Refunds'
-       });
-     }
-   }
+  // ✅ SIMPLIFIED: Removed category logic for invoice items (they don't have categories)
+  // Invoice items don't have category_id, so we just use the Credit Notes category
 
-   // Get the category that will be inherited
-   if (invoiceData.items && invoiceData.items.length > 0) {
-     // First, we need to fetch the categories for the items
-     const { data: itemsWithCategories } = await supabase
-       .from('invoice_items')
-       .select('*, category:categories(*)')
-       .in('id', invoiceData.items.map((item: any) => item.id));
-     
-     if (itemsWithCategories) {
-       // Count category occurrences
-       const categoryCount: Record<string, { id: string; name: string; count: number }> = {};
-       
-       itemsWithCategories.forEach((item: any) => {
-         if (item.category_id && item.category) {
-           if (!categoryCount[item.category_id]) {
-             categoryCount[item.category_id] = {
-               id: item.category_id,
-               name: item.category.name,
-               count: 0
-             };
-           }
-           categoryCount[item.category_id].count++;
-         }
-       });
-       
-       // Get most common category
-       const mostCommon = Object.values(categoryCount)
-         .sort((a, b) => b.count - a.count)[0];
-       
-       if (mostCommon) {
-         setInheritedCategory({ id: mostCommon.id, name: mostCommon.name });
-       }
-     }
-   }
+  // Set email if client has one
+  if (invoiceData.client?.email) {
+    setEmailData(prev => ({ ...prev, to: invoiceData.client?.email || '' }));
+  }
 
-   // Set email if client has one
-   if (invoiceData.client?.email) {
-     setEmailData(prev => ({ ...prev, to: invoiceData.client?.email || '' }));
-   }
+  // Load items - handle both line items and simple invoices
+  if (invoiceData.items && invoiceData.items.length > 0) {
+    // Invoice has line items
+    const creditItems: FormCreditNoteItem[] = invoiceData.items.map((item: any, index: number) => ({
+      tempId: `item-${Date.now()}-${index}`,  // For UI tracking only
+      invoice_item_id: item.id,
+      description: item.description,
+      quantity: item.quantity,
+      rate: item.rate,
+      amount: item.amount,
+      tax_rate: item.tax_rate || invoiceData.tax_rate || 0,
+      tax_amount: item.tax_amount || 0,
+      net_amount: item.net_amount || item.amount,
+      gross_amount: item.gross_amount || (item.amount + (item.tax_amount || 0)),
+      selected: true,
+      maxQuantity: item.quantity,
+      originalInvoiceItem: item
+    }));
+    setItems(creditItems);
+    calculateTotals(creditItems);
+  } else {
+    // Simple invoice without line items - create single item
+    const singleItem: FormCreditNoteItem = {
+      tempId: `single-${Date.now()}`,
+      description: `Credit for Invoice #${invoiceData.invoice_number}`,
+      quantity: 1,
+      rate: invoiceData.subtotal,
+      amount: invoiceData.subtotal,
+      tax_rate: invoiceData.tax_rate || 0,
+      tax_amount: invoiceData.tax_amount || 0,
+      net_amount: invoiceData.subtotal,
+      gross_amount: invoiceData.total,
+      selected: true,
+      maxQuantity: 1
+    };
+    setItems([singleItem]);
+    setFormData(prev => ({
+      ...prev,
+      subtotal: invoiceData.subtotal,
+      tax_amount: invoiceData.tax_amount || 0,
+      total: invoiceData.total,
+      base_amount: invoiceData.base_amount || invoiceData.total
+    }));
+  }
 
-   // Load items - handle both line items and simple invoices
-   if (invoiceData.items && invoiceData.items.length > 0) {
-     // Invoice has line items
-     const creditItems: FormCreditNoteItem[] = invoiceData.items.map((item: any, index: number) => ({
-       tempId: `item-${Date.now()}-${index}`,  // For UI tracking only
-       invoice_item_id: item.id,
-       description: item.description,
-       quantity: item.quantity,
-       rate: item.rate,
-       amount: item.amount,
-       tax_rate: item.tax_rate || invoiceData.tax_rate || 0,
-       tax_amount: item.tax_amount || 0,
-       net_amount: item.net_amount || item.amount,
-       gross_amount: item.gross_amount || (item.amount + (item.tax_amount || 0)),
-       selected: true,
-       maxQuantity: item.quantity,
-       originalInvoiceItem: item
-     }));
-     setItems(creditItems);
-     calculateTotals(creditItems);
-   } else {
-     // Simple invoice without line items - create single item
-     const singleItem: FormCreditNoteItem = {
-       tempId: `single-${Date.now()}`,
-       description: `Credit for Invoice #${invoiceData.invoice_number}`,
-       quantity: 1,
-       rate: invoiceData.subtotal,
-       amount: invoiceData.subtotal,
-       tax_rate: invoiceData.tax_rate || 0,
-       tax_amount: invoiceData.tax_amount || 0,
-       net_amount: invoiceData.subtotal,
-       gross_amount: invoiceData.total,
-       selected: true,
-       maxQuantity: 1
-     };
-     setItems([singleItem]);
-     setFormData(prev => ({
-       ...prev,
-       subtotal: invoiceData.subtotal,
-       tax_amount: invoiceData.tax_amount || 0,
-       total: invoiceData.total,
-       base_amount: invoiceData.base_amount || invoiceData.total
-     }));
-   }
-
-   await generateCreditNoteNumber();
- };
+  await generateCreditNoteNumber();
+};
 
  const loadExistingCreditNote = async () => {
    if (!id || !user) return;

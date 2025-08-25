@@ -5,6 +5,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../services/supabaseClient';
 import { format, startOfQuarter, endOfQuarter, subQuarters } from 'date-fns';
 import { CreditNote, CreditNoteItem } from '../../types';
+import { useNavigate } from 'react-router-dom';
 import { getCreditNotes } from '../../services/database';
 import { 
   FileText, 
@@ -47,7 +48,7 @@ export const VATReport: React.FC = () => {
     creditNoteAdjustment: 0,
     byRate: {}
   });
-
+  const navigate = useNavigate();
   const userCountry = countries.find(c => c.code === userSettings?.country);
   const taxLabel = userCountry?.taxName || 'Tax';
   const isUK = userSettings?.country === 'GB';
@@ -280,16 +281,27 @@ export const VATReport: React.FC = () => {
         {/* Header */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {isUK ? 'VAT Return' : `${taxLabel} Report`}
+          <h1 className="text-2xl font-bold text-gray-900">
+              {isUK ? 'VAT Analysis Report' : `${taxLabel} Report`}
             </h1>
-            <button
-              onClick={handleExport}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Download className="h-5 w-5 mr-2" />
-              Export Report
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleExport}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Download className="h-5 w-5 mr-2" />
+                Export Report
+              </button>
+              {isUK && (
+                <button
+                  onClick={() => navigate('/reports/vat-return')}
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  <Building2 className="h-5 w-5 mr-2" />
+                  Submit to HMRC
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Date Range Selector */}

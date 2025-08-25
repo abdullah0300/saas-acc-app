@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { countries } from '../data/countries';
+import { UserSettings as UserSettingsType } from '../types';
 
 interface TaxRate {
   id: string;
@@ -18,6 +19,10 @@ interface UserSettings {
   fiscal_year_start?: number;
   country?: string;
   state?: string;
+  tax_id?: string;
+  uk_vat_scheme?: 'standard' | 'cash' | 'flat_rate';
+  uk_vat_flat_rate?: number;
+  uk_vat_registration_date?: string;
 }
 
 interface SettingsContextType {

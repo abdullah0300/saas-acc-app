@@ -51,6 +51,8 @@ import { CreditNoteList } from './components/CreditNote/CreditNoteList';
 import { CreditNoteForm } from './components/CreditNote/CreditNoteForm';
 import { CreditNoteView } from './components/CreditNote/CreditNoteView';
 import { VATReturn } from './components/Reports/VATReturn';
+import { RecurringInvoices } from './components/Invoice/RecurringInvoices';
+import { RecurringInvoiceEdit } from './components/Invoice/RecurringInvoiceEdit';
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -118,7 +120,13 @@ function App() {
               <Route path="/invoices/new" element={<InvoiceForm />} />
               <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
               <Route path="/invoices/:id/view" element={<InvoiceView />} />
-              <Route path="/vat-return" element={<VATReturn />} />
+              <Route path="/reports/vat-return" element={<VATReturn />} />
+              {/* Recurring */}
+
+              <Route path="/invoices/recurring" element={<RecurringInvoices />} />
+              <Route path="/invoices/recurring/edit/:id" element={<RecurringInvoiceEdit />} />
+
+
          
               {/* Notifications */}
               <Route path="/notifications" element={<NotificationCenter />} />

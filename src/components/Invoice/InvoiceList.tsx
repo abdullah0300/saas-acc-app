@@ -33,7 +33,8 @@ import {
   TrendingUp,
   Activity,
   X,
-  Shield
+  Shield,
+  CalendarSync
 } from 'lucide-react';
 import { getInvoices, deleteInvoice, updateInvoice } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -725,6 +726,13 @@ const updateMutation = useMutation({
             </div>
             
             <div className="flex items-center gap-3">
+              <Link
+                to="/invoices/recurring"
+                className="inline-flex items-center px-4 py-2  text-black rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 border border-gray-300 bg-white shadow-sm"
+              >
+                <CalendarSync className="h-4 w-4 mr-2" />
+                Recurring Invoices
+              </Link>
               <button
                 onClick={exportToCSV}
                 className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all"

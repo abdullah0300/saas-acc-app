@@ -187,26 +187,35 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     setError("");
 
     try {
-      // Calculate base amount if different currency
-const amount = parseFloat(formData.amount);
+      // Calculate base amount CORRECTLY (excluding VAT)
+     // REPLACE Lines 186-203 with:
+// Calculate amounts correctly for VAT-exclusive entry
+const netAmount = parseFloat(formData.amount) || 0;  // User enters NET
+const taxAmount = parseFloat(formData.tax_amount) || 0;
+const grossAmount = netAmount + taxAmount;  // Total includes tax
+
 const exchangeRate = formData.currency !== baseCurrency 
   ? (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1)) 
   : 1;
-const baseAmount = formData.currency !== baseCurrency ? amount / exchangeRate : amount;
+
+// Convert NET amount to base currency (excluding VAT)
+const baseAmount = netAmount / exchangeRate;
+const baseTaxAmount = taxAmount / exchangeRate;
 
 const incomeData = {
   user_id: user.id,
-  amount: amount,
+  amount: netAmount,  // Store NET amount (matching invoice behavior)
   description: formData.description,
   category_id: formData.category_id || undefined,
   client_id: formData.client_id || undefined,
   date: formData.date,
   reference_number: formData.reference_number || undefined,
   tax_rate: parseFloat(formData.tax_rate) || undefined,
-  tax_amount: parseFloat(formData.tax_amount) || undefined,
-  currency: formData.currency, // ADD THIS
-  exchange_rate: exchangeRate, // ADD THIS
-  base_amount: baseAmount, // ADD THIS
+  tax_amount: taxAmount,
+  currency: formData.currency,
+  exchange_rate: exchangeRate,
+  base_amount: baseAmount,  // NET in base currency
+  base_tax_amount: baseTaxAmount,  // Tax in base currency
 };
 
       if (isEdit && id) {
@@ -254,19 +263,30 @@ const incomeData = {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount *
+                 Amount (excluding {taxLabel}) *
               </label>
               <input
-                type="number"
-                step="0.01"
-                required
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData({ ...formData, amount: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
+  type="number"
+  step="0.01"
+  required
+  value={formData.amount}
+  onChange={(e) => {
+    const newAmount = e.target.value;
+    const rate = parseFloat(formData.tax_rate) || 0;
+    const netAmount = parseFloat(newAmount) || 0;
+    
+    // Recalculate tax when amount changes
+    const taxAmount = ((netAmount * rate) / 100).toFixed(2);
+    
+    setFormData({ 
+      ...formData, 
+      amount: newAmount,
+      tax_amount: taxAmount
+    });
+  }}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+  placeholder="0.00"
+/>
             </div>
 
             <div>
@@ -307,30 +327,27 @@ const incomeData = {
                 Category
               </label>
 
-              <select
-                value={formData.category_id}
-                onChange={(e) => {
-                  if (e.target.value === "new") {
-                    setShowAddCategory(true);
-                  } else {
-                    setFormData({ ...formData, category_id: e.target.value });
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option
-                  value="new"
-                  className="font-semibold text-blue-600 border-t"
-                >
-                  ➕ Add or delete category ...
-                </option>
-                <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                  <select
+  value={formData.category_id}
+  onChange={(e) => {
+    if (e.target.value === "new") {
+      setShowAddCategory(true);
+    } else {
+      setFormData({ ...formData, category_id: e.target.value });
+    }
+  }}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  <option value="new" className="font-semibold text-blue-600 border-t">
+    ➕ Add or delete category ...
+  </option>
+  <option value="">Select category</option>
+  {categories.map((category) => (
+    <option key={category.id} value={category.id}>
+      {category.name}
+    </option>
+  ))}
+</select>
             </div>
             {/* Currency Selection */}
 <div>
@@ -484,17 +501,44 @@ const incomeData = {
           {/* Total Summary */}
 {formData.amount && (
   <div className="bg-gray-50 rounded-lg p-4">
-    <div className="flex justify-between items-center">
-      <span className="text-sm font-medium text-gray-700">Total Amount:</span>
-      <div className="text-right">
-        <div className="text-lg font-semibold text-gray-900">
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <span className="text-sm text-gray-600">Net Amount:</span>
+        <span className="text-sm font-medium">
           {formatCurrency(parseFloat(formData.amount) || 0, formData.currency)}
-        </div>
-        {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
-          <div className="text-sm text-gray-500">
-            ≈ {formatCurrency((parseFloat(formData.amount) || 0) / exchangeRates[formData.currency], baseCurrency)}
+        </span>
+      </div>
+      
+      {parseFloat(formData.tax_rate) > 0 && (
+        <>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">{taxLabel} ({formData.tax_rate}%):</span>
+            <span className="text-sm font-medium">
+              {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
+            </span>
           </div>
-        )}
+          <div className="border-t pt-2" />
+        </>
+      )}
+      
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+        <div className="text-right">
+          <div className="text-lg font-semibold text-gray-900">
+            {formatCurrency(
+              (parseFloat(formData.amount) || 0) + (parseFloat(formData.tax_amount) || 0), 
+              formData.currency
+            )}
+          </div>
+          {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+            <div className="text-sm text-gray-500">
+              ≈ {formatCurrency(
+                (parseFloat(formData.amount) || 0) / exchangeRates[formData.currency], 
+                baseCurrency
+              )} (net)
+            </div>
+          )}
+        </div>
       </div>
     </div>
   </div>
