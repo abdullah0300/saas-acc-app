@@ -232,7 +232,7 @@ export const RecurringInvoices: React.FC = () => {
                       ) : (
                         <Play className="h-4 w-4" />
                       )}
-                    </button>
+                    </button> 
                     {recurring.invoice_id && (
                       <Link
                         to={`/invoices/recurring/edit/${recurring.id}`}
