@@ -34,14 +34,13 @@ export class RegistrationService {
     try {
       console.log('Validating invitation with code:', inviteCode);
       
-      // First, get the invitation from pending_invites table
+      // Use team_invites table with token field
       const { data: invite, error: inviteError } = await supabase
-        .from('pending_invites')
+        .from('team_invites')
         .select('*')
-        .eq('invite_code', inviteCode)
-        .eq('accepted', false)
+        .eq('token', inviteCode)
         .gte('expires_at', new Date().toISOString())
-        .maybeSingle(); // Use maybeSingle instead of single to avoid 406 error
+        .maybeSingle();
 
       console.log('Invitation query result:', { invite, inviteError });
 
@@ -104,9 +103,10 @@ export class RegistrationService {
       let isTeamMember = false;
       let teamId = null;
       let invitedBy = null;
+      let inviteValidation: any = null;
 
       if (data.inviteCode) {
-        const inviteValidation = await this.validateInvitation(data.inviteCode);
+        inviteValidation = await this.validateInvitation(data.inviteCode);
         if (inviteValidation.valid && inviteValidation.invitation) {
           isTeamMember = true;
           teamId = inviteValidation.invitation.team_id;
@@ -136,44 +136,66 @@ export class RegistrationService {
       }
 
       // 4. Accept invitation if applicable
-      if (isTeamMember && data.inviteCode) {
-        const { error: acceptError } = await supabase.rpc('accept_team_invitation', {
-          p_invite_code: data.inviteCode,
-          p_user_id: authData.user.id
-        });
-
-        if (acceptError) {
-          console.error('Error accepting invitation:', acceptError);
-        }
+      if (isTeamMember && data.inviteCode && inviteValidation?.invitation) {
+        await this.acceptInvitation(data.inviteCode, authData.user.id);
       }
 
-      // ... other code ...
+      // 5. Send welcome email
+      try {
+        const { createWelcomeNotification } = await import('../services/notifications');
+        await createWelcomeNotification(authData.user.id, {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          companyName: data.companyName
+        });
+      } catch (welcomeError) {
+        console.error('Welcome email error (non-critical):', welcomeError);
+      }
 
-// 6. Send welcome email
-try {
-  const { createWelcomeNotification } = await import('../services/notifications');
-  await createWelcomeNotification(authData.user.id, {
-    firstName: data.firstName,
-    lastName: data.lastName,
-    email: data.email,
-    companyName: data.companyName
-  });
-} catch (welcomeError) {
-  console.error('Welcome email error (non-critical):', welcomeError);
-  // Don't fail registration if welcome email fails
-}
-
-return {
-  success: true,
-  user: authData.user,
-  teamId: teamId || authData.user.id,
-  isTeamMember
-};
+      return {
+        success: true,
+        user: authData.user,
+        teamId: teamId || authData.user.id,
+        isTeamMember
+      };
 
     } catch (err: any) {
       console.error('Registration error:', err);
       return { success: false, error: err.message || 'Registration failed' };
     }
+  }
+
+  async acceptInvitation(inviteCode: string, userId: string) {
+    // First get the invitation details
+    const { data: invite } = await supabase
+      .from('team_invites')
+      .select('*')
+      .eq('token', inviteCode)
+      .single();
+
+    if (!invite) throw new Error('Invalid invitation');
+
+    // Add to team_members
+    const { error: memberError } = await supabase
+      .from('team_members')
+      .insert({
+        user_id: userId,
+        team_id: invite.team_id,
+        email: invite.email,
+        role: invite.role,
+        status: 'active',
+        invited_by: invite.invited_by,
+        joined_at: new Date().toISOString()
+      });
+
+    if (memberError) throw memberError;
+
+    // Delete the used invite
+    await supabase
+      .from('team_invites')
+      .delete()
+      .eq('id', invite.id);
   }
 
   async ensureUserSetupComplete(userId: string) {
