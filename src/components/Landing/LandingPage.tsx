@@ -195,7 +195,7 @@ export const LandingPage: React.FC = () => {
               onClick={() => navigate('/')}
             >
               <div className="w-11 h-11 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                <img src='https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717' className="text-white text-xl w-8" />
+                <img src='https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717' className="h-8 text-white text-xl" />
               </div>
               <div>
                 <span className="text-xl font-bold text-gray-900">SmartCFO</span>
@@ -922,7 +922,7 @@ export const LandingPage: React.FC = () => {
             <div className="sm:col-span-2">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center">
-                  <Brain className="text-white text-lg" />
+                  <img src='https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717' className="h-8 text-white text-lg" />
                 </div>
                 <div>
                   <span className="text-xl font-bold text-white">SmartCFO</span>
@@ -957,6 +957,17 @@ export const LandingPage: React.FC = () => {
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-sm text-gray-400">
               © 2024 SmartCFO. Built with AI, for humans who love smart accounting.
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Designed & Developed by{' '}
+              <a 
+                href="https://webcraftio.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-purple-400 hover:text-purple-300 transition-colors"
+              >
+                WebCraftio
+              </a>
             </p>
           </div>
         </div>
