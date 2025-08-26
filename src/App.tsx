@@ -1,5 +1,6 @@
 // src/App.tsx
 import React from 'react';
+import { LandingPage } from './components/Landing/LandingPage';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -81,6 +82,8 @@ function App() {
         <AuthProvider>
           <Routes>
             {/* Public routes */}
+            {/* Landing Page - Main Site */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -102,7 +105,7 @@ function App() {
                 </SubscriptionProvider>
               </ProtectedRoute>
             }>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/app" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               
               {/* Income */}
