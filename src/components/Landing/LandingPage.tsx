@@ -195,7 +195,7 @@ export const LandingPage: React.FC = () => {
               onClick={() => navigate('/')}
             >
               <div className="w-11 h-11 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                <img src='https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717' className="h-8 text-white text-xl" />
+                <Brain className="text-white text-xl" />
               </div>
               <div>
                 <span className="text-xl font-bold text-gray-900">SmartCFO</span>
@@ -252,14 +252,19 @@ export const LandingPage: React.FC = () => {
               >
                 <div className="flex flex-col space-y-4">
                   {['Features', 'AI Power', 'Pricing', 'Success'].map((item) => (
-                    <a
+                    <button
                       key={item}
-                      href={`#${item.toLowerCase().replace(' ', '-')}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="text-gray-700 hover:text-purple-600 transition-colors text-sm font-medium"
+                      onClick={() => {
+                        const element = document.getElementById(item.toLowerCase().replace(' ', '-'));
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                        }
+                        setMobileMenuOpen(false);
+                      }}
+                      className="text-left text-gray-700 hover:text-purple-600 transition-colors text-sm font-medium"
                     >
                       {item}
-                    </a>
+                    </button>
                   ))}
                   <button
                     onClick={() => {
@@ -922,7 +927,7 @@ export const LandingPage: React.FC = () => {
             <div className="sm:col-span-2">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center">
-                  <img src='https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717' className="h-8 text-white text-lg" />
+                  <Brain className="text-white text-lg" />
                 </div>
                 <div>
                   <span className="text-xl font-bold text-white">SmartCFO</span>
