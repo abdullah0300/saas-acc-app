@@ -132,6 +132,35 @@ const [selectAll, setSelectAll] = useState(false);
   }
 });
 
+// Add this function to InvoiceList.tsx
+const generatePublicLink = async (invoiceId: string) => {
+  if (!user) return '';
+  
+  try {
+    // Generate a secure token
+    const token = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+    
+    // Store the token
+    const { error } = await supabase
+      .from('invoice_access_tokens')
+      .insert({
+        token,
+        invoice_id: invoiceId,
+        expires_at: expiresAt.toISOString()
+      });
+    
+    if (error) throw error;
+    
+    // Return the public link
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/invoice/public/${invoiceId}?token=${token}`;
+  } catch (err: any) {
+    console.error('Error generating public link:', err);
+    return '';
+  }
+};
 
 
   // Filter and sort invoices
@@ -554,7 +583,7 @@ const updateMutation = useMutation({
       
       if (error) throw error;
       alert('Invoice sent via email successfully!');
-    } else if (method === 'whatsapp') {
+     } else if (method === 'whatsapp') {
   // Check if client has phone number
   if (!invoice.client?.phone) {
     alert('Client phone number is required to send via WhatsApp');
@@ -567,6 +596,9 @@ const updateMutation = useMutation({
       invoice.client.phone, 
       invoice.client.phone_country_code
     );
+
+    // ✅ Generate public link HERE, inside the whatsapp block
+    const publicLink = await generatePublicLink(invoice.id);
 
     // Build line items summary if available
     let itemsSummary = '';
@@ -596,7 +628,7 @@ const updateMutation = useMutation({
       `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n\n` +
       `📱 *View Full Invoice:*\n` +
-      `${window.location.origin}/invoices/${invoice.id}/view\n\n` +
+      `${publicLink}\n\n` +  // ✅ Now publicLink is properly declared
       `💳 *Payment Options:*\n` +
       `• Bank Transfer\n` +
       `• Credit/Debit Card\n` +
@@ -640,10 +672,12 @@ const updateMutation = useMutation({
 };
 
   const copyInvoiceLink = async (invoice: Invoice) => {
-    const url = `${window.location.origin}/invoices/view/${invoice.id}`;
-    await navigator.clipboard.writeText(url);
-    alert('Invoice link copied to clipboard!');
-  };
+  const publicUrl = await generatePublicLink(invoice.id);
+  if (publicUrl) {
+    await navigator.clipboard.writeText(publicUrl);
+    alert('Public invoice link copied to clipboard!');
+  }
+};
 
   const exportToCSV = () => {
     const headers = ['Invoice Number', 'Client', 'Date', 'Due Date', 'Status', 'Amount'];

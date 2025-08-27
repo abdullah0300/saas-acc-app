@@ -384,12 +384,15 @@ const isUK = invoice.currency === 'GBP' &&
     const link = await generatePublicLink();
     if (!link || !phoneNumber) return;
     
-    const message = encodeURIComponent(
-      `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
-      `Amount: ${formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}\n` +
-      `Due Date: ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
-      `View Invoice: ${link}`
-    );
+     const message = encodeURIComponent(
+    `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
+    `Amount: ${formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}\n` +
+    `Due Date: ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
+    `📱 *View Full Invoice:*\n` +
+    `${link}\n\n` + // ✅ Use the public link instead of private one
+    `💳 Payment methods available.\n\n` +
+    `Thank you for your business!`
+  );
     
     const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=${message}`;
     window.open(whatsappUrl, '_blank');
