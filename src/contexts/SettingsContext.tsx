@@ -34,7 +34,8 @@ interface SettingsContextType {
   baseCurrency: string;
   currencySymbol: string;
   loading: boolean;
-  exchangeRatesLoading: boolean; // ADD THIS
+  exchangeRatesLoading: boolean; 
+  isUserSettingsReady: boolean;
   refreshSettings: () => Promise<void>;
   formatCurrency: (amount: number, currency?: string) => string;
   getCurrencySymbol: (currency: string) => string;
@@ -54,6 +55,7 @@ export const useSettings = () => {
   }
   return context;
 };
+
 
 const CURRENCY_SYMBOLS: { [key: string]: string } = {
   USD: '$',
@@ -209,6 +211,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const defaultTaxRate = taxRates.find(rate => rate.is_default)?.rate || 0;
   const baseCurrency = userSettings?.base_currency || 'USD';
   const currencySymbol = CURRENCY_SYMBOLS[baseCurrency] || '$';
+  const isUserSettingsReady = !loading && userSettings !== null;
 
   const getCurrencySymbol = (currency: string) => {
     return CURRENCY_SYMBOLS[currency] || currency;
@@ -367,7 +370,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       baseCurrency,
       currencySymbol,
       loading,
-      exchangeRatesLoading, // ADD THIS
+      exchangeRatesLoading, 
+      isUserSettingsReady,
       refreshSettings,
       formatCurrency,
       getCurrencySymbol,

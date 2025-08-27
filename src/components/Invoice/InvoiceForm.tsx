@@ -79,8 +79,7 @@ export const InvoiceForm: React.FC = () => {
   const queryClient = useQueryClient();
   const { addClientToCache } = useData();
   const { addInvoiceToCache } = useData();
-  const { formatCurrency, taxRates } = useSettings();
-  const { baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol,userSettings  } = useSettings();
+  const { formatCurrency, taxRates, baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol, userSettings, isUserSettingsReady } = useSettings();
   const [showRateWarning, setShowRateWarning] = useState(false);
   const [originalRate, setOriginalRate] = useState<number | null>(null);
   const [useHistoricalRate, setUseHistoricalRate] = useState(true);
@@ -89,6 +88,16 @@ export const InvoiceForm: React.FC = () => {
   const taxLabel = userCountry?.taxName || 'Tax';
   const requiresLineItemVAT = userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown || false;
 
+// Add this useEffect after your formData useState
+useEffect(() => {
+  // Update currency when baseCurrency loads and form currency is still default
+  if (isUserSettingsReady && baseCurrency && formData.currency !== baseCurrency) {
+    setFormData(prev => ({
+      ...prev,
+      currency: baseCurrency
+    }));
+  }
+}, [isUserSettingsReady, baseCurrency]);
 // Monitor online status
 useEffect(() => {
   const handleOnline = () => setIsOnline(true);
@@ -933,7 +942,18 @@ tax_metadata: userCountry?.code === 'GB' ? {
   };
 
   const isSubmitting = createInvoiceMutation.isPending || updateInvoiceMutation.isPending;
-
+if (!isUserSettingsReady) {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-3 text-gray-600">Loading your settings...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-8">

@@ -19,7 +19,7 @@ import { Category } from "../../types";
 
 export const IncomeForm: React.FC = () => {
   const { user } = useAuth();
-  const { taxRates, defaultTaxRate, formatCurrency, baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol, userSettings } = useSettings();
+  const { taxRates, defaultTaxRate, formatCurrency, baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol, userSettings, isUserSettingsReady } = useSettings();
   const { addIncomeToCache,  addClientToCache , updateIncomeInCache } = useData();
   const userCountry = countries.find(c => c.code === userSettings?.country);
   const taxLabel = userCountry?.taxName || 'Tax';
@@ -61,6 +61,15 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
       loadIncome();
     }
   }, [id, isEdit]);
+
+  useEffect(() => {
+  if (isUserSettingsReady && baseCurrency && formData.currency !== baseCurrency) {
+    setFormData(prev => ({
+      ...prev,
+      currency: baseCurrency
+    }));
+  }
+}, [isUserSettingsReady, baseCurrency]);
 
   useEffect(() => {
   if (formData.currency && formData.currency !== baseCurrency) {
@@ -235,6 +244,19 @@ const incomeData = {
       setLoading(false);
     }
   };
+  // Add this before your main return
+if (!isUserSettingsReady) {
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-3 text-gray-600">Loading your settings...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className="max-w-2xl mx-auto">
