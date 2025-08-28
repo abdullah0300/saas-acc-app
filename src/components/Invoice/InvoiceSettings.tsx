@@ -40,6 +40,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
     invoice_prefix: 'INV-',
     invoice_color: '#3B82F6',
     payment_terms: '30',
+    default_tax_rate: '0',
     fill_number_gaps: true,
     invoice_notes: '',
     invoice_footer: '',
@@ -116,14 +117,38 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
     setLoading(true);
     
     try {
-      const { error } = await supabase
+      // Check if settings exist
+      const { data: existing } = await supabase
         .from('invoice_settings')
-        .upsert({
-          user_id: user.id,
-          ...settings
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
       
-      if (error) throw error;
+      const settingsData = {
+        ...settings,
+        payment_terms: parseInt(settings.payment_terms) || 30,
+        reminder_days: parseInt(settings.reminder_days) || 3,
+        default_tax_rate: parseFloat(settings.default_tax_rate || '0') || 0,
+        updated_at: new Date().toISOString()
+      };
+      
+      if (existing) {
+        const { error } = await supabase
+          .from('invoice_settings')
+          .update(settingsData)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('invoice_settings')
+          .insert([{
+            ...settingsData,
+            user_id: user.id
+          }]);
+        
+        if (error) throw error;
+      }
       
       alert('Settings saved successfully!');
       onClose();
@@ -301,6 +326,21 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                     />
                   </div>
                   <div className="mt-4">
+                    <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Default Tax Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.default_tax_rate || '0'}
+                      onChange={(e) => setSettings({ ...settings, default_tax_rate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                  </div>
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <label className="text-sm font-medium text-gray-700">
@@ -376,102 +416,51 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
             )}
 
             {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Notification Settings</h3>
-                
-                <div className="space-y-4">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={settings.email_notifications}
-                      onChange={(e) => setSettings({ ...settings, email_notifications: e.target.checked })}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="ml-3 text-sm font-medium text-gray-700">
-                      Enable email notifications
-                    </span>
-                  </label>
-                  <label className="flex items-center bg-blue-50 p-3 rounded-lg">
-                    <input
-                      type="checkbox"
-                      checked={settings.auto_send_recurring}
-                      onChange={(e) => setSettings({ ...settings, auto_send_recurring: e.target.checked })}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div className="ml-3">
-                      <span className="text-sm font-medium text-gray-700 flex items-center">
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Auto-send recurring invoices
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Automatically email recurring invoices to clients when generated
-                      </span>
-                    </div>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={settings.whatsapp_notifications}
-                      onChange={(e) => setSettings({ ...settings, whatsapp_notifications: e.target.checked })}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="ml-3 text-sm font-medium text-gray-700">
-                      Enable WhatsApp notifications
-                    </span>
-                  </label>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Notification Email
-                    </label>
-                    <input
-                      type="email"
-                      value={settings.notification_email}
-                      onChange={(e) => setSettings({ ...settings, notification_email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!settings.email_notifications}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      WhatsApp Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={settings.notification_phone}
-                      onChange={(e) => setSettings({ ...settings, notification_phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!settings.whatsapp_notifications}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Send reminder before due date (days)
-                    </label>
-                    <input
-                      type="number"
-                      value={settings.reminder_days}
-                      onChange={(e) => setSettings({ ...settings, reminder_days: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Automatic Notifications</h4>
-                  <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• Invoice sent confirmation</li>
-                    <li>• Payment reminder {settings.reminder_days} days before due date</li>
-                    <li>• Overdue invoice alerts</li>
-                    <li>• Payment received confirmation</li>
-                  </ul>
-                </div>
-              </div>
-            )}
+  <div className="space-y-6">
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      Email Settings
+    </h3>
+    
+    <div className="space-y-4">
+      <label className="flex items-center">
+        <input
+          type="checkbox"
+          checked={settings.email_notifications}
+          onChange={(e) => setSettings({ ...settings, email_notifications: e.target.checked })}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+        />
+        <span className="ml-3 text-sm font-medium text-gray-700">
+          Allow sending emails to clients
+        </span>
+      </label>
+
+      <label className="flex items-center bg-green-50 p-3 rounded-lg">
+        <input
+          type="checkbox"
+          checked={settings.auto_send_recurring}
+          onChange={(e) => setSettings({ ...settings, auto_send_recurring: e.target.checked })}
+          className="h-4 w-4 text-green-600 focus:ring-green-500"
+        />
+        <div className="ml-3">
+          <span className="text-sm font-medium text-gray-700 flex items-center">
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Auto-send recurring invoices
+          </span>
+          <span className="text-xs text-gray-500">
+            Automatically email recurring invoices to clients when generated
+          </span>
+        </div>
+      </label>
+      
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <p className="text-sm text-gray-600">
+          <strong>Note:</strong> You'll receive in-app notifications for important events. 
+          Check the bell icon in the header for updates.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
 
             {activeTab === 'payment' && (
               <div className="space-y-6">
@@ -516,7 +505,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      PayPal Email
+                      Email
                     </label>
                     <input
                       type="email"

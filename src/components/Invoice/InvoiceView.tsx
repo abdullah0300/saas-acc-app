@@ -1089,7 +1089,7 @@ const isUK = invoice.currency === 'GBP' &&
         )}
 
         {/* Notes & Footer */}
-        {(invoice.notes || invoiceSettings?.invoice_footer) && (
+        {(invoice.notes || invoiceSettings?.invoice_notes || invoiceSettings?.invoice_footer) && (
           <div className="px-8 py-6 border-t border-gray-200 space-y-4">
             {invoice.notes && (
               <div>
@@ -1098,9 +1098,16 @@ const isUK = invoice.currency === 'GBP' &&
               </div>
             )}
             
+            {!invoice.notes && invoiceSettings?.invoice_notes && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
+                <p className="text-sm text-gray-600 whitespace-pre-line">{invoiceSettings.invoice_notes}</p>
+              </div>
+            )}
+            
             {invoiceSettings?.invoice_footer && (
               <div className="pt-4 border-t border-gray-100">
-                <p className="text-sm text-gray-500 text-center">{invoiceSettings.invoice_footer}</p>
+                <p className="text-sm text-gray-500 text-center whitespace-pre-line">{invoiceSettings.invoice_footer}</p>
               </div>
             )}
           </div>

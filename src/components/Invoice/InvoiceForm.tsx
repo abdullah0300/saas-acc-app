@@ -87,6 +87,8 @@ export const InvoiceForm: React.FC = () => {
   const userCountry = countries.find(c => c.code === userSettings?.country);
   const taxLabel = userCountry?.taxName || 'Tax';
   const requiresLineItemVAT = userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown || false;
+  const [invoiceSettings, setInvoiceSettings] = useState<any>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
 // Add this useEffect after your formData useState
 useEffect(() => {
@@ -257,6 +259,52 @@ useEffect(() => {
     console.log('Income categories loaded:', incomeCategories);
   }, [incomeCategories]);
 
+  const loadInvoiceSettings = async () => {
+  if (!user) return;
+  
+  try {
+    const { data } = await supabase
+      .from('invoice_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (data && !isEdit && !settingsLoaded) {
+      setInvoiceSettings(data);
+      setSettingsLoaded(true);
+      
+      // Apply default tax rate
+      if (data.default_tax_rate !== null && data.default_tax_rate !== undefined) {
+        setFormData(prev => ({
+          ...prev,
+          tax_rate: data.default_tax_rate.toString()
+        }));
+      }
+      
+      // Apply default notes
+      if (data.invoice_notes) {
+        setFormData(prev => ({
+          ...prev,
+          notes: data.invoice_notes
+        }));
+      }
+      
+      // Apply payment terms and calculate due date
+      if (data.payment_terms) {
+        const invoiceDate = parseISO(formData.date);
+        const dueDate = addDays(invoiceDate, parseInt(data.payment_terms));
+        setFormData(prev => ({
+          ...prev,
+          payment_terms: data.payment_terms,
+          due_date: format(dueDate, 'yyyy-MM-dd')
+        }));
+      }
+    }
+  } catch (err) {
+    console.error('Error loading invoice settings:', err);
+  }
+};
+
   // Fetch invoice data if editing
   const { data: invoiceData } = useQuery({
     queryKey: ['invoice', id],
@@ -281,6 +329,7 @@ useEffect(() => {
   useEffect(() => {
     if (user && !isEdit) {
       loadTemplates();
+      loadInvoiceSettings();
     }
   }, [user, isEdit]);
 
