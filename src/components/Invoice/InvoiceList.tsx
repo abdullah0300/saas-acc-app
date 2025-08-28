@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DeleteInvoiceWarning } from './DeleteInvoiceWarning';
 import { useData } from '../../contexts/DataContext';
 import { SkeletonTable } from '../Common/Loading';
 import { VATAuditService } from '../../services/vatAuditService';
+import { InvoiceSettings } from './InvoiceSettings';
 import { 
   Plus, 
   Search, 
@@ -34,7 +35,8 @@ import {
   Activity,
   X,
   Shield,
-  CalendarSync
+  CalendarSync,
+  CreditCard
 } from 'lucide-react';
 import { getInvoices, deleteInvoice, updateInvoice } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -56,10 +58,13 @@ export const InvoiceList: React.FC = () => {
   const { formatCurrency, baseCurrency } = useSettings();
   const queryClient = useQueryClient();
   const { refreshBusinessData } = useData();
+  const navigate = useNavigate();
   
   // State for filters and UI
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
+  const [showSettings, setShowSettings] = useState(false);
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
   const [typeFilter, setTypeFilter] = useState<'all' | 'one-time' | 'recurring'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState<string | null>(null);
@@ -752,7 +757,7 @@ const updateMutation = useMutation({
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
+<div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
@@ -760,20 +765,7 @@ const updateMutation = useMutation({
             </div>
             
             <div className="flex items-center gap-3">
-              <Link
-                to="/invoices/recurring"
-                className="inline-flex items-center px-4 py-2  text-black rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 border border-gray-300 bg-white shadow-sm"
-              >
-                <CalendarSync className="h-4 w-4 mr-2" />
-                Recurring Invoices
-              </Link>
-              <button
-                onClick={exportToCSV}
-                className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </button>
+              
               <Link
                 to="/invoices/new"
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
@@ -781,6 +773,77 @@ const updateMutation = useMutation({
                 <Plus className="h-4 w-4 mr-2" />
                 Create Invoice
               </Link>
+              {/* More Actions Dropdown */}
+      <div className="relative">
+        <button
+          onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
+        >
+          <span className="text-gray-700">More</span>
+          <ChevronDown className={`h-4 w-4 ml-2 text-gray-500 transition-transform ${
+            showActionsDropdown ? 'rotate-180' : ''
+          }`} />
+        </button>
+        
+        {showActionsDropdown && (
+          <>
+            {/* Invisible backdrop to close dropdown */}
+            <div 
+              className="fixed inset-0 z-10" 
+              onClick={() => setShowActionsDropdown(false)}
+            />
+            
+            {/* Dropdown Menu */}
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20 overflow-hidden">
+              <button
+                onClick={() => {
+                  navigate('/invoices/recurring');
+                  setShowActionsDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+              >
+                <CalendarSync className="h-4 w-4 mr-3 text-gray-500" />
+                <span className="text-gray-700">Recurring Invoices</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  navigate('/credit-notes');
+                  setShowActionsDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+              >
+                <CreditCard className="h-4 w-4 mr-3 text-gray-500" />
+                <span className="text-gray-700">Credit Notes</span>
+              </button>
+              
+              <div className="border-t border-gray-100"></div>
+              
+              <button
+                onClick={() => {
+                  setShowSettings(true);
+                  setShowActionsDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+              >
+                <Settings className="h-4 w-4 mr-3 text-gray-500" />
+                <span className="text-gray-700">Invoice Settings</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  exportToCSV();
+                  setShowActionsDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+              >
+                <Download className="h-4 w-4 mr-3 text-gray-500" />
+                <span className="text-gray-700">Export All</span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
             </div>
           </div>
         </div>
@@ -1330,6 +1393,10 @@ const updateMutation = useMutation({
   onConfirm={handleConfirmDelete}
   onCancel={handleCancelDelete}
 />
+{/* Settings Modal */}
+      {showSettings && (
+        <InvoiceSettings onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 };

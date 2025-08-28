@@ -11,7 +11,7 @@ import {
   FileText,
   Palette,
   DollarSign,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
