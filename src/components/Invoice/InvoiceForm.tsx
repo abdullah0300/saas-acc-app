@@ -324,74 +324,143 @@ useEffect(() => {
   }
 };
 
-  // Handle template selection
-  const handleTemplateSelect = (templateId: string) => {
-    if (!templateId) return;
-    
-    const template = templates.find(t => t.id === templateId);
-    if (!template) return;
-    
-    const templateData = template.template_data;
-    const currentInvoiceNumber = formData.invoice_number;
-    // Load template data into form
-    setFormData(prev => ({
-      ...prev,
-      tax_rate: templateData.tax_rate?.toString() || '0',
-      notes: templateData.notes || '',
-      payment_terms: templateData.payment_terms || 30,
-      invoice_number: currentInvoiceNumber,
-      // Don't override client, date, due_date, invoice_number
-    }));
-    
-    // Load items
-    if (templateData.items && Array.isArray(templateData.items)) {
-      setItems(templateData.items.map((item: any) => ({
-        id: (Date.now() + Math.random()).toString(), // Generate string IDs
-        description: item.description,
-        quantity: item.quantity,
-        rate: item.rate,
-        amount: item.amount
-      })));
-    }
-    
-    setSelectedTemplate(templateId);
-  };
-
-  // Save as template
-  const handleSaveAsTemplate = async () => {
-    if (!user || !templateName.trim()) return;
-    
-    setSavingTemplate(true);
-    
+// Handle template selection - ENHANCED VERSION with recurring support
+const handleTemplateSelect = async (templateId: string) => {
+  if (!templateId) return;
+  
+  const template = templates.find(t => t.id === templateId);
+  if (!template) return;
+  
+  const templateData = template.template_data;
+  
+  // IMPORTANT: Preserve the current invoice number, or get a new one if empty
+  let invoiceNumberToUse = formData.invoice_number;
+  if (!invoiceNumberToUse && !isEdit && user) {
     try {
-      const templateData = {
-        items: items.map(({ id, ...item }) => item), // Remove id before storing
-        tax_rate: parseFloat(formData.tax_rate) || 0,
-        notes: formData.notes,
-        payment_terms: formData.payment_terms || 30,
-      };
-      
-      await createInvoiceTemplate({
-        user_id: user.id,
-        name: templateName.trim(),
-        template_data: templateData
-      });
-      
-      // Refresh templates list
-      await loadTemplates();
-      
-      // Close dialog and reset
-      setShowSaveTemplateDialog(false);
-      setTemplateName('');
-      
-      // Show success message
-      alert('Template saved successfully!');
-    } catch (err: any) {
-      alert('Error saving template: ' + err.message);
-    } finally {
-      setSavingTemplate(false);
+      invoiceNumberToUse = await getNextInvoiceNumber(user.id);
+    } catch (error) {
+      console.error('Error getting invoice number:', error);
+      invoiceNumberToUse = `INV-${Date.now()}`;
     }
-  };
+  }
+  
+  // Load template data into form
+  setFormData(prev => ({
+    ...prev,
+    // Template fields that should be loaded
+    tax_rate: templateData.tax_rate?.toString() || '0',
+    notes: templateData.notes || '',
+    payment_terms: templateData.payment_terms || 30,
+    currency: templateData.currency || prev.currency || baseCurrency,
+    income_category_id: templateData.income_category_id || prev.income_category_id || '',
+    
+    // Load recurring settings if template has them
+    is_recurring: templateData.is_recurring || false,
+    frequency: templateData.frequency || 'monthly',
+    // Don't load recurring_end_date as it should be set per invoice
+    
+    // PRESERVE these critical fields - never override from template
+    invoice_number: invoiceNumberToUse,
+    client_id: prev.client_id,
+    date: prev.date,
+    due_date: prev.due_date,
+    recurring_end_date: prev.recurring_end_date, // Keep any existing end date
+  }));
+  
+  // Load items with all fields including VAT
+  if (templateData.items && Array.isArray(templateData.items)) {
+    setItems(templateData.items.map((item: any) => ({
+      id: (Date.now() + Math.random()).toString(),
+      description: item.description || '',
+      quantity: item.quantity || 1,
+      rate: item.rate || 0,
+      amount: item.amount || 0,
+      tax_rate: item.tax_rate || 0,
+      tax_amount: item.tax_amount || 0,
+      net_amount: item.net_amount || item.amount || 0,
+      gross_amount: item.gross_amount || item.amount || 0
+    })));
+  }
+  
+  setSelectedTemplate(templateId);
+  
+  // If template has recurring settings, show a notification
+  if (templateData.is_recurring) {
+    console.log('Loaded recurring invoice template with frequency:', templateData.frequency);
+  }
+};
+
+ // Save as template - FIXED VERSION with recurring support
+const handleSaveAsTemplate = async () => {
+  if (!user || !templateName.trim()) return;
+  
+  setSavingTemplate(true);
+  
+  try {
+    // Build the template data
+    let templateData: any = {
+      // Store only reusable fields
+      items: items.map(({ id, ...item }) => ({
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        rate: item.rate || 0,
+        amount: item.amount || 0,
+        tax_rate: item.tax_rate || 0,
+        tax_amount: item.tax_amount || 0,
+        net_amount: item.net_amount || item.amount || 0,
+        gross_amount: item.gross_amount || item.amount || 0
+      })),
+      tax_rate: parseFloat(formData.tax_rate) || 0,
+      notes: formData.notes || '',
+      payment_terms: formData.payment_terms || 30,
+      currency: formData.currency || baseCurrency,
+      income_category_id: formData.income_category_id || null,
+    };
+    
+    // If this is a recurring invoice, include recurring-specific data
+    if (formData.is_recurring) {
+      templateData = {
+        ...templateData,
+        // Add recurring-specific fields to template
+        is_recurring: true,
+        frequency: formData.frequency || 'monthly',
+        // Don't save recurring_end_date as it's specific to each invoice
+        
+        // Include calculated totals for recurring templates
+        subtotal: Number(subtotal.toFixed(2)),
+        tax_amount: Number(taxAmount.toFixed(2)),
+        total: Number(total.toFixed(2)),
+        
+        // Include VAT metadata if applicable
+        tax_metadata: userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? {
+          tax_scheme: userSettings?.uk_vat_scheme || 'standard',
+          vat_breakdown: totals.vatBreakdown,
+          has_line_item_vat: requiresLineItemVAT,
+        } : null
+      };
+    }
+    
+    await createInvoiceTemplate({
+      user_id: user.id,
+      name: templateName.trim(),
+      template_data: templateData
+    });
+    
+    // Refresh templates list
+    await loadTemplates();
+    
+    // Close dialog and reset
+    setShowSaveTemplateDialog(false);
+    setTemplateName('');
+    
+    // Show success message
+    alert('Template saved successfully!');
+  } catch (err: any) {
+    alert('Error saving template: ' + err.message);
+  } finally {
+    setSavingTemplate(false);
+  }
+};
 
   // Delete template
   const handleDeleteTemplate = async () => {
@@ -780,13 +849,25 @@ useEffect(() => {
   }
   
   // For new invoices, get a fresh invoice number right before creating
-  if (!isEdit) {
-    try {
-      const freshInvoiceNumber = await getNextInvoiceNumber(user!.id);
-      console.log('Fresh invoice number:', freshInvoiceNumber);
-      
-      // Update form data with fresh number
-      formData.invoice_number = freshInvoiceNumber;
+if (!isEdit) {
+  try {
+    const freshInvoiceNumber = await getNextInvoiceNumber(user!.id);
+    console.log('Fresh invoice number:', freshInvoiceNumber);
+    
+    // Double-check this number doesn't exist
+    const numberExists = await checkInvoiceNumberExists(
+      user!.id, 
+      freshInvoiceNumber
+    );
+    
+    if (numberExists) {
+      console.error('Invoice number already exists:', freshInvoiceNumber);
+      alert('Invoice number generation conflict. Please try again.');
+      return;
+    }
+    
+    // Update form data with fresh number
+    formData.invoice_number = freshInvoiceNumber;
       
       // Also update the state so UI shows the new number
       setFormData(prev => ({ ...prev, invoice_number: freshInvoiceNumber }));
@@ -988,39 +1069,46 @@ if (!isUserSettingsReady) {
 
       <UsageLimitGate type="invoices">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Template Selection - Only show when creating new invoice */}
-        {!isEdit && templates.length > 0 && (
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Start from a template (optional)
-            </label>
-            <div className="flex gap-2">
-              <select
-                value={selectedTemplate}
-                onChange={(e) => handleTemplateSelect(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">-- Select a template --</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-              {selectedTemplate && (
-                <button
-                  type="button"
-                  onClick={handleDeleteTemplate}
-                  className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2"
-                  title="Delete selected template"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Template Selection - Enhanced with recurring indicator */}
+{!isEdit && templates.length > 0 && (
+  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Start from a template (optional)
+    </label>
+    <div className="flex gap-2">
+      <select
+        value={selectedTemplate}
+        onChange={(e) => handleTemplateSelect(e.target.value)}
+        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">-- Select a template --</option>
+        {templates.map((template) => (
+          <option key={template.id} value={template.id}>
+            {template.name}
+            {template.template_data?.is_recurring && ' 🔄 (Recurring)'}
+          </option>
+        ))}
+      </select>
+      {selectedTemplate && (
+        <button
+          type="button"
+          onClick={handleDeleteTemplate}
+          className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2"
+          title="Delete selected template"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete
+        </button>
+      )}
+    </div>
+    {selectedTemplate && templates.find(t => t.id === selectedTemplate)?.template_data?.is_recurring && (
+      <p className="mt-2 text-sm text-blue-600">
+        <RefreshCw className="inline h-3 w-3 mr-1" />
+        This template includes recurring invoice settings
+      </p>
+    )}
+  </div>
+)}
 
         <div className="bg-white rounded-lg shadow p-6">
           {/* Invoice Details */}

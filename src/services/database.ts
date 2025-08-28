@@ -633,13 +633,119 @@ export const updateInvoice = async (id: string, updates: any, items?: any[]) => 
 
 
 
-export const deleteInvoice = async (id: string) => {
-  const { error } = await supabase
-    .from('invoices')
-    .delete()
-    .eq('id', id);
-  
-  if (error) throw error;
+export const deleteInvoice = async (id: string): Promise<{ success: boolean; hadRecurring: boolean }> => {
+  try {
+    // 1. Start a transaction-like approach
+    let hadRecurring = false;
+    
+    // 2. Check if invoice exists and user has permission
+    const { data: invoice, error: checkError } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, status, user_id')
+      .eq('id', id)
+      .single();
+    
+    if (checkError || !invoice) {
+      throw new Error('Invoice not found or you do not have permission to delete it');
+    }
+    
+    // 3. Check if invoice is locked (paid or has credit notes)
+    if (invoice.status === 'paid') {
+      throw new Error('Cannot delete paid invoices for compliance reasons');
+    }
+    
+    // 4. Check for credit notes
+    const { data: creditNotes } = await supabase
+      .from('credit_notes')
+      .select('id')
+      .eq('invoice_id', id)
+      .limit(1);
+    
+    if (creditNotes && creditNotes.length > 0) {
+      throw new Error('Cannot delete invoice with credit notes. Delete credit notes first.');
+    }
+    
+    // 5. Check and delete recurring invoice if exists
+    const { data: recurringData } = await supabase
+      .from('recurring_invoices')
+      .select('id')
+      .eq('invoice_id', id)
+      .single();
+    
+    if (recurringData) {
+      hadRecurring = true;
+      const { error: recurringError } = await supabase
+        .from('recurring_invoices')
+        .delete()
+        .eq('invoice_id', id);
+      
+      if (recurringError) {
+        console.error('Failed to delete recurring invoice:', recurringError);
+        throw new Error('Failed to delete recurring invoice schedule');
+      }
+    }
+    
+    // 6. Delete related records in correct order
+    
+    // Delete invoice activities
+    await supabase
+      .from('invoice_activities')
+      .delete()
+      .eq('invoice_id', id);
+    
+    // Delete invoice reminders
+    await supabase
+      .from('invoice_reminders')
+      .delete()
+      .eq('invoice_id', id);
+    
+    // Delete email logs
+    await supabase
+      .from('email_logs')
+      .delete()
+      .eq('invoice_id', id);
+    
+    // Delete invoice items
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .delete()
+      .eq('invoice_id', id);
+    
+    if (itemsError) {
+      throw new Error('Failed to delete invoice items');
+    }
+    
+    // 7. Finally delete the invoice
+    const { error: deleteError } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('id', id);
+    
+    if (deleteError) {
+      throw new Error(`Failed to delete invoice: ${deleteError.message}`);
+    }
+    
+    // 8. Log the deletion for audit trail
+    await supabase
+      .from('audit_logs')
+      .insert({
+        user_id: invoice.user_id,
+        action: 'delete',
+        entity_type: 'invoice',
+        entity_id: id,
+        entity_name: invoice.invoice_number,
+        metadata: { 
+          deleted_at: new Date().toISOString(),
+          had_recurring: hadRecurring 
+        }
+      });
+    
+    return { success: true, hadRecurring };
+    
+  } catch (error) {
+    console.error('Error in deleteInvoice:', error);
+    throw error;
+  }
 };
 
 export const getInvoiceByNumber = async (invoiceNumber: string) => {
