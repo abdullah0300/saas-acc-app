@@ -1,17 +1,31 @@
 // src/components/Invoice/RecurringInvoices.tsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Calendar, RefreshCw, Play, Pause, Edit, Trash2, Clock } from 'lucide-react';
+import { 
+  Plus, 
+  Calendar, 
+  RefreshCw, 
+  Play, 
+  Pause, 
+  Edit, 
+  Trash2, 
+  Clock,
+  DollarSign,
+  ArrowLeft,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../services/supabaseClient';
-import { format, addDays, addWeeks, addMonths, parseISO } from 'date-fns';
+import { format, addDays, addWeeks, addMonths, parseISO, differenceInDays } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 interface RecurringInvoice {
   id: string;
   user_id: string;
   client_id: string;
-  invoice_id?: string; // Add this - it's optional
+  invoice_id?: string;
   client?: { name: string };
   template_data: any;
   frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
@@ -19,14 +33,17 @@ interface RecurringInvoice {
   last_generated: string | null;
   is_active: boolean;
   created_at: string;
+  end_date?: string | null;
+  original_invoice?: { invoice_number: string };
 }
 
 export const RecurringInvoices: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency, getCurrencySymbol } = useSettings();
+  const navigate = useNavigate();
+  const { formatCurrency, getCurrencySymbol, baseCurrency } = useSettings();
   const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'active' | 'paused'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'paused'>('active');
 
   useEffect(() => {
     if (user) {
@@ -43,7 +60,8 @@ export const RecurringInvoices: React.FC = () => {
         .from('recurring_invoices')
         .select(`
           *,
-          client:clients(name)
+          client:clients(name),
+          original_invoice:invoices!invoice_id(invoice_number)
         `)
         .eq('user_id', user.id)
         .order('next_date', { ascending: true });
@@ -95,44 +113,115 @@ export const RecurringInvoices: React.FC = () => {
     }
   };
 
-  const getNextInvoiceDate = (lastDate: string, frequency: string) => {
-    const date = parseISO(lastDate);
-    switch (frequency) {
-      case 'weekly': return addWeeks(date, 1);
-      case 'biweekly': return addWeeks(date, 2);
-      case 'monthly': return addMonths(date, 1);
-      case 'quarterly': return addMonths(date, 3);
-      case 'yearly': return addMonths(date, 12);
-      default: return date;
-    }
+  const getFrequencyBadge = (frequency: string) => {
+    const badges: { [key: string]: { label: string; color: string } } = {
+      weekly: { label: 'Weekly', color: 'bg-purple-100 text-purple-700' },
+      biweekly: { label: 'Bi-weekly', color: 'bg-indigo-100 text-indigo-700' },
+      monthly: { label: 'Monthly', color: 'bg-blue-100 text-blue-700' },
+      quarterly: { label: 'Quarterly', color: 'bg-cyan-100 text-cyan-700' },
+      yearly: { label: 'Yearly', color: 'bg-green-100 text-green-700' }
+    };
+    return badges[frequency] || { label: frequency, color: 'bg-gray-100 text-gray-700' };
   };
 
-  const getFrequencyLabel = (frequency: string) => {
-    const labels: { [key: string]: string } = {
-      weekly: 'Every Week',
-      biweekly: 'Every 2 Weeks',
-      monthly: 'Every Month',
-      quarterly: 'Every 3 Months',
-      yearly: 'Every Year'
-    };
-    return labels[frequency] || frequency;
+  const getDaysUntilNext = (nextDate: string) => {
+    const days = differenceInDays(parseISO(nextDate), new Date());
+    if (days < 0) return { text: 'Overdue', color: 'text-red-600' };
+    if (days === 0) return { text: 'Today', color: 'text-green-600' };
+    if (days === 1) return { text: 'Tomorrow', color: 'text-blue-600' };
+    if (days <= 7) return { text: `In ${days} days`, color: 'text-yellow-600' };
+    return { text: `In ${days} days`, color: 'text-gray-600' };
+  };
+
+  // Calculate stats
+  const stats = {
+    active: recurringInvoices.filter(i => i.is_active).length,
+    total: recurringInvoices.length,
+    weeklyValue: recurringInvoices
+      .filter(i => i.is_active && i.frequency === 'weekly')
+      .reduce((sum, i) => sum + (i.template_data?.total || 0), 0),
+    monthlyValue: recurringInvoices
+      .filter(i => i.is_active && i.frequency === 'monthly')
+      .reduce((sum, i) => sum + (i.template_data?.total || 0), 0),
+    dueThisWeek: recurringInvoices.filter(i => {
+      const days = differenceInDays(parseISO(i.next_date), new Date());
+      return days >= 0 && days <= 7 && i.is_active;
+    }).length
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Recurring Invoices</h1>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/invoices')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Recurring Invoices</h1>
+            <p className="text-gray-500 mt-1">Automate your regular billing</p>
+          </div>
+        </div>
         <Link
           to="/invoices/new"
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Create Recurring Invoice
+          Create Recurring
         </Link>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Active</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+            </div>
+            <CheckCircle className="h-8 w-8 text-green-500" />
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Due This Week</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.dueThisWeek}</p>
+            </div>
+            <Clock className="h-8 w-8 text-yellow-500" />
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Monthly Value</p>
+              <p className="text-lg font-bold text-gray-900">
+                {formatCurrency(stats.monthlyValue, baseCurrency)}
+              </p>
+            </div>
+            <DollarSign className="h-8 w-8 text-blue-500" />
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            </div>
+            <RefreshCw className="h-8 w-8 text-gray-500" />
+          </div>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -148,131 +237,135 @@ export const RecurringInvoices: React.FC = () => {
             }`}
           >
             {status}
+            <span className="ml-2 text-sm">
+              ({status === 'all' ? stats.total : status === 'active' ? stats.active : stats.total - stats.active})
+            </span>
           </button>
         ))}
       </div>
 
-      {/* Recurring Invoices Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {recurringInvoices.length > 0 ? (
-          recurringInvoices.map((recurring) => {
-            // Extract currency and amount from template_data
-            const currency = recurring.template_data?.currency || 'USD';
-            const total = recurring.template_data?.total || 0;
-            const currencySymbol = getCurrencySymbol(currency);
-            
-            return (
-              <div
-                key={recurring.id}
-                className={`bg-white rounded-lg shadow p-6 ${
-                  !recurring.is_active ? 'opacity-75' : ''
-                }`}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {recurring.client?.name || 'No Client'}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {getFrequencyLabel(recurring.frequency)}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-2 py-1 text-xs rounded-full ${
-                      recurring.is_active
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {recurring.is_active ? 'Active' : 'Paused'}
-                  </span>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-600">Next Invoice:</span>
-                    <span className="ml-2 font-medium">
-                      {format(parseISO(recurring.next_date), 'MMM dd, yyyy')}
-                    </span>
-                  </div>
-                  {recurring.last_generated && (
-                    <div className="flex items-center text-sm">
-                      <Clock className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-gray-600">Last Generated:</span>
-                      <span className="ml-2">
-                        {format(parseISO(recurring.last_generated), 'MMM dd, yyyy')}
+      {/* List View */}
+      {recurringInvoices.length > 0 ? (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Frequency</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Next Invoice</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {recurringInvoices.map((recurring) => {
+                const currency = recurring.template_data?.currency || baseCurrency;
+                const total = recurring.template_data?.total || 0;
+                const frequencyBadge = getFrequencyBadge(recurring.frequency);
+                const daysUntil = getDaysUntilNext(recurring.next_date);
+                
+                return (
+                  <tr key={recurring.id} className={!recurring.is_active ? 'opacity-60' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {recurring.client?.name || 'No Client'}
+                        </div>
+                        {recurring.original_invoice?.invoice_number && (
+                          <div className="text-xs text-gray-500">
+                            From #{recurring.original_invoice.invoice_number}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${frequencyBadge.color}`}>
+                        {frequencyBadge.label}
                       </span>
-                    </div>
-                  )}
-                  {/* Display currency information */}
-                  {currency !== 'USD' && (
-                    <div className="flex items-center text-sm">
-                      <span className="text-gray-600">Currency:</span>
-                      <span className="ml-2 font-medium">
-                        {currency}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => toggleStatus(recurring.id, recurring.is_active)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        recurring.is_active
-                          ? 'text-orange-600 hover:bg-orange-50'
-                          : 'text-green-600 hover:bg-green-50'
-                      }`}
-                      title={recurring.is_active ? 'Pause' : 'Resume'}
-                    >
-                      {recurring.is_active ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(total, currency)}
+                      </div>
+                      {currency !== baseCurrency && (
+                        <div className="text-xs text-gray-500">{currency}</div>
                       )}
-                    </button> 
-                    {recurring.invoice_id && (
-                      <Link
-                        to={`/invoices/recurring/edit/${recurring.id}`}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Link>
-                    )}
-                    <button
-                      onClick={() => deleteRecurring(recurring.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(total, currency)}
-                    </p>
-                    <p className="text-xs text-gray-500">per invoice</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <RefreshCw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No recurring invoices found</p>
-            <Link
-              to="/invoices/new"
-              className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-700"
-            >
-              Create your first recurring invoice
-            </Link>
-          </div>
-        )}
-      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm text-gray-900">
+                          {format(parseISO(recurring.next_date), 'MMM dd, yyyy')}
+                        </div>
+                        <div className={`text-xs font-medium ${daysUntil.color}`}>
+                          {daysUntil.text}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {recurring.is_active ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></span>
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-1.5"></span>
+                          Paused
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => toggleStatus(recurring.id, recurring.is_active)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            recurring.is_active
+                              ? 'text-orange-600 hover:bg-orange-50'
+                              : 'text-green-600 hover:bg-green-50'
+                          }`}
+                          title={recurring.is_active ? 'Pause' : 'Resume'}
+                        >
+                          {recurring.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        </button>
+                        {recurring.invoice_id && (
+                          <Link
+                            to={`/invoices/recurring/edit/${recurring.id}`}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        )}
+                        <button
+                          onClick={() => deleteRecurring(recurring.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <RefreshCw className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No recurring invoices</h3>
+          <p className="text-gray-500 mb-4">Create recurring invoices to automate your billing</p>
+          <Link
+            to="/invoices/new"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create your first recurring invoice
+          </Link>
+        </div>
+      )}
     </div>
   );
 };
