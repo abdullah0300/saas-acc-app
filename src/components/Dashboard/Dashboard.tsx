@@ -6,6 +6,7 @@ import { AIInsightsService, Insight } from '../../services/aiInsightsService';
 import { Brain, RefreshCw } from 'lucide-react';
 import { ContextCollectionModal } from '../AI/ContextCollectionModal';
 import { Link, useNavigate } from 'react-router-dom';
+import MonthlyGreetingBanner from './MonthlyGreetingBanner';
 
 import { 
   Building ,
@@ -111,6 +112,8 @@ export const Dashboard: React.FC = () => {
   const { businessData, businessDataLoading } = useData();
 const { incomes, expenses, invoices, clients } = businessData;
 const [showImportWizard, setShowImportWizard] = useState(false);
+const [showMonthlyBanner, setShowMonthlyBanner] = useState(false);
+const [lastMonthStats, setLastMonthStats] = useState<any>(null);
 // ADD these state variables after line 64
 const [insights, setInsights] = useState<Insight[]>([]);
 const [loadingInsights, setLoadingInsights] = useState(true);
@@ -280,6 +283,46 @@ React.useEffect(() => {
 const [showAllInsights, setShowAllInsights] = useState(false);
 
 
+React.useEffect(() => {
+  if (user && incomes && expenses && invoices) {
+    // Check for monthly banner
+    const today = new Date();
+    const isFirstOfMonth = true; // Change to true for testing
+    const bannerKey = `monthlyBanner_${user.id}_${today.getFullYear()}_${today.getMonth()}`;
+    const hasSeenBanner = localStorage.getItem(bannerKey);
+
+    if (isFirstOfMonth && !hasSeenBanner) {
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+      
+      const lastMonthIncomes = incomes.filter(inc => {
+        const incDate = new Date(inc.date);
+        return incDate >= lastMonth && incDate <= lastMonthEnd;
+      });
+      
+      const lastMonthExpenses = expenses.filter(exp => {
+        const expDate = new Date(exp.date);
+        return expDate >= lastMonth && expDate <= lastMonthEnd;
+      });
+      
+      const revenue = lastMonthIncomes.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+      const expenseTotal = lastMonthExpenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+      
+      setLastMonthStats({
+        revenue,
+        expenses: expenseTotal,
+        profit: revenue - expenseTotal,
+        invoiceCount: invoices.filter(inv => {
+          const invDate = new Date(inv.date);
+          return invDate >= lastMonth && invDate <= lastMonthEnd;
+        }).length
+      });
+      
+      setShowMonthlyBanner(true);
+    }
+  }
+}, [user, incomes, expenses, invoices]);
+
 const monthlyData = generateMonthlyData();
 
 const categoryData: any = (() => {
@@ -389,6 +432,15 @@ const loading = businessDataLoading;
     .reduce((sum, income) => sum + (income.base_amount || income.amount), 0);
 };
 
+
+const handleBannerClose = () => {
+  if (!user) return;
+  const today = new Date();
+  const bannerKey = `monthlyBanner_${user.id}_${today.getFullYear()}_${today.getMonth()}`;
+  localStorage.setItem(bannerKey, 'true');
+  setShowMonthlyBanner(false);
+};
+
   if (loading || settingsLoading) {
   return (
     <div className="p-4 md:p-6 bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen">
@@ -429,8 +481,19 @@ const loading = businessDataLoading;
     : '0';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
+    {showMonthlyBanner && (
+      <div className="max-w-7xl mx-auto mb-6">
+        <MonthlyGreetingBanner
+          user={user}
+          lastMonthStats={lastMonthStats}
+          onClose={handleBannerClose}
+          formatCurrency={formatCurrency}
+          baseCurrency={baseCurrency}
+        />
+      </div>
+    )}
+    <div className="max-w-7xl mx-auto space-y-6">
        
 
         {/* Header with Quick Actions */}
