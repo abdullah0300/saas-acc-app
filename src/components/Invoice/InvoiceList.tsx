@@ -1410,7 +1410,7 @@ export const InvoiceList: React.FC = () => {
                                   <span className="ml-1 text-gray-400">
                                     (@{invoice.exchange_rate})
                                   </span>
-                                )}
+                                )}   
                               </div>
                             )}
                             {totalTax > 0 && (
