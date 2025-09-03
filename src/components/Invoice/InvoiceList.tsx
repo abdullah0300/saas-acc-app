@@ -36,13 +36,21 @@ import {
   X,
   Shield,
   CalendarSync,
-  CreditCard
+  CreditCard,
+  Globe,
+  Lock,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Coins,
+  Tag,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { getInvoices, deleteInvoice, updateInvoice } from '../../services/database';
+import { getInvoices, deleteInvoice, updateInvoice, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { format, addDays, differenceInDays, parseISO } from 'date-fns';
-import { Invoice, InvoiceStatus } from '../../types';
+import { Invoice, InvoiceStatus, Client, Category } from '../../types';
 import { supabase } from '../../services/supabaseClient';
 import { formatPhoneForWhatsApp } from '../../utils/phoneUtils';
 
@@ -53,16 +61,60 @@ interface RecurringInvoice {
   is_active: boolean;
 }
 
+// Currency flags mapping
+const CURRENCY_FLAGS: Record<string, string> = {
+  USD: '🇺🇸',
+  GBP: '🇬🇧',
+  EUR: '🇪🇺',
+  CAD: '🇨🇦',
+  AUD: '🇦🇺',
+  INR: '🇮🇳',
+  PKR: '🇵🇰',
+  JPY: '🇯🇵',
+  CNY: '🇨🇳',
+  AED: '🇦🇪',
+  SAR: '🇸🇦'
+};
+
 export const InvoiceList: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency, baseCurrency } = useSettings();
+  const { formatCurrency, baseCurrency, userSettings } = useSettings();
   const queryClient = useQueryClient();
   const { refreshBusinessData } = useData();
   const navigate = useNavigate();
   
+  // Helper function to calculate total tax from items with proper fallback
+  const calculateInvoiceTaxTotal = (invoice: Invoice): number => {
+    if (invoice.items && invoice.items.length > 0) {
+      // Sum up all item-level taxes
+      const itemTaxTotal = invoice.items.reduce((total, item) => 
+        total + (item.tax_amount || 0), 0
+      );
+      // Return item tax total if available, otherwise fall back to invoice-level tax
+      return itemTaxTotal > 0 ? itemTaxTotal : (invoice.tax_amount || 0);
+    }
+    return invoice.tax_amount || 0;
+  };
+
+  // Helper function to convert amount to base currency
+  const convertToBaseCurrency = (amount: number, currency: string, exchangeRate: number = 1): number => {
+    if (currency === baseCurrency) return amount;
+    // If converting FROM foreign currency TO base currency, divide by exchange rate
+    return amount / exchangeRate;
+  };
+
+  // Helper function to convert from base currency to foreign currency
+  const convertFromBaseCurrency = (baseAmount: number, exchangeRate: number = 1): number => {
+    // If converting FROM base currency TO foreign currency, multiply by exchange rate
+    return baseAmount * exchangeRate;
+  };
+  
   // State for filters and UI
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
+  const [currencyFilter, setCurrencyFilter] = useState<string>('all');
+  const [clientFilter, setClientFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showSettings, setShowSettings] = useState(false);
   const [showActionsDropdown, setShowActionsDropdown] = useState(false);
   const [typeFilter, setTypeFilter] = useState<'all' | 'one-time' | 'recurring'>('all');
@@ -70,17 +122,31 @@ export const InvoiceList: React.FC = () => {
   const [showActionMenu, setShowActionMenu] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'dueDate'>('date');
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
-const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
-// Pagination states
-const [currentPage, setCurrentPage] = useState(1);
-const [itemsPerPage] = useState(50); // 50 items per page
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(50);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
-// Bulk selection states
-const [selectedItems, setSelectedItems] = useState<string[]>([]);
-const [selectAll, setSelectAll] = useState(false);
+  // Check if UK user for VAT features - based on country, not currency
+  const isUKUser = userSettings?.country === 'GB';
+
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.action-menu-container')) {
+        setShowActionMenu(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Fetch invoices with React Query
-  const { data: invoices = [], isLoading, error } = useQuery({
+  const { data: invoices = [], isLoading, error, refetch } = useQuery({
     queryKey: ['invoices', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -88,16 +154,33 @@ const [selectAll, setSelectAll] = useState(false);
       
       // Check for overdue invoices
       const now = new Date();
-      data.forEach(async (invoice) => {
-        if (invoice.status === 'sent' && new Date(invoice.due_date) < now) {
-          await updateInvoice(invoice.id, { status: 'overdue' });
-        }
-      });
+      const overdueUpdates = data
+        .filter(invoice => 
+          invoice.status === 'sent' && 
+          new Date(invoice.due_date) < now
+        )
+        .map(invoice => updateInvoice(invoice.id, { status: 'overdue' }));
+      
+      if (overdueUpdates.length > 0) {
+        await Promise.all(overdueUpdates);
+        // Refetch to get updated statuses
+        return await getInvoices(user.id);
+      }
       
       return data;
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories', user?.id, 'income'],
+    queryFn: async () => {
+      if (!user) return [];
+      return await getCategories(user.id, 'income');
+    },
+    enabled: !!user,
   });
 
   // Fetch recurring invoices data
@@ -116,71 +199,118 @@ const [selectAll, setSelectAll] = useState(false);
     enabled: !!user,
   });
 
-  // Process recurring invoices into a Map
+  // Process recurring invoices into a Map with null checks
   const recurringInvoices = React.useMemo(() => {
     const map = new Map<string, RecurringInvoice>();
     recurringData.forEach(rec => {
-      map.set(rec.invoice_id, rec);
+      if (rec.invoice_id) {
+        map.set(rec.invoice_id, rec);
+      }
     });
     return map;
   }, [recurringData]);
 
-  // Delete mutation
- const deleteMutation = useMutation({
-  mutationFn: deleteInvoice,
-  onSuccess: async () => {
-    queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    await refreshBusinessData(); // ✅ Refresh DataContext cache
-  },
-  onError: (error: any) => {
-    alert('Error deleting invoice: ' + error.message);
-  }
-});
+  // Get unique clients from invoices with proper null handling
+  const uniqueClients = React.useMemo(() => {
+    const clientsMap = new Map<string, Client>();
+    invoices.forEach(invoice => {
+      if (invoice.client?.id && invoice.client?.name) {
+        clientsMap.set(invoice.client.id, invoice.client);
+      }
+    });
+    return Array.from(clientsMap.values()).sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '')
+    );
+  }, [invoices]);
 
-// Add this function to InvoiceList.tsx
-const generatePublicLink = async (invoiceId: string) => {
-  if (!user) return '';
-  
-  try {
-    // Generate a secure token
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-    
-    // Store the token
-    const { error } = await supabase
-      .from('invoice_access_tokens')
-      .insert({
-        token,
-        invoice_id: invoiceId,
-        expires_at: expiresAt.toISOString()
-      });
-    
-    if (error) throw error;
-    
-    // Return the public link
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/invoice/public/${invoiceId}?token=${token}`;
-  } catch (err: any) {
-    console.error('Error generating public link:', err);
-    return '';
-  }
-};
+  // Delete mutation with error recovery
+  const deleteMutation = useMutation({
+    mutationFn: deleteInvoice,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      await refreshBusinessData();
+    },
+    onError: (error: any) => {
+      alert('Error deleting invoice: ' + error.message);
+    }
+  });
 
+  // Generate public link function with deduplication
+  const generatePublicLink = async (invoiceId: string) => {
+    if (!user) return '';
+    
+    try {
+      // Check for existing valid token first
+      const { data: existingToken } = await supabase
+        .from('invoice_access_tokens')
+        .select('token')
+        .eq('invoice_id', invoiceId)
+        .gte('expires_at', new Date().toISOString())
+        .maybeSingle();
+      
+      if (existingToken?.token) {
+        const baseUrl = window.location.origin;
+        return `${baseUrl}/invoice/public/${invoiceId}?token=${existingToken.token}`;
+      }
+      
+      // Create new token only if no valid token exists
+      const token = crypto.randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+      
+      const { error } = await supabase
+        .from('invoice_access_tokens')
+        .insert({
+          token,
+          invoice_id: invoiceId,
+          expires_at: expiresAt.toISOString()
+        });
+      
+      if (error) throw error;
+      
+      const baseUrl = window.location.origin;
+      return `${baseUrl}/invoice/public/${invoiceId}?token=${token}`;
+    } catch (err: any) {
+      console.error('Error generating public link:', err);
+      alert('Failed to generate public link. Please try again.');
+      return '';
+    }
+  };
 
-  // Filter and sort invoices
+  // Get unique currencies from invoices
+  const uniqueCurrencies = React.useMemo(() => {
+    const currencies = new Set<string>();
+    invoices.forEach(invoice => {
+      if (invoice.currency) currencies.add(invoice.currency);
+    });
+    return Array.from(currencies).sort();
+  }, [invoices]);
+
+  // Filter and sort invoices with proper null handling
   const filteredInvoices = React.useMemo(() => {
     let filtered = invoices;
 
     if (searchTerm) {
       filtered = filtered.filter(invoice =>
         invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.client?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        (invoice.client?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter(invoice => invoice.status === statusFilter);
+    }
+
+    if (currencyFilter !== 'all') {
+      filtered = filtered.filter(invoice => invoice.currency === currencyFilter);
+    }
+
+    if (clientFilter !== 'all') {
+      filtered = filtered.filter(invoice => invoice.client?.id === clientFilter);
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(invoice => invoice.income_category_id === categoryFilter);
     }
 
     if (typeFilter !== 'all') {
@@ -190,11 +320,13 @@ const generatePublicLink = async (invoiceId: string) => {
       });
     }
 
-    // Sort
+    // Sort with proper null handling
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'amount':
-          return b.total - a.total;
+          const aAmount = a.base_amount || convertToBaseCurrency(a.total, a.currency || baseCurrency, a.exchange_rate || 1);
+          const bAmount = b.base_amount || convertToBaseCurrency(b.total, b.currency || baseCurrency, b.exchange_rate || 1);
+          return bAmount - aAmount;
         case 'dueDate':
           return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
         default:
@@ -203,489 +335,497 @@ const generatePublicLink = async (invoiceId: string) => {
     });
 
     return filtered;
-  }, [invoices, searchTerm, statusFilter, typeFilter, sortBy, recurringInvoices]);
+  }, [invoices, searchTerm, statusFilter, currencyFilter, clientFilter, categoryFilter, typeFilter, sortBy, recurringInvoices, baseCurrency]);
 
+  // Pagination logic
+  const getPaginatedInvoices = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredInvoices.slice(startIndex, endIndex);
+  };
 
-  // ADD THIS RIGHT AFTER filteredInvoices useMemo:
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+  const paginatedInvoices = getPaginatedInvoices();
 
-// Pagination logic
-const getPaginatedInvoices = () => {
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  return filteredInvoices.slice(startIndex, endIndex);
-};
+  // Reset pagination when data changes
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
-const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
-const paginatedInvoices = getPaginatedInvoices();
+  // Selection helper functions
+  const handleSelectAll = (checked: boolean) => {
+    setSelectAll(checked);
+    if (checked) {
+      const currentPageIds = paginatedInvoices.map(invoice => invoice.id);
+      setSelectedItems(currentPageIds);
+    } else {
+      setSelectedItems([]);
+    }
+  };
 
-// Selection helper functions
-const handleSelectAll = (checked: boolean) => {
-  setSelectAll(checked);
-  if (checked) {
-    const currentPageIds = paginatedInvoices.map(invoice => invoice.id);
-    setSelectedItems(currentPageIds);
-  } else {
+  const handleSelectItem = (invoiceId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedItems(prev => [...prev, invoiceId]);
+    } else {
+      setSelectedItems(prev => prev.filter(id => id !== invoiceId));
+      setSelectAll(false);
+    }
+  };
+
+  const clearSelections = () => {
     setSelectedItems([]);
-  }
-};
-
-const handleSelectItem = (invoiceId: string, checked: boolean) => {
-  if (checked) {
-    setSelectedItems(prev => [...prev, invoiceId]);
-  } else {
-    setSelectedItems(prev => prev.filter(id => id !== invoiceId));
     setSelectAll(false);
-  }
-};
+  };
 
-const clearSelections = () => {
-  setSelectedItems([]);
-  setSelectAll(false);
-};
+  // Reset pagination when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+    clearSelections();
+  }, [searchTerm, statusFilter, currencyFilter, clientFilter, categoryFilter, typeFilter, sortBy]);
 
-// Reset pagination when filters change
-React.useEffect(() => {
-  setCurrentPage(1);
-  clearSelections();
-}, [searchTerm, statusFilter, typeFilter, sortBy]);
-
-
-// ADD THESE BULK OPERATION FUNCTIONS:
-
-// Bulk delete function
-const handleBulkDelete = async () => {
-  if (selectedItems.length === 0) return;
-  
-  // Check if any selected invoices are paid/canceled
-  const lockedInvoices = filteredInvoices.filter(
-    invoice => selectedItems.includes(invoice.id) && 
-    (invoice.status === 'paid' || invoice.status === 'canceled')
-  );
-  
-  if (lockedInvoices.length > 0) {
-    alert(`Cannot delete ${lockedInvoices.length} paid/canceled invoice(s). These are locked for legal compliance.`);
-    return;
-  }
-  
-  const confirmed = window.confirm(
-    `Are you sure you want to delete ${selectedItems.length} invoice(s)? This action cannot be undone.`
-  );
-  
-  if (!confirmed) return;
-  
-  try {
-    // Delete each selected item
-    await Promise.all(
-      selectedItems.map(id => deleteMutation.mutateAsync(id))
+  // Bulk delete function with loading state
+  const handleBulkDelete = async () => {
+    if (selectedItems.length === 0) return;
+    
+    const selectedInvoiceData = filteredInvoices.filter(
+      invoice => selectedItems.includes(invoice.id)
     );
     
-    clearSelections();
-    alert(`Successfully deleted ${selectedItems.length} invoice(s)`);
-  } catch (error) {
-    console.error('Error deleting invoices:', error);
-    alert('Error deleting some records. Please try again.');
-  }
-};
-
-// Bulk export function
-const handleBulkExport = () => {
-  if (selectedItems.length === 0) {
-    alert('Please select items to export');
-    return;
-  }
-  
-  const selectedInvoices = filteredInvoices.filter(invoice => 
-    selectedItems.includes(invoice.id)
-  );
-  
-  const headers = ['Invoice #', 'Date', 'Due Date', 'Client', 'Amount', 'Currency', 'Status', 'Type'];
-  const csvData = selectedInvoices.map(invoice => [
-  invoice.invoice_number,
-  format(parseISO(invoice.date), 'yyyy-MM-dd'),
-  format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
-  invoice.client?.name || 'No client',
-  invoice.total.toString(),
-  invoice.currency || baseCurrency,
-  invoice.status,
-  recurringInvoices.has(invoice.id) ? 'Recurring' : 'One-time'
-]);
-  
-  const csvContent = [
-    headers.join(','),
-    ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n');
-  
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `selected-invoices-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-  link.click();
-  
-  alert(`Exported ${selectedItems.length} invoice(s)`);
-};
-
-  // Calculate stats
-const stats = React.useMemo(() => {
-  // Use base_amount when available for accurate totals
-  const totalAmount = invoices.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-  const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-  const pendingAmount = invoices.filter(inv => inv.status === 'sent').reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-  const overdueAmount = invoices.filter(inv => inv.status === 'overdue').reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
-  
-  return {
-    totalInvoices: invoices.length,
-    totalAmount,
-    paidAmount,
-    pendingAmount,
-    overdueAmount,
-    averageInvoiceValue: invoices.length > 0 ? totalAmount / invoices.length : 0
+    const lockedInvoices = selectedInvoiceData.filter(
+      invoice => invoice.status === 'paid' || 
+                 invoice.status === 'canceled' ||
+                 invoice.vat_locked_at
+    );
+    
+    if (lockedInvoices.length > 0) {
+      alert(`Cannot delete ${lockedInvoices.length} locked invoice(s). These are locked for legal compliance.`);
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedItems.length} invoice(s)? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+    
+    setBulkActionLoading(true);
+    try {
+      await Promise.all(
+        selectedItems.map(id => deleteMutation.mutateAsync(id))
+      );
+      
+      clearSelections();
+      alert(`Successfully deleted ${selectedItems.length} invoice(s)`);
+    } catch (error) {
+      console.error('Error deleting invoices:', error);
+      alert('Error deleting some records. Please try again.');
+    } finally {
+      setBulkActionLoading(false);
+    }
   };
-}, [invoices]);
+
+  // Bulk export function
+  const handleBulkExport = () => {
+    if (selectedItems.length === 0) {
+      alert('Please select items to export');
+      return;
+    }
+    
+    const selectedInvoices = filteredInvoices.filter(invoice => 
+      selectedItems.includes(invoice.id)
+    );
+    
+    const headers = ['Invoice #', 'Date', 'Due Date', 'Client', 'Amount', 'Currency', 'Exchange Rate', 'Base Amount', 'Status', 'Type', 'Has Credits'];
+    const csvData = selectedInvoices.map(invoice => [
+      invoice.invoice_number,
+      format(parseISO(invoice.date), 'yyyy-MM-dd'),
+      format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
+      invoice.client?.name || 'No client',
+      invoice.total.toString(),
+      invoice.currency || baseCurrency,
+      (invoice.exchange_rate || 1).toString(),
+      (invoice.base_amount || convertToBaseCurrency(invoice.total, invoice.currency || baseCurrency, invoice.exchange_rate || 1)).toString(),
+      invoice.status,
+      recurringInvoices.has(invoice.id) ? 'Recurring' : 'One-time',
+      invoice.has_credit_notes ? 'Yes' : 'No'
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `selected-invoices-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    
+    alert(`Exported ${selectedItems.length} invoice(s)`);
+  };
+
+  // Calculate enhanced stats with proper currency conversion
+  const stats = React.useMemo(() => {
+    // Convert all amounts to base currency for accurate totals
+    const getBaseAmount = (invoice: Invoice) => {
+      if (invoice.base_amount) return invoice.base_amount;
+      return convertToBaseCurrency(
+        invoice.total, 
+        invoice.currency || baseCurrency, 
+        invoice.exchange_rate || 1
+      );
+    };
+    
+    const totalAmount = invoices.reduce((sum, inv) => sum + getBaseAmount(inv), 0);
+    const paidAmount = invoices
+      .filter(inv => inv.status === 'paid')
+      .reduce((sum, inv) => sum + getBaseAmount(inv), 0);
+    const pendingAmount = invoices
+      .filter(inv => inv.status === 'sent')
+      .reduce((sum, inv) => sum + getBaseAmount(inv), 0);
+    const overdueAmount = invoices
+      .filter(inv => inv.status === 'overdue')
+      .reduce((sum, inv) => sum + getBaseAmount(inv), 0);
+    
+    // Draft invoices
+    const draftInvoices = invoices.filter(inv => inv.status === 'draft');
+    const draftAmount = draftInvoices.reduce((sum, inv) => sum + getBaseAmount(inv), 0);
+    
+    // Credit notes totals (already in base currency)
+    const totalCredited = invoices.reduce((sum, inv) => 
+      sum + (inv.total_credited || 0), 0
+    );
+    const invoicesWithCredits = invoices.filter(inv => inv.has_credit_notes).length;
+    
+    // Currency breakdown (in original currency)
+    const currencyBreakdown = invoices.reduce((acc, inv) => {
+      const currency = inv.currency || baseCurrency;
+      if (!acc[currency]) acc[currency] = { total: 0, count: 0 };
+      acc[currency].total += inv.total;
+      acc[currency].count += 1;
+      return acc;
+    }, {} as Record<string, { total: number; count: number }>);
+    
+    return {
+      totalInvoices: invoices.length,
+      totalAmount,
+      paidAmount,
+      pendingAmount,
+      overdueAmount,
+      draftAmount,
+      draftCount: draftInvoices.length,
+      totalCredited,
+      invoicesWithCredits,
+      currencyBreakdown,
+      averageInvoiceValue: invoices.length > 0 ? totalAmount / invoices.length : 0
+    };
+  }, [invoices, baseCurrency]);
 
   const handleDelete = (id: string) => {
-  const invoice = invoices.find(inv => inv.id === id);
-  if (!invoice) return;
+    const invoice = invoices.find(inv => inv.id === id);
+    if (!invoice) return;
 
-  // HMRC COMPLIANCE: Prevent deletion of paid or canceled invoices
-  if (invoice.status === 'paid' || invoice.status === 'canceled') {
-    alert('Cannot delete paid or canceled invoices. This is required for legal compliance (HMRC regulations).');
-    return;
-  }
+    if (invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at) {
+      alert('Cannot delete this invoice. It is locked for legal compliance.');
+      return;
+    }
 
-  // For unpaid invoices, show confirmation
-  if (window.confirm('Are you sure you want to delete this invoice?')) {
-    deleteMutation.mutate(id);
-  }
-};
+    if (window.confirm('Are you sure you want to delete this invoice?')) {
+      deleteMutation.mutate(id);
+    }
+  };
 
-const handleConfirmDelete = () => {
-  if (invoiceToDelete) {
-    deleteMutation.mutate(invoiceToDelete.id);
-  }
-  setShowDeleteWarning(false);
-  setInvoiceToDelete(null);
-};
-
-const handleCancelDelete = () => {
-  setShowDeleteWarning(false);
-  setInvoiceToDelete(null);
-};
-
-
-const handleStatusChange = async (id: string, newStatus: InvoiceStatus) => {
-  try {
-    // First update the invoice status
-    await updateInvoice(id, { status: newStatus });
-    
-    // If marking as paid, create income entry with proper VAT handling
-    if (newStatus === 'paid' && user) {
-      // Get the full invoice data
-      const { data: invoice } = await supabase
-        .from('invoices')
-        .select('*')
-        .eq('id', id)
-        .single();
+  const handleStatusChange = async (id: string, newStatus: InvoiceStatus) => {
+    try {
+      await updateInvoice(id, { status: newStatus });
       
-      if (!invoice) return;
-      
-      // Check if income already exists
-      const { data: existingIncome } = await supabase
-        .from('income')
-        .select('id')
-        .eq('reference_number', invoice.invoice_number)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      
-      if (!existingIncome) {
-        let totalNetAmount = 0;
-        let totalTaxAmount = 0;
-        let taxBreakdown: Record<string, any> = {};
-        
-        // Get invoice items
-        const { data: items } = await supabase
-          .from('invoice_items')
+      // Handle automatic income creation when marking as paid
+      if (newStatus === 'paid' && user) {
+        const { data: invoice } = await supabase
+          .from('invoices')
           .select('*')
-          .eq('invoice_id', invoice.id);
+          .eq('id', id)
+          .single();
         
-        // Check if UK user (with line-item VAT)
-       // Only UK uses GBP and has line-item VAT
-const isUK = invoice.currency === 'GBP' && 
-             items && items.length > 0 &&
-             items.some(item => item.tax_rate !== undefined && item.tax_rate > 0);
-       
-        if (isUK && items && items.length > 0) {
-          // UK LOGIC - Calculate from line items
-          items.forEach(item => {
-            const rate = (item.tax_rate || 0).toString();
-            const netAmount = item.net_amount || item.amount || 0;
-            const taxAmount = item.tax_amount || 0;
+        if (!invoice) return;
+        
+        // Check if income already exists
+        const { data: existingIncome } = await supabase
+          .from('income')
+          .select('id')
+          .eq('reference_number', invoice.invoice_number)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (!existingIncome) {
+          let totalNetAmount = 0;
+          let totalTaxAmount = 0;
+          let taxBreakdown: Record<string, any> = {};
+          
+          // Fetch invoice items for VAT breakdown
+          const { data: items } = await supabase
+            .from('invoice_items')
+            .select('*')
+            .eq('invoice_id', invoice.id);
+          
+          // Check if this is a UK VAT invoice (based on user country, not currency)
+          const isUKVAT = isUKUser && 
+                         items && items.length > 0 &&
+                         items.some(item => (item.tax_rate || 0) > 0);
+         
+          if (isUKVAT && items && items.length > 0) {
+            // Build VAT breakdown from items
+            items.forEach(item => {
+              const rate = (item.tax_rate || 0).toString();
+              const netAmount = item.net_amount || item.amount || 0;
+              const taxAmount = item.tax_amount || 0;
+              
+              if (!taxBreakdown[rate]) {
+                taxBreakdown[rate] = {
+                  net_amount: 0,
+                  tax_amount: 0,
+                  gross_amount: 0
+                };
+              }
+              
+              taxBreakdown[rate].net_amount += netAmount;
+              taxBreakdown[rate].tax_amount += taxAmount;
+              taxBreakdown[rate].gross_amount += netAmount + taxAmount;
+              
+              totalNetAmount += netAmount;
+              totalTaxAmount += taxAmount;
+            });
+          } else {
+            // Non-VAT invoice
+            totalNetAmount = invoice.subtotal;
+            totalTaxAmount = invoice.tax_amount || 0;
             
-            if (!taxBreakdown[rate]) {
-              taxBreakdown[rate] = {
-                net_amount: 0,
-                tax_amount: 0,
-                gross_amount: 0
+            if (invoice.tax_rate > 0) {
+              taxBreakdown[invoice.tax_rate.toString()] = {
+                net_amount: invoice.subtotal,
+                tax_amount: invoice.tax_amount,
+                gross_amount: invoice.total
               };
             }
-            
-            taxBreakdown[rate].net_amount += netAmount;
-            taxBreakdown[rate].tax_amount += taxAmount;
-            taxBreakdown[rate].gross_amount += netAmount + taxAmount;
-            
-            totalNetAmount += netAmount;
-            totalTaxAmount += taxAmount;
-          });
-        } else {
-          // USA/OTHER COUNTRIES - Use invoice totals directly
-          totalNetAmount = invoice.subtotal;
-          totalTaxAmount = invoice.tax_amount || 0;
-          
-          if (invoice.tax_rate > 0) {
-            taxBreakdown[invoice.tax_rate.toString()] = {
-              net_amount: invoice.subtotal,
-              tax_amount: invoice.tax_amount,
-              gross_amount: invoice.total
-            };
           }
-        }
-        
-        // Create income entry
-        const { error: incomeError } = await supabase
-          .from('income')
-          .insert([{
-            user_id: user.id,
-            amount: totalNetAmount, // NET amount
-            description: `Payment for Invoice #${invoice.invoice_number}`,
-            date: new Date().toISOString().split('T')[0],
-            client_id: invoice.client_id || null,
-            category_id: invoice.income_category_id || null,
-            reference_number: invoice.invoice_number,
-            currency: invoice.currency || 'USD',
-            exchange_rate: invoice.exchange_rate || 1,
-            base_amount: (totalNetAmount / (invoice.exchange_rate || 1)),
-            tax_rate: invoice.tax_rate || 0,
-            tax_amount: totalTaxAmount,
-            tax_metadata: {
-              tax_breakdown: taxBreakdown,
-              invoice_id: invoice.id,
-              invoice_number: invoice.invoice_number,
-              created_from_invoice: true,
-              is_uk_vat: isUK
-            }
-          }]);
           
-        if (incomeError) throw incomeError;
-        // Log UK VAT digital link (only for UK users)
-        if (isUK && !incomeError) {
-          const { data: newIncome } = await supabase
+          // Calculate base amount correctly
+          const baseAmount = invoice.currency === baseCurrency
+            ? totalNetAmount
+            : convertToBaseCurrency(totalNetAmount, invoice.currency || baseCurrency, invoice.exchange_rate || 1);
+          
+          const { error: incomeError } = await supabase
             .from('income')
-            .select('id')
-            .eq('reference_number', invoice.invoice_number)
-            .eq('user_id', user.id)
-            .single();
-          
-          if (newIncome) {
-            await VATAuditService.logVATLink(
-              user.id,
-              'invoice',
-              invoice.id,
-              'income',
-              newIncome.id,
-              { 
-                invoice_number: invoice.invoice_number, 
-                amount: totalNetAmount, 
-                vat: totalTaxAmount,
-                vat_breakdown: taxBreakdown 
+            .insert([{
+              user_id: user.id,
+              amount: totalNetAmount,
+              description: `Payment for Invoice #${invoice.invoice_number}`,
+              date: new Date().toISOString().split('T')[0],
+              client_id: invoice.client_id || null,
+              category_id: invoice.income_category_id || null,
+              reference_number: invoice.invoice_number,
+              currency: invoice.currency || baseCurrency,
+              exchange_rate: invoice.exchange_rate || 1,
+              base_amount: baseAmount,
+              tax_rate: invoice.tax_rate || 0,
+              tax_amount: totalTaxAmount,
+              tax_metadata: {
+                tax_breakdown: taxBreakdown,
+                invoice_id: invoice.id,
+                invoice_number: invoice.invoice_number,
+                created_from_invoice: true,
+                is_uk_vat: isUKVAT
               }
-            );
+            }]);
+            
+          if (incomeError) throw incomeError;
+          
+          // Log VAT link if applicable
+          if (isUKVAT && !incomeError) {
+            const { data: newIncome } = await supabase
+              .from('income')
+              .select('id')
+              .eq('reference_number', invoice.invoice_number)
+              .eq('user_id', user.id)
+              .single();
+            
+            if (newIncome) {
+              await VATAuditService.logVATLink(
+                user.id,
+                'invoice',
+                invoice.id,
+                'income',
+                newIncome.id,
+                { 
+                  invoice_number: invoice.invoice_number, 
+                  amount: totalNetAmount, 
+                  vat: totalTaxAmount,
+                  vat_breakdown: taxBreakdown 
+                }
+              );
+            }
           }
         }
       }
+      
+      await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      await queryClient.invalidateQueries({ queryKey: ['income'] });
+      await refreshBusinessData();
+      
+    } catch (error: any) {
+      console.error('Error updating invoice status:', error);
+      alert('Error updating invoice status: ' + error.message);
+      // Refetch to ensure UI is in sync
+      await refetch();
     }
-    
-    // Refresh the data
-    await queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    await queryClient.invalidateQueries({ queryKey: ['income'] });
-    await refreshBusinessData();
-    
-  } catch (error: any) {
-    console.error('Error updating invoice status:', error);
-    alert('Error updating invoice status: ' + error.message);
-  }
-};
-
-
-// Also update the updateMutation to use the new handleStatusChange
-// REPLACE the existing updateMutation with this:
-
-const updateMutation = useMutation({
-  mutationFn: async ({ id, updates }: { id: string; updates: Partial<Invoice> }) => {
-    // If updating status to paid, use the new handleStatusChange
-    if (updates.status === 'paid') {
-      await handleStatusChange(id, 'paid');
-      return; // handleStatusChange already handles everything
-    }
-    
-    // For other updates, just update the invoice
-    return await updateInvoice(id, updates);
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['invoices'] });
-    refreshBusinessData();
-  },
-  onError: (error: any) => {
-    alert('Error updating invoice: ' + error.message);
-  }
-});
+  };
 
   const sendInvoice = async (invoice: Invoice, method: 'email' | 'whatsapp') => {
-  try {
-    // First, fetch the complete invoice data
-    const { data: fullInvoiceData, error: fetchError } = await supabase
-      .from('invoices')
-      .select(`
-        *,
-        client:clients(*),
-        items:invoice_items(*)
-      `)
-      .eq('id', invoice.id)
-      .single();
+    try {
+      const { data: fullInvoiceData, error: fetchError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          client:clients(*),
+          items:invoice_items(*)
+        `)
+        .eq('id', invoice.id)
+        .single();
 
-    if (fetchError) throw fetchError;
+      if (fetchError) throw fetchError;
 
-    // Fetch profile and invoice settings separately using the invoice's user_id
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', fullInvoiceData.user_id)
-      .single();
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', fullInvoiceData.user_id)
+        .single();
 
-    const { data: settingsData } = await supabase
-      .from('invoice_settings')
-      .select('*')
-      .eq('user_id', fullInvoiceData.user_id)
-      .single();
+      const { data: settingsData } = await supabase
+        .from('invoice_settings')
+        .select('*')
+        .eq('user_id', fullInvoiceData.user_id)
+        .single();
 
-    if (fetchError) throw fetchError;
+      const companyName = profileData?.company_name || 
+                         settingsData?.company_name || 
+                         'Your Company';
+      const companyAddress = profileData?.company_address || 
+                            settingsData?.company_address || '';
+      const companyPhone = profileData?.phone || 
+                          settingsData?.company_phone || '';
 
-    // Get company info from either profile or invoice settings
-    const companyName = profileData?.company_name || 
-                       settingsData?.company_name || 
-                       'Your Company';
-    const companyAddress = profileData?.company_address || 
-                          settingsData?.company_address || '';
-    const companyPhone = profileData?.phone || 
-                        settingsData?.company_phone || '';
-
-    if (method === 'email') {
-      const { error } = await supabase.functions.invoke('send-invoice-email', {
-        body: {
-          invoiceId: invoice.id,
-          recipientEmail: invoice.client?.email,
-          invoiceUrl: `${window.location.origin}/invoices/${invoice.id}/view`
+      if (method === 'email') {
+        if (!invoice.client?.email) {
+          alert('Client email is required to send via email');
+          return;
         }
-      });
-      
-      if (error) throw error;
-      alert('Invoice sent via email successfully!');
-     } else if (method === 'whatsapp') {
-  // Check if client has phone number
-  if (!invoice.client?.phone) {
-    alert('Client phone number is required to send via WhatsApp');
-    return;
-  }
-
-  try {
-    // Use the new utility function with client's country code
-    const phoneNumber = formatPhoneForWhatsApp(
-      invoice.client.phone, 
-      invoice.client.phone_country_code
-    );
-
-    // ✅ Generate public link HERE, inside the whatsapp block
-    const publicLink = await generatePublicLink(invoice.id);
-
-    // Build line items summary if available
-    let itemsSummary = '';
-    if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
-      itemsSummary = '\n📋 *ITEMS:*\n';
-      fullInvoiceData.items.forEach((item: any) => {
-        itemsSummary += `• ${item.description} - ${formatCurrency(item.amount)}\n`;
-      });
-    }
-
-    // Professional invoice message format with company info
-    const message = encodeURIComponent(
-      `🏢 *${companyName}*\n` +
-      (companyAddress ? `📍 ${companyAddress}\n` : '') +
-      (companyPhone ? `☎️ ${companyPhone}\n` : '') +
-      `━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `📄 *INVOICE*\n\n` +
-      `*To:* ${invoice.client?.name}\n` +
-      (invoice.client?.address ? `${invoice.client.address}\n` : '') +
-      `\n*Invoice #:* ${invoice.invoice_number}\n` +
-      `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
-      `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
-      itemsSummary +
-      `\n━━━━━━━━━━━━━━━━━━━━\n` +
-      `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
-      (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
-      `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `📱 *View Full Invoice:*\n` +
-      `${publicLink}\n\n` +  // ✅ Now publicLink is properly declared
-      `💳 *Payment Options:*\n` +
-      `• Bank Transfer\n` +
-      `• Credit/Debit Card\n` +
-      `• PayPal\n` +
-      (settingsData?.payment_instructions ? 
-        `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
-      `Thank you for your business! 🙏\n\n` +
-      `_Please save this number to receive future updates._`
-    );
-    
-    window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
-    
-  } catch (error: any) {
-    alert(`Error: ${error.message}\nPlease update the client's country code.`);
-    return;
-  }
-}
-    
-    // Update invoice status to 'sent' if it was draft
-    if (invoice.status === 'draft') {
-      await handleStatusChange(invoice.id, 'sent');
-      
-      // Track activity
-      if (user?.id) {
-        await supabase.from('invoice_activities').insert({
-          invoice_id: invoice.id,
-          user_id: user.id,
-          action: 'sent',
-          details: { 
-            method, 
-            timestamp: new Date().toISOString(),
-            sent_to: method === 'email' ? invoice.client?.email : invoice.client?.phone
+        
+        const { error } = await supabase.functions.invoke('send-invoice-email', {
+          body: {
+            invoiceId: invoice.id,
+            recipientEmail: invoice.client.email,
+            invoiceUrl: `${window.location.origin}/invoices/${invoice.id}/view`
           }
         });
+        
+        if (error) throw error;
+        alert('Invoice sent via email successfully!');
+      } else if (method === 'whatsapp') {
+        if (!invoice.client?.phone) {
+          alert('Client phone number is required to send via WhatsApp');
+          return;
+        }
+
+        try {
+          const phoneNumber = formatPhoneForWhatsApp(
+            invoice.client.phone, 
+            invoice.client.phone_country_code
+          );
+
+          const publicLink = await generatePublicLink(invoice.id);
+          if (!publicLink) return;
+
+          let itemsSummary = '';
+          if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
+            itemsSummary = '\n📋 *ITEMS:*\n';
+            fullInvoiceData.items.forEach((item: any) => {
+              itemsSummary += `• ${item.description} - ${formatCurrency(item.amount, invoice.currency || baseCurrency)}\n`;
+            });
+          }
+
+          const message = encodeURIComponent(
+            `🏢 *${companyName}*\n` +
+            (companyAddress ? `📍 ${companyAddress}\n` : '') +
+            (companyPhone ? `☎️ ${companyPhone}\n` : '') +
+            `━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `📄 *INVOICE*\n\n` +
+            `*To:* ${invoice.client?.name}\n` +
+            (invoice.client?.address ? `${invoice.client.address}\n` : '') +
+            `\n*Invoice #:* ${invoice.invoice_number}\n` +
+            `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
+            `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
+            itemsSummary +
+            `\n━━━━━━━━━━━━━━━━━━━━\n` +
+            `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
+            (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
+            `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `📱 *View Full Invoice:*\n` +
+            `${publicLink}\n\n` +
+            `💳 *Payment Options:*\n` +
+            `• Bank Transfer\n` +
+            `• Credit/Debit Card\n` +
+            `• PayPal\n` +
+            (settingsData?.payment_instructions ? 
+              `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
+            `Thank you for your business! 🙏\n\n` +
+            `_Please save this number to receive future updates._`
+          );
+          
+          window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+          
+        } catch (error: any) {
+          alert(`Error: ${error.message}\nPlease update the client's country code.`);
+          return;
+        }
       }
+      
+      // Update status if sending from draft
+      if (invoice.status === 'draft') {
+        await handleStatusChange(invoice.id, 'sent');
+        
+        // Log activity
+        if (user?.id) {
+          await supabase.from('invoice_activities').insert({
+            invoice_id: invoice.id,
+            user_id: user.id,
+            action: 'sent',
+            details: { 
+              method, 
+              timestamp: new Date().toISOString(),
+              sent_to: method === 'email' ? invoice.client?.email : invoice.client?.phone
+            }
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error('Error sending invoice:', err);
+      alert('Error sending invoice: ' + (err.message || 'Unknown error'));
     }
-  } catch (err: any) {
-    console.error('Error sending invoice:', err);
-    alert('Error sending invoice: ' + (err.message || 'Unknown error'));
-  }
-};
+  };
 
   const copyInvoiceLink = async (invoice: Invoice) => {
-  const publicUrl = await generatePublicLink(invoice.id);
-  if (publicUrl) {
-    await navigator.clipboard.writeText(publicUrl);
-    alert('Public invoice link copied to clipboard!');
-  }
-};
+    const publicUrl = await generatePublicLink(invoice.id);
+    if (publicUrl) {
+      await navigator.clipboard.writeText(publicUrl);
+      alert('Public invoice link copied to clipboard!');
+    }
+  };
 
   const exportToCSV = () => {
-    const headers = ['Invoice Number', 'Client', 'Date', 'Due Date', 'Status', 'Amount'];
+    const headers = ['Invoice Number', 'Client', 'Date', 'Due Date', 'Status', 'Amount', 'Currency', 'Exchange Rate'];
     
     const data = filteredInvoices.map(invoice => [
       invoice.invoice_number,
@@ -693,7 +833,9 @@ const updateMutation = useMutation({
       format(parseISO(invoice.date), 'yyyy-MM-dd'),
       format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
       invoice.status,
-      invoice.total.toFixed(2)
+      invoice.total.toFixed(2),
+      invoice.currency || baseCurrency,
+      (invoice.exchange_rate || 1).toString()
     ]);
     
     const csvContent = [
@@ -734,6 +876,18 @@ const updateMutation = useMutation({
     return differenceInDays(parseISO(dueDate), new Date());
   };
 
+  const handleStatsScroll = (direction: 'left' | 'right') => {
+    const container = document.getElementById('stats-container');
+    if (container) {
+      const scrollAmount = 320;
+      if (direction === 'left') {
+        container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+    }
+  };
+
   if (isLoading) return <SkeletonTable rows={8} columns={7} hasActions={true} />;
 
   if (error) {
@@ -757,15 +911,17 @@ const updateMutation = useMutation({
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-<div className="bg-white rounded-2xl shadow-lg p-6">
+        <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
-              <p className="text-gray-600 mt-1">Manage your invoices and track payments</p>
+              <p className="text-gray-600 mt-1">
+                Manage your invoices and track payments
+                {isUKUser && ' • UK VAT compliant'}
+              </p>
             </div>
             
             <div className="flex items-center gap-3">
-              
               <Link
                 to="/invoices/new"
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
@@ -773,131 +929,220 @@ const updateMutation = useMutation({
                 <Plus className="h-4 w-4 mr-2" />
                 Create Invoice
               </Link>
+              
               {/* More Actions Dropdown */}
-      <div className="relative">
-        <button
-          onClick={() => setShowActionsDropdown(!showActionsDropdown)}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
-        >
-          <span className="text-gray-700">More</span>
-          <ChevronDown className={`h-4 w-4 ml-2 text-gray-500 transition-transform ${
-            showActionsDropdown ? 'rotate-180' : ''
-          }`} />
-        </button>
-        
-        {showActionsDropdown && (
-          <>
-            {/* Invisible backdrop to close dropdown */}
-            <div 
-              className="fixed inset-0 z-10" 
-              onClick={() => setShowActionsDropdown(false)}
-            />
+              <div className="relative">
+                <button
+                  onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
+                >
+                  <span className="text-gray-700">More</span>
+                  <ChevronDown className={`h-4 w-4 ml-2 text-gray-500 transition-transform ${
+                    showActionsDropdown ? 'rotate-180' : ''
+                  }`} />
+                </button>
+                
+                {showActionsDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setShowActionsDropdown(false)}
+                    />
+                    
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20 overflow-hidden">
+                      <button
+                        onClick={() => {
+                          navigate('/invoices/recurring');
+                          setShowActionsDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+                      >
+                        <CalendarSync className="h-4 w-4 mr-3 text-gray-500" />
+                        <span className="text-gray-700">Recurring Invoices</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          navigate('/credit-notes');
+                          setShowActionsDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+                      >
+                        <CreditCard className="h-4 w-4 mr-3 text-gray-500" />
+                        <span className="text-gray-700">Credit Notes</span>
+                      </button>
+                      
+                      <div className="border-t border-gray-100"></div>
+                      
+                      <button
+                        onClick={() => {
+                          setShowSettings(true);
+                          setShowActionsDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+                      >
+                        <Settings className="h-4 w-4 mr-3 text-gray-500" />
+                        <span className="text-gray-700">Invoice Settings</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          exportToCSV();
+                          setShowActionsDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+                      >
+                        <Download className="h-4 w-4 mr-3 text-gray-500" />
+                        <span className="text-gray-700">Export All</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Stats Cards - Swipeable on mobile */}
+        <div className="relative">
+          <div className="flex items-center">
+            <button
+              onClick={() => handleStatsScroll('left')}
+              className="hidden lg:block absolute left-0 z-10 p-2 bg-white rounded-full shadow-lg hover:shadow-xl transition-all"
+              style={{ transform: 'translateX(-50%)' }}
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-600" />
+            </button>
             
-            {/* Dropdown Menu */}
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20 overflow-hidden">
-              <button
-                onClick={() => {
-                  navigate('/invoices/recurring');
-                  setShowActionsDropdown(false);
-                }}
-                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
-              >
-                <CalendarSync className="h-4 w-4 mr-3 text-gray-500" />
-                <span className="text-gray-700">Recurring Invoices</span>
-              </button>
+            <div 
+              id="stats-container"
+              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <span className="text-2xl font-bold">{stats.totalInvoices}</span>
+                </div>
+                <p className="text-indigo-100 text-sm">Total Invoices</p>
+                <p className="text-indigo-200 text-xs mt-1">
+                  Avg: {formatCurrency(stats.averageInvoiceValue, baseCurrency)}
+                </p>
+              </div>
               
-              <button
-                onClick={() => {
-                  navigate('/credit-notes');
-                  setShowActionsDropdown(false);
-                }}
-                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
-              >
-                <CreditCard className="h-4 w-4 mr-3 text-gray-500" />
-                <span className="text-gray-700">Credit Notes</span>
-              </button>
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                    <DollarSign className="h-6 w-6" />
+                  </div>
+                  <span className="text-xl font-bold">
+                    {formatCurrency(stats.paidAmount, baseCurrency)}
+                  </span>
+                </div>
+                <p className="text-emerald-100 text-sm">Paid</p>
+                <p className="text-emerald-200 text-xs mt-1">
+                  {stats.totalAmount > 0 ? Math.round((stats.paidAmount / stats.totalAmount) * 100) : 0}% collected
+                </p>
+              </div>
               
-              <div className="border-t border-gray-100"></div>
+              <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                  <span className="text-xl font-bold">
+                    {formatCurrency(stats.pendingAmount, baseCurrency)}
+                  </span>
+                </div>
+                <p className="text-amber-100 text-sm">Pending</p>
+                <p className="text-amber-200 text-xs mt-1">Awaiting payment</p>
+              </div>
               
-              <button
-                onClick={() => {
-                  setShowSettings(true);
-                  setShowActionsDropdown(false);
-                }}
-                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
-              >
-                <Settings className="h-4 w-4 mr-3 text-gray-500" />
-                <span className="text-gray-700">Invoice Settings</span>
-              </button>
+              <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                    <AlertCircle className="h-6 w-6" />
+                  </div>
+                  <span className="text-xl font-bold">
+                    {formatCurrency(stats.overdueAmount, baseCurrency)}
+                  </span>
+                </div>
+                <p className="text-red-100 text-sm">Overdue</p>
+                <p className="text-red-200 text-xs mt-1">Requires attention</p>
+              </div>
               
-              <button
-                onClick={() => {
-                  exportToCSV();
-                  setShowActionsDropdown(false);
-                }}
-                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
-              >
-                <Download className="h-4 w-4 mr-3 text-gray-500" />
-                <span className="text-gray-700">Export All</span>
-              </button>
+              {/* Draft Invoices Card */}
+              <div className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                    <Edit className="h-6 w-6" />
+                  </div>
+                  <span className="text-xl font-bold">
+                    {formatCurrency(stats.draftAmount, baseCurrency)}
+                  </span>
+                </div>
+                <p className="text-gray-100 text-sm">Draft</p>
+                <p className="text-gray-200 text-xs mt-1">
+                  {stats.draftCount} invoice{stats.draftCount !== 1 ? 's' : ''}
+                </p>
+              </div>
+              
+              {/* Credit Notes Card - Only show if there are credits */}
+              {stats.totalCredited > 0 && (
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
+                      <ArrowDownLeft className="h-6 w-6" />
+                    </div>
+                    <span className="text-xl font-bold">
+                      {formatCurrency(stats.totalCredited, baseCurrency)}
+                    </span>
+                  </div>
+                  <p className="text-purple-100 text-sm">Total Credited</p>
+                  <p className="text-purple-200 text-xs mt-1">
+                    {stats.invoicesWithCredits} invoices
+                  </p>
+                </div>
+              )}
             </div>
-          </>
+            
+            <button
+              onClick={() => handleStatsScroll('right')}
+              className="hidden lg:block absolute right-0 z-10 p-2 bg-white rounded-full shadow-lg hover:shadow-xl transition-all"
+              style={{ transform: 'translateX(50%)' }}
+            >
+              <ChevronRight className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Multi-Currency Summary */}
+        {uniqueCurrencies.length > 1 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Globe className="h-5 w-5 mr-2 text-indigo-600" />
+              Multi-Currency Summary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {Object.entries(stats.currencyBreakdown).map(([currency, data]) => (
+                <div key={currency} className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl">{CURRENCY_FLAGS[currency] || '🌍'}</span>
+                    <span className="text-sm font-semibold text-gray-700">{currency}</span>
+                  </div>
+                  <p className="text-lg font-bold text-gray-900">
+                    {formatCurrency(data.total, currency)}
+                  </p>
+                  <p className="text-xs text-gray-500">{data.count} invoice(s)</p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
-      </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
-                <FileText className="h-6 w-6" />
-              </div>
-              <span className="text-2xl font-bold">{stats.totalInvoices}</span>
-            </div>
-            <p className="text-indigo-100 text-sm">Total Invoices</p>
-            <p className="text-indigo-200 text-xs mt-1">Avg: {formatCurrency(stats.averageInvoiceValue, baseCurrency)}</p>
-          </div>
-          
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
-                <DollarSign className="h-6 w-6" />
-              </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.paidAmount, baseCurrency)}</span>
-            </div>
-            <p className="text-emerald-100 text-sm">Paid</p>
-            <p className="text-emerald-200 text-xs mt-1">
-              {stats.totalAmount > 0 ? Math.round((stats.paidAmount / stats.totalAmount) * 100) : 0}% collected
-            </p>
-          </div>
-          
-          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
-                <Clock className="h-6 w-6" />
-              </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.pendingAmount, baseCurrency)}</span>
-            </div>
-            <p className="text-amber-100 text-sm">Pending</p>
-            <p className="text-amber-200 text-xs mt-1">Awaiting payment</p>
-          </div>
-          
-          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
-                <AlertCircle className="h-6 w-6" />
-              </div>
-              <span className="text-2xl font-bold">{formatCurrency(stats.overdueAmount, baseCurrency)}</span> 
-            </div>
-            <p className="text-red-100 text-sm">Overdue</p>
-            <p className="text-red-200 text-xs mt-1">Requires attention</p>
-          </div>
-        </div>
-
-        {/* Filters */}
+        {/* Enhanced Filters */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
@@ -922,7 +1167,7 @@ const updateMutation = useMutation({
           </div>
           
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4 pt-4 border-t">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                 <select
@@ -936,6 +1181,54 @@ const updateMutation = useMutation({
                   <option value="paid">Paid</option>
                   <option value="overdue">Overdue</option>
                   <option value="canceled">Canceled</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
+                <select
+                  value={clientFilter}
+                  onChange={(e) => setClientFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">All Clients</option>
+                  {uniqueClients.map(client => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                <select
+                  value={currencyFilter}
+                  onChange={(e) => setCurrencyFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">All Currencies</option>
+                  {uniqueCurrencies.map(currency => (
+                    <option key={currency} value={currency}>
+                      {CURRENCY_FLAGS[currency]} {currency}
+                    </option>
+                  ))}
                 </select>
               </div>
               
@@ -961,18 +1254,16 @@ const updateMutation = useMutation({
                 >
                   <option value="date">Date (Newest)</option>
                   <option value="dueDate">Due Date</option>
-                  <option value="amount">Amount</option>
+                  <option value="amount">Amount (Base)</option>
                 </select>
               </div>
             </div>
           )}
         </div>
 
-        {/* Invoice Table */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden ">
-          {/* ADD THIS BULK ACTION TOOLBAR: */}
+        {/* Bulk Action Toolbar */}
         {selectedItems.length > 0 && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4 ">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="text-sm text-indigo-700 font-medium">
@@ -1006,13 +1297,13 @@ const updateMutation = useMutation({
           </div>
         )}
 
-        {/* Invoice Table */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden "></div>
+        {/* Enhanced Invoice Table */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <div className="overflow-x-auto min-h-[300px]">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="relative w-12 px-6 sm:w-16 sm:px-8">
+                  <th className="relative w-12 px-6 sm:w-16 sm:px-8">
                     <input
                       type="checkbox"
                       className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
@@ -1052,6 +1343,7 @@ const updateMutation = useMutation({
                     const isRecurring = recurringInvoices.has(invoice.id);
                     const recurringInfo = isRecurring ? recurringInvoices.get(invoice.id) : null;
                     const daysUntilDue = getDaysUntilDue(invoice.due_date);
+                    const totalTax = calculateInvoiceTaxTotal(invoice);
                     
                     return (
                       <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
@@ -1075,6 +1367,12 @@ const updateMutation = useMutation({
                                   Due in {daysUntilDue} days
                                 </div>
                               )}
+                              {invoice.has_credit_notes && (
+                                <div className="flex items-center text-xs text-purple-600 mt-1">
+                                  <CreditCard className="h-3 w-3 mr-1" />
+                                  Has credit notes
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -1094,32 +1392,58 @@ const updateMutation = useMutation({
                           {format(parseISO(invoice.due_date), 'MMM dd, yyyy')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-col items-end">
-                          <div className="text-sm font-semibold text-gray-900">
-                            {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
-                          </div>
-                          {invoice.currency && invoice.currency !== baseCurrency && (
-                            <span className="text-xs text-gray-500 mt-0.5">
-                              {invoice.currency}
-                            </span>
-                          )}
-                          {invoice.tax_rate > 0 && (
-                            <div className="text-xs text-gray-400 mt-0.5">
-                              Incl. {invoice.tax_rate}% tax
+                          <div className="flex flex-col items-start">
+                            <div className="flex items-center gap-2">
+                              {invoice.currency && invoice.currency !== baseCurrency && (
+                                <span className="text-lg" title={invoice.currency}>
+                                  {CURRENCY_FLAGS[invoice.currency] || '🌍'}
+                                </span>
+                              )}
+                              <span className="text-sm font-semibold text-gray-900">
+                                {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
+                              </span>
                             </div>
-                          )}
-                        </div>
-                      </td>
+                            {invoice.currency && invoice.currency !== baseCurrency && (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                ≈ {formatCurrency(invoice.base_amount || invoice.total, baseCurrency)}
+                                {invoice.exchange_rate && invoice.exchange_rate !== 1 && (
+                                  <span className="ml-1 text-gray-400">
+                                    (@{invoice.exchange_rate})
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {totalTax > 0 && (
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                {isUKUser ? 'VAT' : 'Tax'}: {formatCurrency(totalTax, invoice.currency || baseCurrency)}
+                                {invoice.tax_rate > 0 && ` (${invoice.tax_rate}%)`}
+                              </div>
+                            )}
+                            {invoice.has_credit_notes && (
+  <div className="flex items-center text-xs text-purple-600 mt-0.5">
+    <ArrowDownLeft className="h-3 w-3 mr-1" />
+    {formatCurrency(invoice.total_credited || 0, invoice.currency || baseCurrency)} credited
+  </div>
+)}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
-                            {getStatusIcon(invoice.status)}
-                            {invoice.status}
+                          <div className="flex items-center gap-1">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
+                              {getStatusIcon(invoice.status)}
+                              {invoice.status}
+                            </span>
                             {(invoice.status === 'paid' || invoice.status === 'canceled') && (
                               <span title="Locked for compliance">
-                              <Shield className="h-3 w-3 ml-1" />
-                            </span>
+                                <Shield className="h-3.5 w-3.5 text-gray-400" />
+                              </span>
                             )}
-                          </span>
+                            {isUKUser && invoice.vat_locked_at && (
+                              <span title="Submitted in VAT return">
+                                <Lock className="h-3.5 w-3.5 text-gray-400" />
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {isRecurring ? (
@@ -1142,7 +1466,7 @@ const updateMutation = useMutation({
                             >
                               <Eye className="h-4 w-4" />
                             </Link>
-                            {invoice.status !== 'paid' && invoice.status !== 'canceled' ? (
+                            {invoice.status !== 'paid' && invoice.status !== 'canceled' && !invoice.vat_locked_at ? (
                               <Link
                                 to={`/invoices/${invoice.id}/edit`}
                                 className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -1205,6 +1529,22 @@ const updateMutation = useMutation({
                                     Copy Link
                                   </button>
                                   
+                                  {invoice.has_credit_notes && (
+                                    <>
+                                      <hr className="my-1" />
+                                      <button
+                                        onClick={() => {
+                                          navigate(`/credit-notes?invoice=${invoice.id}`);
+                                          setShowActionMenu(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+                                      >
+                                        <CreditCard className="h-4 w-4 mr-3 text-gray-500" />
+                                        View Credit Notes
+                                      </button>
+                                    </>
+                                  )}
+                                  
                                   <hr className="my-1" />
                                   
                                   {invoice.status === 'draft' && (
@@ -1239,7 +1579,12 @@ const updateMutation = useMutation({
                                       handleDelete(invoice.id);
                                       setShowActionMenu(null);
                                     }}
-                                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                                    disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at}
+                                    className={`w-full px-4 py-2 text-left text-sm flex items-center ${
+                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at
+                                        ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
+                                        : 'text-red-600 hover:bg-red-50'
+                                    }`}
                                   >
                                     <Trash2 className="h-4 w-4 mr-3" />
                                     Delete
@@ -1259,11 +1604,11 @@ const updateMutation = useMutation({
                         <FileText className="h-16 w-16 text-gray-300 mb-4" />
                         <p className="text-gray-500 text-lg">No invoices found</p>
                         <p className="text-gray-400 text-sm mt-1">
-                          {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
+                          {searchTerm || statusFilter !== 'all' || currencyFilter !== 'all' || clientFilter !== 'all' || categoryFilter !== 'all' || typeFilter !== 'all'
                             ? 'Try adjusting your filters'
                             : 'Create your first invoice to get started'}
                         </p>
-                        {!searchTerm && statusFilter === 'all' && typeFilter === 'all' && (
+                        {!searchTerm && statusFilter === 'all' && currencyFilter === 'all' && clientFilter === 'all' && categoryFilter === 'all' && typeFilter === 'all' && (
                           <Link
                             to="/invoices/new"
                             className="mt-6 inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
@@ -1281,9 +1626,9 @@ const updateMutation = useMutation({
           </div>
         </div>
         
-{/* ADD THIS PAGINATION SECTION: */}
+        {/* Pagination */}
         {filteredInvoices.length > itemsPerPage && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6">
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6 rounded-lg">
             <div className="flex flex-1 justify-between sm:hidden">
               <button
                 onClick={() => {
@@ -1384,16 +1729,26 @@ const updateMutation = useMutation({
         )}
 
       </div>
+      
       {/* Delete Warning Dialog */}
-     
-<DeleteInvoiceWarning
-  isOpen={showDeleteWarning}
-  invoiceNumber={invoiceToDelete?.invoice_number || ''}
-  invoiceStatus={invoiceToDelete?.status || ''}
-  onConfirm={handleConfirmDelete}
-  onCancel={handleCancelDelete}
-/>
-{/* Settings Modal */}
+      <DeleteInvoiceWarning
+        isOpen={showDeleteWarning}
+        invoiceNumber={invoiceToDelete?.invoice_number || ''}
+        invoiceStatus={invoiceToDelete?.status || ''}
+        onConfirm={() => {
+          if (invoiceToDelete) {
+            deleteMutation.mutate(invoiceToDelete.id);
+          }
+          setShowDeleteWarning(false);
+          setInvoiceToDelete(null);
+        }}
+        onCancel={() => {
+          setShowDeleteWarning(false);
+          setInvoiceToDelete(null);
+        }}
+      />
+      
+      {/* Settings Modal */}
       {showSettings && (
         <InvoiceSettings onClose={() => setShowSettings(false)} />
       )}

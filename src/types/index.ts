@@ -136,6 +136,7 @@ export interface Invoice {
   items?: InvoiceItem[];
   created_at: string;
   updated_at: string;
+  vat_locked_at?: string | null;
   income_category_id?: string; // Add this line
   has_credit_notes?: boolean;
   total_credited?: number;
