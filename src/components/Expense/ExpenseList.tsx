@@ -290,7 +290,7 @@ const csvData = selectedExpenses.map(expense => [
   expense.receipt_url ? 'Yes' : 'No',
   expense.reference_number || '', 
 ]);
-  
+    
   const csvContent = [
     headers.join(','),
     ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
