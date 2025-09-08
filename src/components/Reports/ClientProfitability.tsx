@@ -57,6 +57,8 @@ interface ClientProfitData {
   email?: string;
   phone?: string;
   totalRevenue: number;
+  grossRevenue: number;  // ADD THIS
+  creditAmount: number;
   invoiceCount: number;
   paidInvoices: number;
   pendingInvoices: number;
@@ -230,9 +232,12 @@ export const ClientProfitability: React.FC = () => {
       return {
         id: client.id,
         name: client.name,
+        company_name: client.company_name, 
         email: client.email,
         phone: client.phone,
         totalRevenue: netRevenue,
+        grossRevenue: totalRevenue,  // ADD THIS
+        creditAmount: totalCredits,
         invoiceCount: clientInvoices.length,
         paidInvoices: paidInvoices.length,
         pendingInvoices: pendingInvoices.length,
@@ -606,6 +611,26 @@ export const ClientProfitability: React.FC = () => {
             </div>
             <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-amber-200/30 rounded-full blur-2xl"></div>
           </div>
+
+          {/* Total Credits Card */}
+<div className="bg-gradient-to-br from-red-50 to-pink-100 rounded-2xl shadow-xl p-6 border border-red-200 relative overflow-hidden hover:shadow-2xl transition-all duration-300 group transform hover:scale-105">
+  <div className="relative z-10">
+    <div className="flex items-center justify-between mb-4">
+      <div className="p-3 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl shadow-lg">
+        <FileText className="h-6 w-6 text-white" />
+      </div>
+      <div className="text-right">
+        <div className="text-sm text-red-700">Total</div>
+        <div className="text-xs text-red-600 font-medium">Credits</div>
+      </div>
+    </div>
+    <p className="text-3xl font-bold text-red-900 mb-1">
+      {formatCurrency(clientProfitData.reduce((sum, c) => sum + c.creditAmount, 0))}
+    </p>
+    <p className="text-sm text-red-700">Credit Notes Applied</p>
+  </div>
+  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-red-200/30 rounded-full blur-2xl"></div>
+</div>
         </div>
 
         {/* Charts Section */}
@@ -776,18 +801,24 @@ export const ClientProfitability: React.FC = () => {
                   </div>
 
                   {/* Revenue Display */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-600">Total Revenue</span>
-                      <span className="text-2xl font-bold text-gray-900">{formatCurrency(client.totalRevenue)}</span>
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-600">Net Revenue</span>
+                        <span className="text-2xl font-bold text-gray-900">{formatCurrency(client.totalRevenue)}</span>
+                      </div>
+                      {client.creditAmount > 0 && (
+                        <div className="flex items-center justify-between text-xs mb-2">
+                          <span className="text-red-600">Credits Applied:</span>
+                          <span className="text-red-600 font-medium">-{formatCurrency(client.creditAmount)}</span>
+                        </div>
+                      )}
+                      <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                        <div 
+                          className="bg-gradient-to-r from-blue-300 to-indigo-400 h-3 rounded-full transition-all duration-500 shadow-md"
+                          style={{ width: `${Math.min((client.totalRevenue / summaryMetrics.topClientRevenue) * 100, 100)}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
-                      <div 
-                        className="bg-gradient-to-r from-blue-300 to-indigo-400 h-3 rounded-full transition-all duration-500 shadow-md"
-                        style={{ width: `${Math.min((client.totalRevenue / summaryMetrics.topClientRevenue) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
 
                   {/* Quick Stats */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
@@ -863,7 +894,26 @@ export const ClientProfitability: React.FC = () => {
                           </div>
                         </div>
                       )}
-
+                      {/* Revenue Breakdown */}
+{client.creditAmount > 0 && (
+  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+    <h4 className="text-sm font-semibold text-gray-900 mb-2">Revenue Breakdown</h4>
+    <div className="space-y-1 text-sm">
+      <div className="flex justify-between">
+        <span className="text-gray-600">Gross Revenue:</span>
+        <span className="font-medium">{formatCurrency(client.grossRevenue)}</span>
+      </div>
+      <div className="flex justify-between text-red-600">
+        <span>Credit Notes:</span>
+        <span className="font-medium">-{formatCurrency(client.creditAmount)}</span>
+      </div>
+      <div className="pt-2 border-t flex justify-between font-medium">
+        <span>Net Revenue:</span>
+        <span>{formatCurrency(client.totalRevenue)}</span>
+      </div>
+    </div>
+  </div>
+)}
                       {/* Detailed Stats */}
                       <div className="grid grid-cols-3 gap-4">
                         <div className="text-center p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200">

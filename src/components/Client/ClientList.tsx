@@ -559,8 +559,13 @@ const pendingAmount = clientInvoices
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 pt-4">
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-xs text-gray-600 mb-1">Revenue</p>
+                      <p className="text-xs text-gray-600 mb-1">Net Revenue</p>
                       <p className="text-lg font-bold text-gray-900">{formatCurrency(client.totalRevenue, baseCurrency)}</p>
+                      {client.creditAmount > 0 && (
+                        <p className="text-xs text-red-600 mt-1">
+                          (Credits: -{formatCurrency(client.creditAmount, baseCurrency)})
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-xs text-gray-600 mb-1">Invoices</p>
@@ -579,6 +584,8 @@ const pendingAmount = clientInvoices
                       <p className="text-lg font-bold text-amber-700">{formatCurrency(client.pendingAmount, baseCurrency)}</p>
                     </div>
                   )}
+
+                  
                   
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-1">
