@@ -92,6 +92,7 @@ export interface Expense {
   vendor_id?: string;  // Add this line
   vendor_detail?: Vendor;  // Add this line
   receipt_url?: string;
+  reference_number?: string;
   created_at: string;
   updated_at: string;
   // Add these tax fields
@@ -107,6 +108,7 @@ export interface Client {
   id: string;
   user_id: string;
   name: string;
+  company_name?: string;
   email?: string;
   phone?: string;
   phone_country_code?: string; // ← ADD THIS LINE

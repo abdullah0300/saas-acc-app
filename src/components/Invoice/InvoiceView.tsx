@@ -803,6 +803,9 @@ const isUK = invoice.currency === 'GBP' &&
             {invoice.client ? (
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="font-semibold text-gray-900 text-lg">{invoice.client.name}</p>
+                {invoice.client.company_name && (
+                  <p className="text-gray-700 font-medium">{invoice.client.company_name}</p>
+                )}
                 {invoice.client.email && (
                   <p className="text-gray-600 mt-1">{invoice.client.email}</p>
                 )}

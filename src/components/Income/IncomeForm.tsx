@@ -48,6 +48,7 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
   const [showClientModal, setShowClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({
     name: "",
+    company_name: "",
     email: "",
     phone: "",
     address: "",
@@ -164,6 +165,7 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
       const client = await createClient({
         user_id: user.id,
         name: newClientData.name.trim(),
+        company_name: newClientData.company_name || undefined,
         email: newClientData.email || undefined,
         phone: newClientData.phone || undefined,
         address: newClientData.address || undefined,
@@ -180,7 +182,7 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
 
       // Close modal and reset
       setShowClientModal(false);
-      setNewClientData({ name: "", email: "", phone: "", address: "" });
+      setNewClientData({ name: "", company_name: "", email: "", phone: "", address: "" });
     } catch (err: any) {
       setError("Error creating client: " + err.message);
     } finally {
@@ -616,6 +618,7 @@ if (!isUserSettingsReady) {
                     setShowClientModal(false);
                     setNewClientData({
                       name: "",
+                      company_name: "",
                       email: "",
                       phone: "",
                       address: "",
@@ -646,6 +649,24 @@ if (!isUserSettingsReady) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Client name"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientData.company_name}
+                    onChange={(e) =>
+                      setNewClientData({
+                        ...newClientData,
+                        company_name: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Company name (optional)"
                   />
                 </div>
 
@@ -711,6 +732,7 @@ if (!isUserSettingsReady) {
                   setShowClientModal(false);
                   setNewClientData({
                     name: "",
+                    company_name: "",
                     email: "",
                     phone: "",
                     address: "",

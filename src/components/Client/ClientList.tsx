@@ -211,6 +211,7 @@ const pendingAmount = clientInvoices
     if (searchTerm) {
       filtered = filtered.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.phone?.includes(searchTerm)
       );
@@ -254,6 +255,7 @@ const pendingAmount = clientInvoices
     // FIXED: Enhanced CSV export with more data
     const headers = [
       'Name', 
+      'Company',
       'Email', 
       'Phone', 
       `Total Revenue (${baseCurrency})`,
@@ -268,6 +270,7 @@ const pendingAmount = clientInvoices
     
     const data = filteredClients.map(client => [
       client.name,
+      client.company_name || '',
       client.email || '',
       client.phone || '',
       client.totalRevenue.toFixed(2),
@@ -475,8 +478,11 @@ const pendingAmount = clientInvoices
                         {client.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 text-lg">{client.name}</h3>
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(client.status)}`}>
+                          <h3 className="font-semibold text-gray-900 text-lg">{client.name}</h3>
+                          {client.company_name && (
+                            <p className="text-sm text-gray-600">{client.company_name}</p>
+                          )}
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(client.status)}`}>
                           {getStatusIcon(client.status)}
                           {client.status}
                         </span>

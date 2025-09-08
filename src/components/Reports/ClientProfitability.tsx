@@ -53,6 +53,7 @@ import { Client, Invoice, Income, CreditNote } from '../../types';
 interface ClientProfitData {
   id: string;
   name: string;
+  company_name?: string;
   email?: string;
   phone?: string;
   totalRevenue: number;
@@ -297,10 +298,11 @@ export const ClientProfitability: React.FC = () => {
     
     // Client details
     csv += 'CLIENT DETAILS\n';
-    csv += 'Client Name,Email,Phone,Total Revenue,Invoices,Paid,Pending,Overdue,Outstanding,Avg Payment Days\n';
+    csv += 'Client Name,Company,Email,Phone,Total Revenue,Invoices,Paid,Pending,Overdue,Outstanding,Avg Payment Days\n';
     
     clientProfitData.forEach(client => {
       csv += `"${client.name}",`;
+      csv += `"${client.company_name || ''}",`; 
       csv += `"${client.email || ''}",`;
       csv += `"${client.phone || ''}",`;
       csv += `${client.totalRevenue.toFixed(2)},`;
@@ -330,6 +332,7 @@ export const ClientProfitability: React.FC = () => {
     if (searchTerm) {
       filtered = filtered.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.email?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -757,6 +760,9 @@ export const ClientProfitability: React.FC = () => {
                         <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                           {client.name}
                         </h3>
+                        {client.company_name && (
+                            <p className="text-sm text-gray-600">{client.company_name}</p>
+                          )}
                         <div className="flex items-center space-x-2 mt-1">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tier.color}`}>
                             <TierIcon className="h-3 w-3 mr-1" />

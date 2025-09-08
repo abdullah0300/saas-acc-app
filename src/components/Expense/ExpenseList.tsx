@@ -126,7 +126,8 @@ const [customEndDate, setCustomEndDate] = useState('');
     filtered = filtered.filter(expense =>
       expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.category?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      expense.category?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.reference_number?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
   
@@ -283,9 +284,11 @@ const csvData = selectedExpenses.map(expense => [
   expense.description,
   expense.category?.name || 'Uncategorized',
   expense.vendor || 'No vendor',
+  expense.reference_number || '',
   expense.amount.toString(),
   expense.currency || baseCurrency,
-  expense.receipt_url ? 'Yes' : 'No'
+  expense.receipt_url ? 'Yes' : 'No',
+  expense.reference_number || '', 
 ]);
   
   const csvContent = [
@@ -853,6 +856,9 @@ const handleViewDetails = (expense: Expense) => {
                   Vendor
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Reference
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Category
                 </th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -891,6 +897,10 @@ const handleViewDetails = (expense: Expense) => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {expense.vendor || '-'}
                     </td>
+
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {expense.reference_number || '-'}
+                  </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
                         {expense.category?.name || 'Uncategorized'}
@@ -1101,6 +1111,12 @@ const handleViewDetails = (expense: Expense) => {
               <p className="text-sm text-gray-600">Date</p>
               <p className="font-medium text-gray-900">
                 {format(parseISO(selectedExpense.date), 'MMMM dd, yyyy')}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Reference Number</p>
+              <p className="font-medium text-gray-900">
+                {selectedExpense.reference_number || 'N/A'}
               </p>
             </div>
             <div>

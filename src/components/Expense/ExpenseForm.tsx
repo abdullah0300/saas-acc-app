@@ -48,7 +48,8 @@ const [isVatReclaimable, setIsVatReclaimable] = useState(true);
   receipt_url: "",
   tax_rate: defaultTaxRate.toString(),
   tax_amount: "0",
-  currency: baseCurrency, // ADD THIS LINE
+  currency: baseCurrency,
+  reference_number: "",
 });
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -146,7 +147,8 @@ useEffect(() => {
     receipt_url: expense.receipt_url || "",
     tax_rate: (expense.tax_rate || defaultTaxRate).toString(),
     tax_amount: (expense.tax_amount || 0).toString(),
-    currency: expense.currency || baseCurrency, // ADD THIS LINE
+    currency: expense.currency || baseCurrency, 
+    reference_number: expense.reference_number || "",
   });
   // Store original exchange rate for comparison
 if (expense.exchange_rate && expense.currency !== baseCurrency) {
@@ -365,6 +367,7 @@ const expenseData = {
   vendor: formData.vendor || undefined,
   vendor_id: formData.vendor_id || undefined,
   receipt_url: formData.receipt_url || undefined,
+  reference_number: formData.reference_number || undefined,
   tax_rate: parseFloat(formData.tax_rate) || 0,
   tax_amount: taxAmount,
   currency: formData.currency,
@@ -737,7 +740,20 @@ if (!isUserSettingsReady) {
               </div>
             </div>
           </div>
-
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Reference Number
+            </label>
+            <input
+              type="text"
+              value={formData.reference_number}
+              onChange={(e) =>
+                setFormData({ ...formData, reference_number: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Optional reference"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Receipt

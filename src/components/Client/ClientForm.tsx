@@ -15,6 +15,7 @@ export const ClientForm: React.FC = () => {
 
   const [formData, setFormData] = useState({
     name: '',
+    company_name: '',
     email: '',
     phone: '',
     phone_country_code: '+1',
@@ -39,6 +40,7 @@ export const ClientForm: React.FC = () => {
       if (client) {
         setFormData({
           name: client.name,
+          company_name: client.company_name || '',
           email: client.email || '',
           phone: client.phone || '',
           phone_country_code: client.phone_country_code || '+1', // ← ADD THIS LINE
@@ -61,6 +63,7 @@ export const ClientForm: React.FC = () => {
       const clientData = {
         user_id: user.id,
         name: formData.name,
+        company_name: formData.company_name || undefined,
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         phone_country_code: formData.phone_country_code, // ← ADD THIS LINE
@@ -119,6 +122,19 @@ navigate('/clients');
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
               placeholder="Client name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Company Name
+            </label>
+            <input
+              type="text"
+              value={formData.company_name}
+              onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="Company name (optional)"
             />
           </div>
 

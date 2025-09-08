@@ -299,7 +299,8 @@ const getSearchResultsMessage = () => {
       income.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       income.category?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       income.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      income.client?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      income.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      income.client?.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
   
@@ -387,12 +388,13 @@ const paginatedIncomes = getPaginatedIncomes();
 };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Description', 'Category', 'Client', 'Amount', 'Tax', 'Total', 'Currency', 'Base Amount', 'Type', 'Reference'];
+    const headers = ['Date', 'Description', 'Category', 'Client', 'Company', 'Amount', 'Tax', 'Total', 'Currency', 'Base Amount', 'Type', 'Reference'];
 const data = filteredIncomes.map(income => [
   format(parseISO(income.date), 'yyyy-MM-dd'),
   income.description,
   income.category?.name || 'Uncategorized',
   income.client?.name || 'No client',
+  income.client?.company_name || '',  // ADD THIS LINE
   income.amount.toString(),
   (income.tax_amount || 0).toString(),
   (income.amount + (income.tax_amount || 0)).toString(),
@@ -679,8 +681,8 @@ const averageIncome = regularIncomes.length > 0
                           <option value="">All Clients</option>
                           <option value="no-client">🚫 No Client</option>
                           {clients.map((client) => (
-                            <option key={client.id} value={client.id}>
-                              👤 {client.name}
+                             <option key={client.id} value={client.id}>
+                              👤 {client.name}{client.company_name ? ` (${client.company_name})` : ''}
                             </option>
                           ))}
                         </select>
@@ -1137,6 +1139,9 @@ const averageIncome = regularIncomes.length > 0
             {selectedIncome.client ? (
               <div>
                 <p className="font-medium text-gray-900">{selectedIncome.client.name}</p>
+                {selectedIncome.client.company_name && (
+                    <p className="text-sm text-gray-700 font-medium">{selectedIncome.client.company_name}</p>
+                  )}
                 {selectedIncome.client.email && (
                   <p className="text-sm text-gray-600 mt-1">{selectedIncome.client.email}</p>
                 )}

@@ -365,6 +365,9 @@ export const PublicInvoiceView: React.FC = () => {
               {invoice.client ? (
                 <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
                   <p className="font-semibold text-gray-900 text-base sm:text-lg">{invoice.client.name}</p>
+                  {invoice.client.company_name && (
+                    <p className="text-gray-700 font-medium text-sm sm:text-base">{invoice.client.company_name}</p>
+                  )}
                   {invoice.client.email && (
                     <p className="text-sm sm:text-base text-gray-600 mt-1 break-all">{invoice.client.email}</p>
                   )}
