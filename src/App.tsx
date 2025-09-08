@@ -55,6 +55,8 @@ import { VATReturn } from './components/Reports/VATReturn';
 import { RecurringInvoices } from './components/Invoice/RecurringInvoices';
 import { RecurringInvoiceEdit } from './components/Invoice/RecurringInvoiceEdit';
 import { useSessionKeepAlive } from './hooks/useSessionKeepAlive';
+import { useAuth } from './contexts/AuthContext';
+import { Loader } from 'lucide-react';
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -77,148 +79,11 @@ const queryClient = new QueryClient({
 });   
 
 function App() {
-  useSessionKeepAlive();
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <Routes>
-            {/* Public routes */}
-            {/* Landing Page - Main Site */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            
-            {/* Protected routes */}
-            <Route element={
-              <ProtectedRoute>
-                <SubscriptionProvider>
-                  <SubscriptionEnforcer>
-                  <DataProvider>
-                    <SettingsProvider>
-                      <NotificationProvider>
-                        <Layout />
-                      </NotificationProvider>
-                    </SettingsProvider>
-                  </DataProvider>
-                  </SubscriptionEnforcer>
-                </SubscriptionProvider>
-              </ProtectedRoute>
-            }>
-              <Route path="/app" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              
-              {/* Income */}
-              <Route path="/income" element={<IncomeList />} />
-              <Route path="/income/new" element={<IncomeForm />} />
-              <Route path="/income/edit/:id" element={<IncomeForm />} />
-              
-              {/* Expenses */}
-              <Route path="/expenses" element={<ExpenseList />} />
-              <Route path="/expenses/new" element={<ExpenseForm />} />
-              <Route path="/expenses/edit/:id" element={<ExpenseForm />} />
-              
-              {/* Invoices */}
-              <Route path="/invoices" element={<InvoiceList />} />
-              <Route path="/invoices/new" element={<InvoiceForm />} />
-              <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
-              <Route path="/invoices/:id/view" element={<InvoiceView />} />
-              <Route path="/reports/vat-return" element={<VATReturn />} />
-              {/* Recurring */}
-
-              <Route path="/invoices/recurring" element={<RecurringInvoices />} />
-              <Route path="/invoices/recurring/edit/:id" element={<RecurringInvoiceEdit />} />
-
-
-         
-              {/* Notifications */}
-              <Route path="/notifications" element={<NotificationCenter />} />
-              
-              {/* Clients */}
-              <Route path="/clients" element={<ClientList />} />
-              <Route path="/clients/new" element={<ClientForm />} />
-              <Route path="/clients/edit/:id" element={<ClientForm />} />
-
-              {/* Credit Notes */}
-              <Route path="/credit-notes" element={<CreditNoteList />} />
-              <Route path="/credit-notes/new/:invoiceId?" element={<CreditNoteForm />} />
-              <Route path="/credit-notes/edit/:id" element={<CreditNoteForm />} />
-              <Route path="/credit-notes/:id" element={<CreditNoteView />} />
-              
-              {/* Vendors */}
-              <Route path="/vendors" element={<VendorList />} />
-              <Route path="/vendors/new" element={<VendorForm />} />
-              <Route path="/vendors/:id/edit" element={<VendorForm />} />
-              
-              {/* Reports */}
-                      <Route path="/reports" element={<ReportsOverview />} />
-                      <Route path="/reports/profit-loss" element={
-                        <PlanProtectedRoute feature="profit_loss_statements"
-                         featureName="Profit & Loss Statements"     // ADD THIS LINE
-                          fallbackPath="/reports">
-                          <ProfitLossReport />
-                        </PlanProtectedRoute>
-                      } />
-                      <Route path="/reports/client-profitability" element={
-                      <PlanProtectedRoute feature="advanced_reports"
-                      featureName="Client Profitability Analysis" // ADD THIS LINE
-                      fallbackPath="/reports"
-                      >
-                        <ClientProfitability />
-                      </PlanProtectedRoute>
-                    } />
-
-                      <Route path="/reports/cash-flow" element={
-                        <PlanProtectedRoute feature="cash_flow_analysis"
-                         featureName="Cash Flow Analysis"           // ADD THIS LINE
-                          fallbackPath="/reports">
-                          <CashFlowInsights />
-                        </PlanProtectedRoute>
-                      } />
-
-                      <Route path="/reports/vat" element={
-                      <PlanProtectedRoute feature="advanced_reports"
-                        featureName="VAT/Tax Report"
-                        fallbackPath="/reports">
-                        <VATReport />
-                      </PlanProtectedRoute>
-                    } />
-
-                      <Route path="/reports/tax" element={
-                        <PlanProtectedRoute feature="advanced_tax_reports"
-                        featureName="Advanced Tax Reports"         // ADD THIS LINE
-                         fallbackPath="/reports">
-                          <TaxReport />
-                        </PlanProtectedRoute>
-                      } />
-              
-              {/* Budget Planning - Plus only */}
-                      <Route path="/budget" element={
-                        <PlanProtectedRoute feature="budget_tracking">
-                          <BudgetPlanning />
-                        </PlanProtectedRoute>
-                      } />
-              
-              {/* Settings */}
-              <Route path="/settings" element={<SettingsLayout />}>
-                <Route index element={<Navigate to="/settings/profile" replace />} />
-                <Route path="profile" element={<ProfileSettings />} />
-                <Route path="tax" element={<TaxSettings />} />
-                <Route path="currency" element={<CurrencySettings />} />
-                <Route path="/settings/import-history" element={<ImportHistorySettings />} />
-                <Route path="invoice" element={<InvoiceSettings onClose={() => {}} />} />
-                <Route path="notifications" element={<NotificationPreferences />} />
-                <Route path="team" element={<TeamManagement />} />
-                <Route path="subscription" element={<SubscriptionPlans />} />
-                  <Route path="audit" element={<AuditLogs />} />
-                  <Route path="security" element={<SecuritySettings />} />
-              </Route>
-              
-              <Route path="/payment/success" element={<PaymentSuccess />} />
-            </Route>
-          </Routes>
+          <AppRoutes />
         </AuthProvider>
       </Router>
       
@@ -230,6 +95,157 @@ function App() {
         />
       )}
     </QueryClientProvider>
+  );
+}
+
+// Internal component that has access to auth context
+function AppRoutes() {
+  useSessionKeepAlive();
+  const { user, loading } = useAuth();
+  
+  // Show loading screen while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="text-center">
+          <Loader className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading SmartCFO...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <Routes>
+      {/* Public routes */}
+      {/* Landing Page - if user is logged in, redirect to dashboard */}
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+      <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      
+      {/* Protected routes */}
+      <Route element={
+        <ProtectedRoute>
+          <SubscriptionProvider>
+            <SubscriptionEnforcer>
+            <DataProvider>
+              <SettingsProvider>
+                <NotificationProvider>
+                  <Layout />
+                </NotificationProvider>
+              </SettingsProvider>
+            </DataProvider>
+            </SubscriptionEnforcer>
+          </SubscriptionProvider>
+        </ProtectedRoute>
+      }>
+        <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        
+        {/* Income */}
+        <Route path="/income" element={<IncomeList />} />
+        <Route path="/income/new" element={<IncomeForm />} />
+        <Route path="/income/edit/:id" element={<IncomeForm />} />
+        
+        {/* Expenses */}
+        <Route path="/expenses" element={<ExpenseList />} />
+        <Route path="/expenses/new" element={<ExpenseForm />} />
+        <Route path="/expenses/edit/:id" element={<ExpenseForm />} />
+        
+        {/* Invoices */}
+        <Route path="/invoices" element={<InvoiceList />} />
+        <Route path="/invoices/new" element={<InvoiceForm />} />
+        <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
+        <Route path="/invoices/:id/view" element={<InvoiceView />} />
+        <Route path="/reports/vat-return" element={<VATReturn />} />
+        {/* Recurring */}
+        <Route path="/invoices/recurring" element={<RecurringInvoices />} />
+        <Route path="/invoices/recurring/edit/:id" element={<RecurringInvoiceEdit />} />
+        
+        {/* Notifications */}
+        <Route path="/notifications" element={<NotificationCenter />} />
+        
+        {/* Clients */}
+        <Route path="/clients" element={<ClientList />} />
+        <Route path="/clients/new" element={<ClientForm />} />
+        <Route path="/clients/edit/:id" element={<ClientForm />} />
+
+        {/* Credit Notes */}
+        <Route path="/credit-notes" element={<CreditNoteList />} />
+        <Route path="/credit-notes/new/:invoiceId?" element={<CreditNoteForm />} />
+        <Route path="/credit-notes/edit/:id" element={<CreditNoteForm />} />
+        <Route path="/credit-notes/:id" element={<CreditNoteView />} />
+        
+        {/* Vendors */}
+        <Route path="/vendors" element={<VendorList />} />
+        <Route path="/vendors/new" element={<VendorForm />} />
+        <Route path="/vendors/:id/edit" element={<VendorForm />} />
+        
+        {/* Reports */}
+        <Route path="/reports" element={<ReportsOverview />} />
+        <Route path="/reports/profit-loss" element={
+          <PlanProtectedRoute feature="profit_loss_statements"
+            featureName="Profit & Loss Statements"
+            fallbackPath="/reports">
+            <ProfitLossReport />
+          </PlanProtectedRoute>
+        } />
+        <Route path="/reports/client-profitability" element={
+          <PlanProtectedRoute feature="advanced_reports"
+            featureName="Client Profitability Analysis"
+            fallbackPath="/reports">
+            <ClientProfitability />
+          </PlanProtectedRoute>
+        } />
+        <Route path="/reports/cash-flow" element={
+          <PlanProtectedRoute feature="cash_flow_analysis"
+            featureName="Cash Flow Analysis"
+            fallbackPath="/reports">
+            <CashFlowInsights />
+          </PlanProtectedRoute>
+        } />
+        <Route path="/reports/vat" element={
+          <PlanProtectedRoute feature="advanced_reports"
+            featureName="VAT/Tax Report"
+            fallbackPath="/reports">
+            <VATReport />
+          </PlanProtectedRoute>
+        } />
+        <Route path="/reports/tax" element={
+          <PlanProtectedRoute feature="advanced_tax_reports"
+            featureName="Advanced Tax Reports"
+            fallbackPath="/reports">
+            <TaxReport />
+          </PlanProtectedRoute>
+        } />
+        
+        {/* Budget Planning - Plus only */}
+        <Route path="/budget" element={
+          <PlanProtectedRoute feature="budget_tracking">
+            <BudgetPlanning />
+          </PlanProtectedRoute>
+        } />
+        
+        {/* Settings */}
+        <Route path="/settings" element={<SettingsLayout />}>
+          <Route index element={<Navigate to="/settings/profile" replace />} />
+          <Route path="profile" element={<ProfileSettings />} />
+          <Route path="tax" element={<TaxSettings />} />
+          <Route path="currency" element={<CurrencySettings />} />
+          <Route path="/settings/import-history" element={<ImportHistorySettings />} />
+          <Route path="invoice" element={<InvoiceSettings onClose={() => {}} />} />
+          <Route path="notifications" element={<NotificationPreferences />} />
+          <Route path="team" element={<TeamManagement />} />
+          <Route path="subscription" element={<SubscriptionPlans />} />
+          <Route path="audit" element={<AuditLogs />} />
+          <Route path="security" element={<SecuritySettings />} />
+        </Route>
+        
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+      </Route>
+    </Routes>
   );
 }
 

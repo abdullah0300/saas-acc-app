@@ -1,52 +1,73 @@
 // src/hooks/useSessionKeepAlive.ts
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 export const useSessionKeepAlive = () => {
+  const isRefreshing = useRef(false);
+  
   useEffect(() => {
-    // Set up interval to refresh session every 30 minutes
-    // (Supabase JWT tokens expire after 1 hour by default)
-    const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes in milliseconds
+    const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
     
     const refreshSession = async () => {
+      // Prevent concurrent refresh attempts
+      if (isRefreshing.current) {
+        console.log('Refresh already in progress, skipping...');
+        return;
+      }
+      
       try {
+        isRefreshing.current = true;
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (session && !error) {
-          // Only refresh if we have an active session
-          const { error: refreshError } = await supabase.auth.refreshSession();
+          // Check if token actually needs refreshing (expires in less than 60 seconds)
+          const expiresAt = session.expires_at;
+          const now = Math.floor(Date.now() / 1000);
+          const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
           
-          if (refreshError) {
-            console.error('Session refresh failed:', refreshError);
+          if (timeUntilExpiry < 60) {
+            console.log('Token expiring soon, refreshing...');
+            const { error: refreshError } = await supabase.auth.refreshSession();
+            
+            if (refreshError) {
+              console.error('Session refresh failed:', refreshError);
+              // If refresh fails, user might need to re-login
+              if (refreshError.message.includes('Refresh Token Not Found')) {
+                // Clear invalid session
+                await supabase.auth.signOut();
+              }
+            } else {
+              console.log('Session refreshed successfully');
+            }
           } else {
-            console.log('Session refreshed successfully');
+            console.log(`Session still valid for ${timeUntilExpiry} seconds`);
           }
         }
       } catch (error) {
         console.error('Session keep-alive error:', error);
+      } finally {
+        isRefreshing.current = false;
       }
     };
 
-    // Initial refresh
-    refreshSession();
-
-    // Set up interval
+    // Don't refresh immediately on mount - let AuthContext handle initial session
     const intervalId = setInterval(refreshSession, REFRESH_INTERVAL);
 
-    // Also refresh on window focus (when user returns to tab)
+    // Refresh on window focus
     const handleFocus = () => {
       const rememberMe = localStorage.getItem('smartcfo-remember-me');
       if (rememberMe === 'true') {
-        refreshSession();
+        // Debounce focus refresh
+        setTimeout(refreshSession, 1000);
       }
     };
 
     window.addEventListener('focus', handleFocus);
 
-    // Cleanup
     return () => {
       clearInterval(intervalId);
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
-};  
+};

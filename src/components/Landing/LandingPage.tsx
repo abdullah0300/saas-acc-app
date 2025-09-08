@@ -329,7 +329,7 @@ export const LandingPage: React.FC = () => {
             {/* Main Headline */}
             <motion.h1 
               variants={fadeInUp}
-              className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight"
+              className="text-5xl sm:text-6xl md:text-7xl lg:text-7xl font-bold mb-6 leading-tight"
             >
               <span className="text-gray-900">{displayText}</span>
               {isComplete && <span className="animate-pulse">|</span>}

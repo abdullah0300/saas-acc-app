@@ -29,58 +29,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
 
     // Initialize session recovery
-    const initializeAuth = async () => {
-      try {
-        // Check if user should be remembered
-        const rememberMe = localStorage.getItem('smartcfo-remember-me');
-        const tempSession = sessionStorage.getItem('smartcfo-temp-session');
+    // In AuthContext.tsx, update the initializeAuth function:
+const initializeAuth = async () => {
+  try {
+    const rememberMe = localStorage.getItem('smartcfo-remember-me');
+    const tempSession = sessionStorage.getItem('smartcfo-temp-session');
 
-        // Get current session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Session recovery error:', error);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
-        }
-
-        if (session) {
-          // If we have a session but user chose not to be remembered
-          // and this is a new browser session, sign them out
-          if (!rememberMe && !tempSession) {
-            await supabase.auth.signOut();
-            if (mounted) {
-              setUser(null);
-              setLoading(false);
-            }
-            return;
-          }
-
-          if (mounted) {
-            setUser(session.user);
-          }
-
-          // Refresh the session to ensure it's valid
-          const { data: { session: refreshedSession }, error: refreshError } = 
-            await supabase.auth.refreshSession();
-          
-          if (!refreshError && refreshedSession && mounted) {
-            setUser(refreshedSession.user);
-          }
-        }
-
-        if (mounted) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        if (mounted) {
-          setLoading(false);
-        }
+    // Get current session WITHOUT triggering a refresh
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Session recovery error:', error);
+      if (mounted) {
+        setLoading(false);
       }
-    };
+      return;
+    }
+
+    if (session) {
+      if (!rememberMe && !tempSession) {
+        await supabase.auth.signOut();
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setUser(session.user);
+        setLoading(false);
+      }
+      
+      // Don't refresh here - let the keep-alive hook handle it
+    } else {
+      if (mounted) {
+        setLoading(false);
+      }
+    }
+  } catch (error) {
+    console.error('Auth initialization error:', error);
+    if (mounted) {
+      setLoading(false);
+    }
+  }
+};
 
     initializeAuth();
 
