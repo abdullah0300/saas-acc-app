@@ -54,6 +54,7 @@ import { CreditNoteView } from './components/CreditNote/CreditNoteView';
 import { VATReturn } from './components/Reports/VATReturn';
 import { RecurringInvoices } from './components/Invoice/RecurringInvoices';
 import { RecurringInvoiceEdit } from './components/Invoice/RecurringInvoiceEdit';
+import { useSessionKeepAlive } from './hooks/useSessionKeepAlive';
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -76,6 +77,7 @@ const queryClient = new QueryClient({
 });   
 
 function App() {
+  useSessionKeepAlive();
   return (
     <QueryClientProvider client={queryClient}>
       <Router>

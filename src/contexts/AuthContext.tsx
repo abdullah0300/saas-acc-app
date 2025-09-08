@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - Updated with audit logging
+// src/contexts/AuthContext.tsx - Enhanced session management
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { auditService } from '../services/auditService';
@@ -26,31 +26,99 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    let mounted = true;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user ?? null;
-      const previousUser = user;
-      
-      setUser(currentUser);
-      
-      // Log auth events
-      if (event === 'SIGNED_IN' && currentUser && !previousUser) {
-        await auditService.logLogin(currentUser.id, true, {
-          method: 'password',
-          email: currentUser.email
-        });
-      } else if (event === 'SIGNED_OUT' && previousUser) {
-        await auditService.logLogout(previousUser.id);
+    // Initialize session recovery
+    const initializeAuth = async () => {
+      try {
+        // Check if user should be remembered
+        const rememberMe = localStorage.getItem('smartcfo-remember-me');
+        const tempSession = sessionStorage.getItem('smartcfo-temp-session');
+
+        // Get current session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session recovery error:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (session) {
+          // If we have a session but user chose not to be remembered
+          // and this is a new browser session, sign them out
+          if (!rememberMe && !tempSession) {
+            await supabase.auth.signOut();
+            if (mounted) {
+              setUser(null);
+              setLoading(false);
+            }
+            return;
+          }
+
+          if (mounted) {
+            setUser(session.user);
+          }
+
+          // Refresh the session to ensure it's valid
+          const { data: { session: refreshedSession }, error: refreshError } = 
+            await supabase.auth.refreshSession();
+          
+          if (!refreshError && refreshedSession && mounted) {
+            setUser(refreshedSession.user);
+          }
+        }
+
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        const currentUser = session?.user ?? null;
+        const previousUser = user;
+        
+        setUser(currentUser);
+        
+        // Handle auth events
+        if (event === 'SIGNED_IN' && currentUser && !previousUser) {
+          await auditService.logLogin(currentUser.id, true, {
+            method: 'password',
+            email: currentUser.email
+          });
+        } else if (event === 'SIGNED_OUT' && previousUser) {
+          await auditService.logLogout(previousUser.id);
+          // Clear remember me preference on sign out
+          localStorage.removeItem('smartcfo-remember-me');
+          sessionStorage.removeItem('smartcfo-temp-session');
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log('Session token refreshed successfully');
+        } else if (event === 'USER_UPDATED') {
+          // Handle user updates if needed
+          setUser(currentUser);
+        }
+      }
+    );
+
+    // Cleanup function
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -62,7 +130,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         // Log failed login attempt
-        // Try to get user id from email
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id')
@@ -86,6 +153,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Clear remember me preference
+    localStorage.removeItem('smartcfo-remember-me');
+    sessionStorage.removeItem('smartcfo-temp-session');
+    
     // Logout is logged by onAuthStateChange
     const { error } = await supabase.auth.signOut();
     if (error) throw error;

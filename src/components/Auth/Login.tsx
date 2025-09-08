@@ -34,10 +34,11 @@ export const Login: React.FC = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const [showForgotModal, setShowForgotModal] = useState(false);
-const [resetEmail, setResetEmail] = useState('');
-const [resetLoading, setResetLoading] = useState(false);
-const [showSuccessMessage, setShowSuccessMessage] = useState(false); // ADD THIS
-const [successMessage, setSuccessMessage] = useState(''); // ADD THIS
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false); 
+  const [successMessage, setSuccessMessage] = useState(''); 
+  const [rememberMe, setRememberMe] = useState(true); 
 
   const handleForgotPassword = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -66,20 +67,32 @@ const [successMessage, setSuccessMessage] = useState(''); // ADD THIS
   }
 };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      await signIn(email, password);
-      navigate("/dashboard");
+    // Store remember me preference
+    if (rememberMe) {
+      // Set a flag in localStorage to indicate user wants to stay logged in
+      localStorage.setItem('smartcfo-remember-me', 'true');
+    } else {
+      // Clear the flag if they don't want to be remembered
+      localStorage.removeItem('smartcfo-remember-me');
+      
+      // Set up session to clear on browser close
+      sessionStorage.setItem('smartcfo-temp-session', 'true');
+    }
+
+    await signIn(email, password);
+    navigate("/dashboard");
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+      };
 
   // Features for the side panel
   const features = [
@@ -226,6 +239,8 @@ const [successMessage, setSuccessMessage] = useState(''); // ADD THIS
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
                   <label
@@ -237,14 +252,14 @@ const [successMessage, setSuccessMessage] = useState(''); // ADD THIS
                 </div>
 
                 <div className="text-sm">
-  <button
-    type="button"
-    onClick={() => setShowForgotModal(true)}
-    className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors bg-transparent border-none p-0 cursor-pointer"
-  >
-    Forgot password?
-  </button>
-</div>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(true)}
+                    className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors bg-transparent border-none p-0 cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
               </div>
 
               <button
