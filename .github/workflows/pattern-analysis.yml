@@ -11,24 +11,38 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Run Pattern Analysis
+      - name: Analyze Pattern for All Users
         run: |
-          # Get all active users
-          response=$(curl -s -X POST \
-            https://YOUR_SUPABASE_PROJECT.supabase.co/rest/v1/rpc/get_active_users \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Content-Type: application/json")
+          # First, get your Supabase URL from secrets
+          SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+          ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
           
-          # For each user, trigger pattern analysis
-          echo "$response" | jq -r '.[] | .id' | while read -r user_id; do
-            echo "Analyzing patterns for user: $user_id"
-            
-            curl -s -X POST \
-              https://YOUR_SUPABASE_PROJECT.supabase.co/functions/v1/pattern-analyzer \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"userId\": \"$user_id\"}"
-            
-            # Wait 2 seconds between users to avoid rate limiting
-            sleep 2
+          # Get all users with active subscriptions
+          users_response=$(curl -s -X GET \
+            "${SUPABASE_URL}/rest/v1/rpc/get_active_users" \
+            -H "apikey: ${ANON_KEY}" \
+            -H "Authorization: Bearer ${ANON_KEY}")
+          
+          echo "Users response: $users_response"
+          
+          # Check if we got users
+          if [ -z "$users_response" ] || [ "$users_response" = "[]" ]; then
+            echo "No active users found"
+            exit 0
+          fi
+          
+          # Process each user
+          echo "$users_response" | jq -r '.[] | .id' | while read -r user_id; do
+            if [ ! -z "$user_id" ]; then
+              echo "Analyzing patterns for user: $user_id"
+              
+              curl -s -X POST \
+                "${SUPABASE_URL}/functions/v1/pattern-analyzer" \
+                -H "Authorization: Bearer ${ANON_KEY}" \
+                -H "Content-Type: application/json" \
+                -d "{\"userId\": \"$user_id\"}" || echo "Failed for user $user_id"
+              
+              # Wait 2 seconds between users
+              sleep 2
+            fi
           done
