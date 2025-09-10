@@ -1,0 +1,34 @@
+name: Pattern Analysis
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  analyze-patterns:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Run Pattern Analysis
+        run: |
+          # Get all active users
+          response=$(curl -s -X POST \
+            https://YOUR_SUPABASE_PROJECT.supabase.co/rest/v1/rpc/get_active_users \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json")
+          
+          # For each user, trigger pattern analysis
+          echo "$response" | jq -r '.[] | .id' | while read -r user_id; do
+            echo "Analyzing patterns for user: $user_id"
+            
+            curl -s -X POST \
+              https://YOUR_SUPABASE_PROJECT.supabase.co/functions/v1/pattern-analyzer \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"userId\": \"$user_id\"}"
+            
+            # Wait 2 seconds between users to avoid rate limiting
+            sleep 2
+          done
