@@ -136,13 +136,14 @@ export const InvoiceList: React.FC = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.action-menu-container')) {
+      // Check if the click is outside both the menu and the trigger button
+      if (!target.closest('.action-menu-container') && !target.closest('.action-menu-trigger')) {
         setShowActionMenu(null);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Fetch invoices with React Query
@@ -1484,10 +1485,13 @@ export const InvoiceList: React.FC = () => {
                             )}
                             
                             {/* Action Menu */}
-                            <div className="relative">
+                            <div className="relative action-menu-container">
                               <button
-                                onClick={() => setShowActionMenu(showActionMenu === invoice.id ? null : invoice.id)}
-                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowActionMenu(showActionMenu === invoice.id ? null : invoice.id);
+                                }}
+                                className="action-menu-trigger p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
                               >
                                 <MoreVertical className="h-4 w-4" />
                               </button>
