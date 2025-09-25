@@ -12,6 +12,17 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
   const { user, loading: authLoading } = useAuth();
   const [checkingSetup, setCheckingSetup] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [timeoutReached, setTimeoutReached] = useState(false);
+
+  // Safety timeout
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      console.warn('⏰ SmartRedirect timeout reached - forcing redirect to dashboard');
+      setTimeoutReached(true);
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     if (!user || authLoading) return;
@@ -102,11 +113,25 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
 
   // Show loading while checking auth or setup status
   if (authLoading || (user && checkingSetup)) {
+    console.log('🔄 SmartRedirect loading state:', {
+      authLoading,
+      user: !!user,
+      checkingSetup,
+      userId: user?.id
+    });
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading SmartCFO...</p>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 text-xs text-gray-500">
+              <p>Auth Loading: {authLoading ? 'Yes' : 'No'}</p>
+              <p>User: {user ? 'Found' : 'None'}</p>
+              <p>Checking Setup: {checkingSetup ? 'Yes' : 'No'}</p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -115,6 +140,12 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
   // If no user, show fallback (LandingPage)
   if (!user) {
     return <>{fallback}</>;
+  }
+
+  // Safety timeout - force redirect to dashboard
+  if (timeoutReached && user) {
+    console.log('⏰ SmartRedirect: Timeout reached, forcing redirect to dashboard');
+    return <Navigate to="/dashboard" replace />;
   }
 
   // If user needs setup, redirect to setup wizard
