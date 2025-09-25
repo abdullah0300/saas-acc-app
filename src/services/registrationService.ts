@@ -208,62 +208,90 @@ export class RegistrationService {
       }
       (window as any)[checkKey] = true;
 
-      // Check what's missing
-      const { data: checks, error: checkError } = await supabase.rpc('verify_user_setup', {
-        p_user_id: userId
-      });
+      // Get current user data first
+      const { data: { user } } = await supabase.auth.getUser();
 
-      // If RPC doesn't exist yet, skip
-      if (checkError) {
-        console.log('verify_user_setup not available yet');
+      if (!user || user.id !== userId) {
+        console.warn('User mismatch or not found for setup completion');
         delete (window as any)[checkKey];
         return;
       }
 
-      // Only proceed if something is actually missing
-      if (checks && (!checks.has_profile || !checks.has_subscription || !checks.has_categories)) {
-        console.log('Missing setup detected, running setup_new_user');
-        
-        // Get user data from the current session
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        // If we can't get the current user, try to get from profiles
-        let userEmail = '';
-        if (user && user.id === userId) {
-          userEmail = user.email || '';
+      // Check what's missing with a more robust approach
+      let needsSetup = false;
+
+      // Check profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .eq('id', userId)
+        .maybeSingle();
+
+      // Check subscription
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('id, status')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      // Check categories
+      const { data: categories } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1);
+
+      console.log('🔍 Setup check results:', {
+        hasProfile: !!profile,
+        hasSubscription: !!subscription,
+        hasCategories: categories && categories.length > 0,
+        isOAuth: user.app_metadata?.provider !== 'email'
+      });
+
+      needsSetup = !profile || !subscription || !categories || categories.length === 0;
+
+      if (needsSetup) {
+        console.log('🔧 Running setup for OAuth user...');
+
+        // Get user info from OAuth data or existing profile
+        const firstName = user.user_metadata?.full_name?.split(' ')[0] ||
+                         user.user_metadata?.first_name ||
+                         profile?.first_name || '';
+        const lastName = user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
+                        user.user_metadata?.last_name ||
+                        profile?.last_name || '';
+        const email = user.email || profile?.email || '';
+
+        if (!email) {
+          console.error('Cannot setup user without email');
+          delete (window as any)[checkKey];
+          return;
+        }
+
+        // Run setup with OAuth user data
+        const { error: setupError } = await supabase.rpc('setup_new_user', {
+          p_user_id: userId,
+          p_email: email,
+          p_first_name: firstName,
+          p_last_name: lastName,
+          p_company_name: null, // Will be set in setup wizard if needed
+          p_country_code: 'US', // Default country
+          p_state_code: null,
+          p_plan: 'simple_start', // Default plan for OAuth users
+          p_interval: 'monthly', // Default billing
+          p_is_team_member: false,
+          p_team_id: null,
+          p_invited_by: null
+        });
+
+        if (setupError) {
+          console.error('Setup error for OAuth user:', setupError);
+          // Don't throw - let them proceed to dashboard
         } else {
-          // Fallback: try to get email from profiles table
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', userId)
-            .maybeSingle();
-          
-          userEmail = profile?.email || '';
+          console.log('✅ OAuth user setup completed successfully');
         }
-
-        // Only run setup if we have an email
-        if (userEmail) {
-          // Re-run setup with defaults (for incomplete setups)
-          const { error: setupError } = await supabase.rpc('setup_new_user', {
-            p_user_id: userId,
-            p_email: userEmail,
-            p_first_name: '',
-            p_last_name: '',
-            p_company_name: null,
-            p_country_code: 'US', // Default country
-            p_state_code: null,
-            p_plan: 'simple_start', // Default plan
-            p_interval: 'monthly', // Default billing
-            p_is_team_member: false,
-            p_team_id: null,
-            p_invited_by: null
-          });
-
-          if (setupError) {
-            console.error('Error in setup_new_user:', setupError);
-          }
-        }
+      } else {
+        console.log('✅ User setup already complete');
       }
 
       // Clean up flag
@@ -273,6 +301,7 @@ export class RegistrationService {
       // Clean up flag on error too
       const checkKey = `setup_check_${userId}`;
       delete (window as any)[checkKey];
+      // Don't throw error - let OAuth users proceed
     }
   }
 }

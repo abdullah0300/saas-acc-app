@@ -76,8 +76,21 @@ export const Login: React.FC = () => {
   const handleSocialAuth = async (provider: 'google' | 'facebook' | 'linkedin') => {
     setSocialLoading(provider);
     try {
-      // Use environment variable for redirect URL, fallback to current origin
-      const redirectUrl = process.env.REACT_APP_SITE_URL || window.location.origin;
+      // Ensure HTTPS redirect URL
+      let redirectUrl = process.env.REACT_APP_SITE_URL || window.location.origin;
+
+      // Force HTTPS for production only (keep HTTP for localhost)
+      if (redirectUrl.startsWith('http://') && !redirectUrl.includes('localhost') && !redirectUrl.includes('127.0.0.1')) {
+        redirectUrl = redirectUrl.replace('http://', 'https://');
+        console.warn('⚠️ REACT_APP_SITE_URL should use HTTPS in production. Auto-correcting to:', redirectUrl);
+      }
+
+      // Ensure URL matches current origin if in production
+      if (window.location.origin.startsWith('https://') && redirectUrl !== window.location.origin) {
+        console.warn('⚠️ URL mismatch detected. Using current origin:', window.location.origin);
+        redirectUrl = window.location.origin;
+      }
+
       console.log('OAuth redirect URL:', redirectUrl); // Debug log
 
       const { error } = await supabase.auth.signInWithOAuth({

@@ -29,7 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
 
     // Initialize session recovery
-    // In AuthContext.tsx, update the initializeAuth function:
 const initializeAuth = async () => {
   try {
     const rememberMe = localStorage.getItem('smartcfo-remember-me');
@@ -37,7 +36,7 @@ const initializeAuth = async () => {
 
     // Get current session WITHOUT triggering a refresh
     const { data: { session }, error } = await supabase.auth.getSession();
-    
+
     if (error) {
       console.error('Session recovery error:', error);
       if (mounted) {
@@ -47,20 +46,39 @@ const initializeAuth = async () => {
     }
 
     if (session) {
-      if (!rememberMe && !tempSession) {
-        await supabase.auth.signOut();
+      // Check if this is an OAuth session (don't apply remember-me logic to OAuth)
+      const isOAuthSession = session.user?.app_metadata?.provider &&
+                            session.user.app_metadata.provider !== 'email';
+
+      if (isOAuthSession) {
+        // OAuth users are always "remembered" - don't sign them out
+        console.log('🔐 OAuth session detected, maintaining session');
+        console.log('🔐 OAuth user details:', {
+          id: session.user.id,
+          email: session.user.email,
+          provider: session.user.app_metadata?.provider
+        });
         if (mounted) {
-          setUser(null);
+          setUser(session.user);
           setLoading(false);
         }
-        return;
+      } else {
+        // Apply remember-me logic only to email/password users
+        if (!rememberMe && !tempSession) {
+          await supabase.auth.signOut();
+          if (mounted) {
+            setUser(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (mounted) {
+          setUser(session.user);
+          setLoading(false);
+        }
       }
 
-      if (mounted) {
-        setUser(session.user);
-        setLoading(false);
-      }
-      
       // Don't refresh here - let the keep-alive hook handle it
     } else {
       if (mounted) {

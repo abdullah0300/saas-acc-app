@@ -19,12 +19,30 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
     const checkUserSetup = async () => {
       setCheckingSetup(true);
       console.log('🔍 SmartRedirect: Checking user setup for user:', user.id);
+      console.log('🔍 User metadata:', {
+        provider: user.app_metadata?.provider,
+        email: user.email,
+        user_metadata: user.user_metadata
+      });
 
       try {
+        // First, ensure OAuth user has proper setup (this may take a moment)
+        if (user.app_metadata?.provider && user.app_metadata.provider !== 'email') {
+          console.log('🔐 OAuth user detected, ensuring setup completion...');
+          try {
+            const { registrationService } = await import('../../services/registrationService');
+            await registrationService.ensureUserSetupComplete(user.id);
+            console.log('✅ OAuth user setup completed');
+          } catch (setupError) {
+            console.warn('OAuth setup error (will retry):', setupError);
+            // Don't fail here - continue with check
+          }
+        }
+
         // Check if user has completed profile setup
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('company_name, country_code, setup_completed')
+          .select('company_name, country_code, setup_completed, first_name, last_name')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -34,19 +52,30 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
         // Check if user has a subscription
         const { data: subscription, error: subscriptionError } = await supabase
           .from('subscriptions')
-          .select('id')
+          .select('id, plan_name, status')
           .eq('user_id', user.id)
           .maybeSingle();
 
         console.log('💳 Subscription data:', subscription);
         if (subscriptionError) console.error('Subscription error:', subscriptionError);
 
-        // If no profile or incomplete setup, needs setup wizard
-        const profileIncomplete = !profile || !profile.company_name || !profile.setup_completed;
-        const noSubscription = !subscription;
+        // More lenient checks for OAuth users
+        const isOAuthUser = user.app_metadata?.provider && user.app_metadata.provider !== 'email';
+        let profileIncomplete, noSubscription;
+
+        if (isOAuthUser) {
+          // For OAuth users, just check if they have a profile at all
+          profileIncomplete = !profile || (!profile.first_name && !profile.company_name);
+          noSubscription = !subscription || subscription.status !== 'active';
+        } else {
+          // For email users, require complete setup
+          profileIncomplete = !profile || !profile.company_name || !profile.setup_completed;
+          noSubscription = !subscription;
+        }
 
         const needsSetupResult = profileIncomplete || noSubscription;
         console.log('📝 Setup check result:', {
+          isOAuthUser,
           profileIncomplete,
           noSubscription,
           needsSetup: needsSetupResult
@@ -55,8 +84,14 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
         setNeedsSetup(needsSetupResult);
       } catch (error) {
         console.error('Error checking user setup:', error);
-        // If we can't check, assume setup is needed for new OAuth users
-        setNeedsSetup(true);
+        // For OAuth users, don't assume setup needed if check fails
+        const isOAuthUser = user.app_metadata?.provider && user.app_metadata.provider !== 'email';
+        if (isOAuthUser) {
+          console.log('OAuth user - proceeding to dashboard despite check error');
+          setNeedsSetup(false);
+        } else {
+          setNeedsSetup(true);
+        }
       } finally {
         setCheckingSetup(false);
       }
