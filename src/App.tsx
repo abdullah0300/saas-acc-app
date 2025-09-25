@@ -54,9 +54,18 @@ import { CreditNoteView } from './components/CreditNote/CreditNoteView';
 import { VATReturn } from './components/Reports/VATReturn';
 import { RecurringInvoices } from './components/Invoice/RecurringInvoices';
 import { RecurringInvoiceEdit } from './components/Invoice/RecurringInvoiceEdit';
+import { SetupWizard } from './components/Onboarding/SetupWizard';
+import { PrivacyPolicy } from './components/Legal/PrivacyPolicy';
+import { TermsOfService } from './components/Legal/TermsOfService';
+import { SmartRedirect } from './components/Auth/SmartRedirect';
 import { useSessionKeepAlive } from './hooks/useSessionKeepAlive';
 import { useAuth } from './contexts/AuthContext';
 import { Loader } from 'lucide-react';
+
+// Debug: Log environment variables
+console.log('🔧 App.tsx Environment Debug:');
+console.log('REACT_APP_SITE_URL:', process.env.REACT_APP_SITE_URL);
+console.log('window.location.origin:', window.location.origin);
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -118,13 +127,22 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public routes */}
-      {/* Landing Page - if user is logged in, redirect to dashboard */}
-      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+      {/* Landing Page with smart redirect logic */}
+      <Route path="/" element={<SmartRedirect fallback={<LandingPage />} />} />
       <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      
+      <Route path="/setup" element={
+        <ProtectedRoute>
+          <SetupWizard />
+        </ProtectedRoute>
+      } />
+
+      {/* Legal pages - public access */}
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
+
       {/* Protected routes */}
       <Route element={
         <ProtectedRoute>

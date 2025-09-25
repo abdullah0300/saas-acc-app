@@ -7,7 +7,7 @@ interface RegistrationData {
   firstName: string;
   lastName: string;
   companyName?: string;
-  country: string;
+  country?: string;
   state?: string;
   plan: string;
   interval: 'monthly' | 'yearly';
@@ -121,7 +121,7 @@ export class RegistrationService {
         p_first_name: data.firstName,
         p_last_name: data.lastName,
         p_company_name: data.companyName || null,
-        p_country_code: data.country,
+        p_country_code: data.country || 'US', // Default to US
         p_state_code: data.state || null,
         p_plan: isTeamMember ? null : data.plan,
         p_interval: isTeamMember ? null : data.interval,
@@ -244,17 +244,17 @@ export class RegistrationService {
 
         // Only run setup if we have an email
         if (userEmail) {
-          // Re-run setup with defaults
+          // Re-run setup with defaults (for incomplete setups)
           const { error: setupError } = await supabase.rpc('setup_new_user', {
             p_user_id: userId,
             p_email: userEmail,
             p_first_name: '',
             p_last_name: '',
             p_company_name: null,
-            p_country_code: 'US',
+            p_country_code: 'US', // Default country
             p_state_code: null,
-            p_plan: 'simple_start',
-            p_interval: 'monthly',
+            p_plan: 'simple_start', // Default plan
+            p_interval: 'monthly', // Default billing
             p_is_team_member: false,
             p_team_id: null,
             p_invited_by: null

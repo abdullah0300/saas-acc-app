@@ -940,18 +940,39 @@ export const LandingPage: React.FC = () => {
             </div>
             
             {[
-              { title: "Product", links: ["Features", "Pricing", "API", "Integrations"] },
-              { title: "Company", links: ["About", "Blog", "Careers", "Contact"] },
-              { title: "Legal", links: ["Privacy", "Terms", "Security", "GDPR"] }
+              { title: "Product", links: [
+                { name: "Features", href: "#features" },
+                { name: "Pricing", href: "#pricing" },
+                { name: "API", href: "#" },
+                { name: "Integrations", href: "#" }
+              ]},
+              { title: "Company", links: [
+                { name: "About", href: "#" },
+                { name: "Blog", href: "#" },
+                { name: "Careers", href: "#" },
+                { name: "Contact", href: "#" }
+              ]},
+              { title: "Legal", links: [
+                { name: "Privacy Policy", href: "/privacy" },
+                { name: "Terms & Conditions", href: "/terms" },
+                { name: "Security", href: "#" },
+                { name: "GDPR", href: "#" }
+              ]}
             ].map((col, index) => (
               <div key={index}>
                 <h4 className="font-semibold text-white mb-4">{col.title}</h4>
                 <ul className="space-y-2">
                   {col.links.map(link => (
-                    <li key={link}>
-                      <a href="#" className="text-sm text-gray-400 hover:text-white transition-colors">
-                        {link}
-                      </a>
+                    <li key={link.name}>
+                      {link.href.startsWith('/') ? (
+                        <Link to={link.href} className="text-sm text-gray-400 hover:text-white transition-colors">
+                          {link.name}
+                        </Link>
+                      ) : (
+                        <a href={link.href} className="text-sm text-gray-400 hover:text-white transition-colors">
+                          {link.name}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>

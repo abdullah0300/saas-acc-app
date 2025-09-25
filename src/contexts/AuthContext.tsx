@@ -89,10 +89,23 @@ const initializeAuth = async () => {
         
         // Handle auth events
         if (event === 'SIGNED_IN' && currentUser && !previousUser) {
+          // Check if this is an OAuth sign-in or regular sign-in
+          const isOAuth = session?.access_token && !previousUser;
+
           await auditService.logLogin(currentUser.id, true, {
-            method: 'password',
+            method: isOAuth ? 'oauth' : 'password',
             email: currentUser.email
           });
+
+          // For OAuth users, ensure they have proper setup
+          if (isOAuth) {
+            try {
+              const { registrationService } = await import('../services/registrationService');
+              await registrationService.ensureUserSetupComplete(currentUser.id);
+            } catch (error) {
+              console.error('Error ensuring OAuth user setup:', error);
+            }
+          }
         } else if (event === 'SIGNED_OUT' && previousUser) {
           await auditService.logLogout(previousUser.id);
           // Clear remember me preference on sign out

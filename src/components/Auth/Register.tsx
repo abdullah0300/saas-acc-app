@@ -4,23 +4,16 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { registrationService } from "../../services/registrationService";
 import { supabase } from "../../services/supabaseClient";
 import {
-  Building2,
   Mail,
   Lock,
   User,
-  Globe,
-  MapPin,
-  CreditCard,
   Check,
   AlertCircle,
-  Star,
-  Zap,
-  Rocket,
-  Building,
   Loader2,
   Eye,
   EyeOff,
   ChevronRight,
+  ChevronLeft,
   Sparkles,
   Shield,
   Calculator,
@@ -33,76 +26,12 @@ import {
   Coins,
   Wallet,
   Users,
-  Phone,
   CheckCircle,
-  Trophy,
   Gift,
+  Chrome,
+  Facebook,
+  Linkedin,
 } from "lucide-react";
-import { countries, CountryData } from "../../data/countries";
-
-interface Plan {
-  id: string;
-  name: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
-  icon: any;
-  features: string[];
-  highlighted?: string[];
-  popular?: boolean;
-  limits: {
-    users: number;
-    monthlyInvoices: number;
-  };
-}
-
-// Your actual plans matching subscription_plan_new enum
-const PLANS: Plan[] = [
-  {
-    id: "simple_start",
-    name: "Simple Start",
-    monthlyPrice: 5,
-    yearlyPrice: 48, // 20% off
-    icon: Star,
-    features: [
-      "Single user access",
-      "Up to 20 monthly invoices",
-      "Income & expense tracking",
-      "Basic financial reports",
-      "Client management",
-      "PDF export",
-      "Email support",
-    ],
-    highlighted: ["Single user access", "Up to 20 monthly invoices"],
-    limits: {
-      users: 1,
-      monthlyInvoices: 20,
-    },
-  },
-  
-  {
-    id: "plus",
-    name: "Plus",
-    monthlyPrice: 25,
-    yearlyPrice: 240, // 20% off
-    icon: Rocket,
-    features: [
-      "Up to 5 team members",
-      "Unlimited monthly invoices",
-      "Everything in Essentials",
-      "Custom invoice branding",
-      "Budget tracking",
-      "Cash flow analysis",
-      "Phone & email support",
-      "Audit trail",
-      "Team permissions",
-    ],
-    highlighted: ["Up to 5 team members", "Phone & email support"],
-    limits: {
-      users: 5,
-      monthlyInvoices: -1,
-    },
-  },
-];
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -115,26 +44,39 @@ export const Register: React.FC = () => {
   const [checkingInvite, setCheckingInvite] = useState(!!inviteCode);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1); // Multi-step form
+  const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
 
-  // Form state
+  // Simplified form state
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
     firstName: "",
     lastName: "",
-    companyName: "",
-    country: "US",
-    state: "",
-    plan: "essentials",
-    interval: "monthly" as "monthly" | "yearly",
   });
 
-  // Get selected country data
-  const selectedCountry = countries.find((c) => c.code === formData.country);
-  const hasStates =
-    selectedCountry?.states && selectedCountry.states.length > 0;
+  // Social authentication handlers
+  const handleSocialAuth = async (provider: 'google' | 'facebook' | 'linkedin') => {
+    setSocialLoading(provider);
+    try {
+      // Use environment variable for redirect URL, fallback to current origin
+      const redirectUrl = process.env.REACT_APP_SITE_URL || window.location.origin;
+      console.log('OAuth redirect URL:', redirectUrl); // Debug log
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${redirectUrl}/`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setSocialLoading(null);
+    }
+  };
 
   // Accounting feature highlights
   const features = [
@@ -183,6 +125,7 @@ export const Register: React.FC = () => {
           teamName: result.teamName,
         });
         setFormData((prev) => ({ ...prev, email: result.invitation.email }));
+        setShowEmailForm(true); // Show email form for invited users
         setError("");
       } else {
         setError(result.error || "Invalid invitation");
@@ -195,64 +138,61 @@ export const Register: React.FC = () => {
     }
   };
 
-  // Update only this part in your handleSubmit function in src/components/Auth/Register.tsx
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  try {
-    if (formData.password !== formData.confirmPassword) {
-      throw new Error("Passwords do not match");
+    try {
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error("Passwords do not match");
+      }
+
+      if (formData.password.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+
+      if (inviteDetails && formData.email !== inviteDetails.email) {
+        throw new Error(`This invitation is for ${inviteDetails.email}`);
+      }
+
+      const result = await registrationService.register({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        // Default values - will be set in setup wizard
+        companyName: "",
+        country: "US",
+        state: "",
+        plan: "simple_start", // Default plan
+        interval: "monthly", // Default interval
+        inviteCode: inviteCode || undefined,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Registration failed");
+      }
+
+      // Redirect to setup wizard for new users, dashboard for invited users
+      if (inviteDetails) {
+        navigate("/dashboard");
+      } else {
+        navigate("/setup");
+      }
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    if (formData.password.length < 6) {
-      throw new Error("Password must be at least 6 characters");
-    }
-
-    if (inviteDetails && formData.email !== inviteDetails.email) {
-      throw new Error(`This invitation is for ${inviteDetails.email}`);
-    }
-
-    if (!inviteDetails && hasStates && !formData.state) {
-      throw new Error("Please select a state/province");
-    }
-
-    const result = await registrationService.register({
-      ...formData,
-      inviteCode: inviteCode || undefined,
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || "Registration failed");
-    }
-
-    navigate("/dashboard");
-  } catch (err: any) {
-    console.error("Registration error:", err);
-    setError(err.message || "Registration failed. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-
-    if (name === "country" && value !== formData.country) {
-      setFormData((prev) => ({ ...prev, state: "" }));
-    }
-  };
-
-  const nextStep = () => {
-    if (currentStep < 3) setCurrentStep(currentStep + 1);
-  };
-
-  const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
   if (checkingInvite) {
@@ -295,62 +235,21 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        <div className="w-full max-w-4xl relative">
+        <div className="w-full max-w-md relative">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
               <Wallet className="h-8 w-8 text-white" />
             </div>
             <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              {inviteDetails ? "Join Your Team" : "Start Your Free Trial"}
+              {inviteDetails ? "Join Your Team" : "Create Your Account"}
             </h2>
             <p className="mt-3 text-lg text-gray-600">
               {inviteDetails
                 ? `You've been invited to join ${inviteDetails.teamName}`
-                : "30-day free trial • No credit card required • Cancel anytime"}
+                : "Start your 30-day free trial today"}
             </p>
           </div>
-
-          {/* Progress Steps */}
-          {!inviteDetails && (
-            <div className="flex items-center justify-center mb-8">
-              <div className="flex items-center">
-                <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                    currentStep >= 1
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-200 text-gray-500"
-                  }`}
-                >
-                  <span className="text-sm font-semibold">1</span>
-                </div>
-                <div
-                  className={`w-24 h-1 ${currentStep >= 2 ? "bg-indigo-600" : "bg-gray-200"}`}
-                ></div>
-                <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                    currentStep >= 2
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-200 text-gray-500"
-                  }`}
-                >
-                  <span className="text-sm font-semibold">2</span>
-                </div>
-                <div
-                  className={`w-24 h-1 ${currentStep >= 3 ? "bg-indigo-600" : "bg-gray-200"}`}
-                ></div>
-                <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                    currentStep >= 3
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-200 text-gray-500"
-                  }`}
-                >
-                  <span className="text-sm font-semibold">3</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Form Card */}
           <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white">
@@ -361,490 +260,131 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 1: Account Details */}
-              {currentStep === 1 && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg">
-                      <User className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      Create Your Account
-                    </h3>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        required
-                        value={formData.email}
-                        onChange={handleChange}
-                        disabled={!!inviteDetails}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        placeholder="john@example.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="password"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        id="password"
-                        name="password"
-                        required
-                        value={formData.password}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                        placeholder="Min 6 characters"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-5 w-5" />
-                        ) : (
-                          <Eye className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="confirmPassword"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Confirm Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        required
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                        placeholder="Confirm password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-5 w-5" />
-                        ) : (
-                          <Eye className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {!inviteDetails && (
-                    <button
-                      type="button"
-                      onClick={nextStep}
-                      className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02]"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        Next: Personal Info
-                        <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Step 2: Personal Information */}
-              {(currentStep === 2 || inviteDetails) && !inviteDetails && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
-                      <Building2 className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      Personal Information
-                    </h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label
-                        htmlFor="firstName"
-                        className="block text-sm font-medium text-gray-700 mb-2"
-                      >
-                        First Name
-                      </label>
-                      <input
-                        type="text"
-                        id="firstName"
-                        name="firstName"
-                        required
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                        placeholder="John"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="lastName"
-                        className="block text-sm font-medium text-gray-700 mb-2"
-                      >
-                        Last Name
-                      </label>
-                      <input
-                        type="text"
-                        id="lastName"
-                        name="lastName"
-                        required
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                        placeholder="Doe"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="companyName"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Company Name{" "}
-                      <span className="text-gray-400">(Optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="companyName"
-                      name="companyName"
-                      value={formData.companyName}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                      placeholder="Acme Inc."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label
-                        htmlFor="country"
-                        className="block text-sm font-medium text-gray-700 mb-2"
-                      >
-                        Country
-                      </label>
-                      <select
-                        id="country"
-                        name="country"
-                        required
-                        value={formData.country}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
-                      >
-                        {countries.map((country) => (
-                          <option key={country.code} value={country.code}>
-                            {country.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {hasStates && (
-                      <div>
-                        <label
-                          htmlFor="state"
-                          className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                          State/Province
-                        </label>
-                        <select
-                          id="state"
-                          name="state"
-                          required
-                          value={formData.state}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
-                        >
-                          <option value="">Select state/province</option>
-                          {selectedCountry?.states?.map((state) => (
-                            <option key={state.code} value={state.code}>
-                              {state.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={prevStep}
-                      className="flex-1 px-8 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={nextStep}
-                      className="flex-1 group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02]"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        Next: Choose Plan
-                        <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Plan Selection */}
-              {(currentStep === 3 || inviteDetails) && !inviteDetails && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg">
-                      <CreditCard className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      Choose Your Plan
-                    </h3>
-                  </div>
-
-                  {/* Billing Toggle */}
-                  <div className="flex justify-center mb-8">
-                    <div className="bg-gray-100 p-1 rounded-lg inline-flex relative">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            interval: "monthly",
-                          }))
-                        }
-                        className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                          formData.interval === "monthly"
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-600 hover:text-gray-900"
-                        }`}
-                      >
-                        Monthly
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            interval: "yearly",
-                          }))
-                        }
-                        className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                          formData.interval === "yearly"
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-600 hover:text-gray-900"
-                        }`}
-                      >
-                        Yearly
-                      </button>
-                      {formData.interval === "yearly" && (
-                        <span className="absolute -top-3 right-0 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                          Save 20%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Plans Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl mx-auto">
-                    {PLANS.map((plan) => {
-                      const isSelected = formData.plan === plan.id;
-                      const Icon = plan.icon;
-                      const price =
-                        formData.interval === "monthly"
-                          ? plan.monthlyPrice
-                          : plan.yearlyPrice;
-                      const yearlyPrice = plan.yearlyPrice;
-                      const savings = plan.monthlyPrice * 12 - yearlyPrice;
-
-                      return (
-                        <div
-                          key={plan.id}
-                          onClick={() =>
-                            setFormData((prev) => ({ ...prev, plan: plan.id }))
-                          }
-                          className={`relative rounded-2xl cursor-pointer transition-all ${
-                            plan.popular
-                              ? "bg-gradient-to-b from-indigo-500 to-purple-600 text-white shadow-xl transform scale-105 p-1"
-                              : isSelected && !plan.popular
-                                ? "border-2 border-indigo-500 bg-white"
-                                : "border border-gray-200 bg-white hover:border-gray-300"
-                          }`}
-                        >
-                          {plan.popular && (
-                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                              <div className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
-                                <Zap className="h-3 w-3" />
-                                MOST POPULAR
-                              </div>
-                            </div>
-                          )}
-
-                          <div
-                            className={`${plan.popular ? "bg-white rounded-xl" : ""} p-4 lg:p-6`}
-                          >
-                            {/* Icon and Name */}
-                            <div className="text-center mb-6">
-                              <div
-                                className={`inline-flex p-3 rounded-full mb-4 ${
-                                  plan.popular ? "bg-indigo-100" : "bg-gray-100"
-                                }`}
-                              >
-                                <Icon
-                                  className={`h-6 w-6 ${plan.popular ? "text-indigo-600" : "text-gray-700"}`}
-                                />
-                              </div>
-
-                              <h4
-                                className={`text-xl font-bold ${plan.popular ? "text-gray-900" : "text-gray-900"}`}
-                              >
-                                {plan.name}
-                              </h4>
-                            </div>
-
-                            {/* Pricing */}
-                            <div className="text-center mb-6">
-                              <div className="flex items-baseline justify-center gap-1">
-                                <span className="text-4xl font-bold text-gray-900">
-                                  $
-                                  {formData.interval === "yearly"
-                                    ? yearlyPrice
-                                    : plan.monthlyPrice}
-                                </span>
-                                <span className="text-gray-500">
-                                  /
-                                  {formData.interval === "yearly"
-                                    ? "year"
-                                    : "month"}
-                                </span>
-                              </div>
-
-                              {formData.interval === "yearly" && (
-                                <p className="text-sm text-emerald-600 mt-2">
-                                  Save ${savings} per year
-                                </p>
-                              )}
-                            </div>
-
-                            {/* User and Invoice Limits */}
-                            <div className="flex justify-center gap-6 mb-6 pb-6 border-b border-gray-200">
-                              <div className="flex items-center gap-2">
-                                <Users className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm text-gray-600">
-                                  {plan.limits.users === 1
-                                    ? "Just you"
-                                    : `${plan.limits.users} users`}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm text-gray-600">
-                                  {plan.limits.monthlyInvoices === -1
-                                    ? "Unlimited"
-                                    : `${plan.limits.monthlyInvoices}/mo`}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Features List */}
-                            <ul className="space-y-3">
-                              {plan.features
-                                .slice(0, 5)
-                                .map((feature, index) => {
-                                  const isHighlighted =
-                                    plan.highlighted?.includes(feature);
-                                  return (
-                                    <li
-                                      key={index}
-                                      className="flex items-start text-sm"
-                                    >
-                                      <Check className="h-5 w-5 mr-2 text-emerald-500 flex-shrink-0" />
-                                      <span
-                                        className={
-                                          isHighlighted
-                                            ? "text-gray-900 font-medium"
-                                            : "text-gray-600"
-                                        }
-                                      >
-                                        {feature}
-                                      </span>
-                                    </li>
-                                  );
-                                })}
-                            </ul>
-                          </div>
+            {!showEmailForm && !inviteDetails ? (
+              /* Social Login Options */
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSocialAuth('google')}
+                    disabled={socialLoading === 'google'}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+                  >
+                    {socialLoading === 'google' ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin text-gray-600" />
+                        <span className="text-gray-600 font-medium text-lg">Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
                         </div>
-                      );
-                    })}
-                  </div>
+                        <span className="text-gray-700 font-medium text-lg group-hover:text-gray-900 transition-colors">
+                          Continue with Google
+                        </span>
+                      </>
+                    )}
+                  </button>
 
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={prevStep}
-                      className="flex-1 px-8 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="flex-1 group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        {loading ? (
-                          <>
-                            <Loader2 className="animate-spin h-5 w-5 mr-3" />
-                            Creating account...
-                          </>
-                        ) : (
-                          <>
-                            Start Free Trial
-                            <Gift className="ml-2 h-5 w-5" />
-                          </>
-                        )}
-                      </div>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSocialAuth('facebook')}
+                    disabled={socialLoading === 'facebook'}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+                  >
+                    {socialLoading === 'facebook' ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                        <span className="text-blue-600 font-medium text-lg">Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-6 h-6 bg-[#1877F2] rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium text-lg group-hover:text-blue-600 transition-colors">
+                          Continue with Facebook
+                        </span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSocialAuth('linkedin')}
+                    disabled={socialLoading === 'linkedin'}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+                  >
+                    {socialLoading === 'linkedin' ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin text-blue-700" />
+                        <span className="text-blue-700 font-medium text-lg">Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-6 h-6 bg-[#0A66C2] rounded flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                        </div>
+                        <span className="text-gray-700 font-medium text-lg group-hover:text-blue-700 transition-colors">
+                          Continue with LinkedIn
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Continue with Email Button */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-gray-500 font-medium">
+                      or
+                    </span>
                   </div>
                 </div>
-              )}
 
-              {/* For invited users - simplified form */}
-              {inviteDetails && (
+                <button
+                  type="button"
+                  onClick={() => setShowEmailForm(true)}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-4 border-2 border-indigo-200 rounded-xl bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-all duration-200 group"
+                >
+                  <Mail className="h-6 w-6 text-indigo-600" />
+                  <span className="text-indigo-700 font-medium text-lg group-hover:text-indigo-800 transition-colors">
+                    Continue with Email
+                  </span>
+                  <ChevronRight className="h-5 w-5 text-indigo-600 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            ) : (
+              /* Email Registration Form */
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {!inviteDetails && (
+                  <div className="flex items-center justify-between mb-6">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmailForm(false)}
+                      className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Back to options
+                    </button>
+                    <h3 className="text-lg font-semibold text-gray-900">Create Account</h3>
+                    <div></div>
+                  </div>
+                )}
+
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -886,39 +426,137 @@ const handleSubmit = async (e: React.FormEvent) => {
                     </div>
                   </div>
 
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                        disabled={!!inviteDetails}
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label
+                        htmlFor="password"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          id="password"
+                          name="password"
+                          required
+                          value={formData.password}
+                          onChange={handleChange}
+                          className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                          placeholder="Min 6 characters"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-5 w-5" />
+                          ) : (
+                            <Eye className="h-5 w-5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="confirmPassword"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Confirm Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          required
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                          placeholder="Confirm password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-5 w-5" />
+                          ) : (
+                            <Eye className="h-5 w-5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submit Button for Email Form */}
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-white font-semibold shadow-lg hover:shadow-xl transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-8 py-4 text-white font-bold shadow-2xl hover:shadow-3xl transform transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     <div className="relative flex items-center justify-center">
                       {loading ? (
                         <>
                           <Loader2 className="animate-spin h-5 w-5 mr-3" />
-                          Joining team...
+                          <span className="text-lg">
+                            {inviteDetails ? 'Joining your team...' : 'Creating your account...'}
+                          </span>
                         </>
                       ) : (
                         <>
-                          Join Team
-                          <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                          <span className="text-lg mr-3">
+                            {inviteDetails ? 'Join Team' : 'Create Account'}
+                          </span>
+                          <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
                         </>
                       )}
                     </div>
                   </button>
                 </div>
-              )}
+              </form>
+            )}
 
-              {/* Sign In Link */}
-              <p className="text-center text-sm text-gray-600">
-                Already have an account?{" "}
-                <Link
-                  to="/login"
-                  className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all"
-                >
-                  Sign in
-                </Link>
-              </p>
-            </form>
+            {/* Sign In Link */}
+            <p className="text-center text-sm text-gray-600 mt-6">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all"
+              >
+                Sign in
+              </Link>
+            </p>
           </div>
 
           {/* Trust Indicators */}
@@ -926,20 +564,20 @@ const handleSubmit = async (e: React.FormEvent) => {
             <p className="text-sm text-gray-500 mb-4">
               Join 10,000+ businesses managing their finances with SmartCFO
             </p>
-            <div className="flex justify-center items-center gap-6">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm text-gray-600">30-day free trial</span>
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs sm:text-sm text-gray-600">30-day free trial</span>
               </div>
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm text-gray-600">
+                <Shield className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs sm:text-sm text-gray-600">
                   No credit card required
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Gift className="h-5 w-5 text-emerald-600" />
-                <span className="text-sm text-gray-600">Cancel anytime</span>
+                <Gift className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs sm:text-sm text-gray-600">Cancel anytime</span>
               </div>
             </div>
           </div>
@@ -1074,6 +712,9 @@ const handleSubmit = async (e: React.FormEvent) => {
         }
         .animate-fadeIn {
           animation: fadeIn 0.5s ease-out;
+        }
+        .shadow-3xl {
+          box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.25);
         }
       `}</style>
     </div>
