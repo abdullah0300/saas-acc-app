@@ -126,7 +126,7 @@ export const Login: React.FC = () => {
     }
 
     await signIn(email, password);
-    navigate("/dashboard");
+    navigate("/"); // Let SmartRedirect handle routing
     } catch (err: any) {
       setError(err.message);
     } finally {

@@ -98,50 +98,44 @@ interface Plan {
   features: string[];
   highlighted?: string[];
   popular?: boolean;
-  limits: {
-    users: number;
-    monthlyInvoices: number;
-  };
 }
 
 const PLANS: Plan[] = [
   {
-    id: "simple_start",
-    name: "Simple Start",
+    id: 'simple_start',
+    name: 'Simple Start',
     monthlyPrice: 5,
-    yearlyPrice: 48,
-    icon: Star,
+    yearlyPrice: 50,
+    icon: Rocket,
+    popular: true,
     features: [
-      "20 invoices/month",
-      "Single user",
-      "Basic reports",
-      "Email support"
+      'AI-Powered Categorization',
+      '20 Monthly Invoices',
+      'Income & Expense Tracking',
+      'Smart Financial Reports',
+      'Client Management',
+      'Email Support'
     ],
-    highlighted: ["Perfect for freelancers"],
-    limits: {
-      users: 1,
-      monthlyInvoices: 20,
-    },
+    highlighted: ['AI-Powered Categorization', 'Smart Financial Reports']
   },
   {
-    id: "plus",
-    name: "Plus",
+    id: 'plus',
+    name: 'Plus',
     monthlyPrice: 25,
-    yearlyPrice: 240,
-    icon: Rocket,
+    yearlyPrice: 250,
+    icon: Star,
     features: [
-      "Unlimited invoices",
-      "5 team members",
-      "Advanced reports",
-      "Priority support"
+      'Everything in Simple Start',
+      'Unlimited Invoices',
+      '5 Team Members',
+      'Advanced AI Insights',
+      'Priority Phone Support',
+      'Custom Invoice Branding',
+      'Budget Tracking',
+      'API Access'
     ],
-    highlighted: ["Most popular choice"],
-    popular: true,
-    limits: {
-      users: 5,
-      monthlyInvoices: -1,
-    },
-  },
+    highlighted: ['Unlimited Invoices', 'Advanced AI Insights', 'Priority Phone Support']
+  }
 ];
 
 export const SetupWizard: React.FC = () => {
@@ -151,32 +145,32 @@ export const SetupWizard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Form data
+  // Form data state
   const [formData, setFormData] = useState({
     industry: '',
     businessSize: '',
     companyName: '',
-    country: 'US',
+    country: '',
     state: '',
     currency: 'USD',
     dateFormat: 'MM/DD/YYYY',
     taxRate: 0,
-    plan: 'simple_start',
+    plan: 'simple_start', // Default plan
     interval: 'monthly' as 'monthly' | 'yearly',
   });
 
-  // Get selected country data
-  const selectedCountry = countries.find((c) => c.code === formData.country);
+  // Get country data for states and currency
+  const selectedCountry = countries.find(c => c.code === formData.country);
   const hasStates = selectedCountry?.states && selectedCountry.states.length > 0;
 
-  // Update currency when country changes
+  // Auto-populate preferences based on country selection
   useEffect(() => {
     if (selectedCountry) {
-      setFormData((prev) => ({
+      setFormData(prev => ({
         ...prev,
-        currency: selectedCountry.currency,
-        dateFormat: selectedCountry.dateFormat,
-        taxRate: selectedCountry.defaultTaxRate,
+        currency: selectedCountry.currency || 'USD',
+        dateFormat: selectedCountry.dateFormat || 'MM/DD/YYYY',
+        taxRate: selectedCountry.defaultTaxRate || 0,
       }));
     }
   }, [selectedCountry]);
@@ -212,11 +206,13 @@ export const SetupWizard: React.FC = () => {
     setError('');
 
     try {
-      // Update user profile
+      // Update user profile and mark setup as completed
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           company_name: formData.companyName || null,
+          setup_completed: true,
+          setup_completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -256,12 +252,7 @@ export const SetupWizard: React.FC = () => {
           .upsert({
             user_id: user.id,
             business_type: formData.industry,
-            business_stage: formData.businessSize || 'medium',
-            location: formData.country,
-            patterns_json: {
-              setup_completed_at: new Date().toISOString(),
-              setup_version: '1.0',
-            },
+            business_size: formData.businessSize,
             updated_at: new Date().toISOString(),
           });
 
@@ -286,53 +277,59 @@ export const SetupWizard: React.FC = () => {
         <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl mb-4">
           <Briefcase className="h-8 w-8 text-indigo-600" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">What type of business are you?</h2>
-        <p className="text-gray-600 mt-2">This helps us customize SmartCFO for your needs</p>
+        <h2 className="text-2xl font-bold text-gray-900">Tell us about your business</h2>
+        <p className="text-gray-600 mt-2">This helps us customize SmartCFO for your industry</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {INDUSTRIES.map((industry) => (
-          <div
-            key={industry.id}
-            onClick={() => setFormData((prev) => ({ ...prev, industry: industry.id }))}
-            className={`p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md ${
-              formData.industry === industry.id
-                ? 'border-indigo-500 bg-indigo-50'
-                : 'border-gray-200 hover:border-indigo-300'
-            }`}
-          >
-            <h3 className="font-medium text-gray-900">{industry.name}</h3>
-            <p className="text-sm text-gray-600 mt-1">{industry.description}</p>
-            {formData.industry === industry.id && (
-              <div className="mt-2">
-                <CheckCircle className="h-5 w-5 text-indigo-600" />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {formData.industry && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">How big is your team?</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {BUSINESS_SIZES.map((size) => (
-              <div
-                key={size.id}
-                onClick={() => setFormData((prev) => ({ ...prev, businessSize: size.id }))}
-                className={`p-3 rounded-lg border cursor-pointer transition-all text-center ${
-                  formData.businessSize === size.id
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            What type of business do you run?
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {INDUSTRIES.map((industry) => (
+              <button
+                key={industry.id}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, industry: industry.id }))}
+                className={`p-4 rounded-xl border-2 text-left transition-all hover:shadow-md ${
+                  formData.industry === industry.id
                     ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-indigo-300'
+                    : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <div className="font-medium text-sm">{size.name}</div>
-                <div className="text-xs text-gray-600 mt-1">{size.description}</div>
-              </div>
+                <div className="font-medium text-gray-900">{industry.name}</div>
+                <div className="text-sm text-gray-600 mt-1">{industry.description}</div>
+              </button>
             ))}
           </div>
         </div>
-      )}
+
+        {formData.industry && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              How big is your team?
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {BUSINESS_SIZES.map((size) => (
+                <button
+                  key={size.id}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, businessSize: size.id }))}
+                  className={`p-4 rounded-xl border-2 text-left transition-all hover:shadow-md ${
+                    formData.businessSize === size.id
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="font-medium text-gray-900">{size.name}</div>
+                  <div className="text-sm text-gray-600 mt-1">{size.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -343,37 +340,35 @@ export const SetupWizard: React.FC = () => {
           <Building2 className="h-8 w-8 text-emerald-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Business details</h2>
-        <p className="text-gray-600 mt-2">Tell us more about your business</p>
+        <p className="text-gray-600 mt-2">Let's set up your company information</p>
       </div>
 
       <div className="space-y-6">
         <div>
-          <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
-            Company Name <span className="text-gray-400">(Optional)</span>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Company Name (Optional)
           </label>
           <input
             type="text"
-            id="companyName"
             value={formData.companyName}
-            onChange={(e) => setFormData((prev) => ({ ...prev, companyName: e.target.value }))}
+            onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-            placeholder="Your company name"
+            placeholder="Enter your company name"
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
-              Country *
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Country <span className="text-red-500">*</span>
             </label>
             <select
-              id="country"
               value={formData.country}
-              onChange={(e) => {
-                setFormData((prev) => ({ ...prev, country: e.target.value, state: '' }));
-              }}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
+              onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value, state: '' }))}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+              required
             >
+              <option value="">Select your country</option>
               {countries.map((country) => (
                 <option key={country.code} value={country.code}>
                   {country.name}
@@ -384,16 +379,16 @@ export const SetupWizard: React.FC = () => {
 
           {hasStates && (
             <div>
-              <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
-                State/Province *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                State/Province <span className="text-red-500">*</span>
               </label>
               <select
-                id="state"
                 value={formData.state}
-                onChange={(e) => setFormData((prev) => ({ ...prev, state: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all appearance-none"
+                onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                required
               >
-                <option value="">Select state/province</option>
+                <option value="">Select your state</option>
                 {selectedCountry?.states?.map((state) => (
                   <option key={state.code} value={state.code}>
                     {state.name}
@@ -486,7 +481,7 @@ export const SetupWizard: React.FC = () => {
           <CreditCard className="h-8 w-8 text-emerald-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Choose your plan</h2>
-        <p className="text-gray-600 mt-2">30-day free trial • No credit card required</p>
+        <p className="text-gray-600 mt-2">30-day free trial " No credit card required</p>
       </div>
 
       <div className="space-y-6">
@@ -498,13 +493,13 @@ export const SetupWizard: React.FC = () => {
               onClick={() =>
                 setFormData((prev) => ({
                   ...prev,
-                  interval: "monthly",
+                  interval: 'monthly',
                 }))
               }
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                formData.interval === "monthly"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                formData.interval === 'monthly'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               Monthly
@@ -514,189 +509,84 @@ export const SetupWizard: React.FC = () => {
               onClick={() =>
                 setFormData((prev) => ({
                   ...prev,
-                  interval: "yearly",
+                  interval: 'yearly',
                 }))
               }
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                formData.interval === "yearly"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                formData.interval === 'yearly'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               Yearly
-            </button>
-            {formData.interval === "yearly" && (
-              <span className="absolute -top-2 right-0 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                Save 20%
+              <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                Save 17%
               </span>
-            )}
+            </button>
           </div>
         </div>
 
-        {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {PLANS.map((plan) => {
-            const isSelected = formData.plan === plan.id;
-            const Icon = plan.icon;
-            const price =
-              formData.interval === "monthly"
-                ? plan.monthlyPrice
-                : plan.yearlyPrice;
-            const yearlyPrice = plan.yearlyPrice;
-            const savings = plan.monthlyPrice * 12 - yearlyPrice;
+        {/* Plan Cards */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {PLANS.map((plan) => (
+            <div
+              key={plan.id}
+              onClick={() => setFormData(prev => ({ ...prev, plan: plan.id }))}
+              className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${
+                formData.plan === plan.id
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              } ${plan.popular ? 'ring-2 ring-indigo-200' : ''}`}
+            >
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                    Most Popular
+                  </span>
+                </div>
+              )}
 
-            return (
-              <div
-                key={plan.id}
-                onClick={() =>
-                  setFormData((prev) => ({ ...prev, plan: plan.id }))
-                }
-                className={`relative rounded-2xl cursor-pointer transition-all duration-300 p-6 group ${
-                  plan.popular
-                    ? "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white shadow-2xl transform scale-105 ring-4 ring-indigo-200"
-                    : isSelected
-                      ? "border-2 border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-lg"
-                      : "border-2 border-gray-200 bg-white hover:border-indigo-300 hover:shadow-xl hover:scale-[1.02]"
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                    <div className="bg-gradient-to-r from-orange-400 to-pink-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1">
-                      <Zap className="h-3 w-3" />
-                      MOST POPULAR
-                    </div>
-                  </div>
-                )}
-
-                {isSelected && !plan.popular && (
-                  <div className="absolute top-4 right-4">
-                    <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full p-2 shadow-lg">
-                      <Check className="h-4 w-4 text-white" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="text-center">
-                  <div className={`inline-flex p-4 rounded-2xl mb-4 ${
-                    plan.popular
-                      ? 'bg-white/20 backdrop-blur-sm'
-                      : isSelected
-                        ? 'bg-indigo-100'
-                        : 'bg-gray-100 group-hover:bg-indigo-100'
-                  } transition-colors`}>
-                    <Icon className={`h-8 w-8 ${
-                      plan.popular
-                        ? 'text-white'
-                        : isSelected
-                          ? 'text-indigo-600'
-                          : 'text-gray-600 group-hover:text-indigo-600'
-                    } transition-colors`} />
-                  </div>
-
-                  <h4 className={`text-xl font-bold mb-3 ${
-                    plan.popular
-                      ? 'text-white'
-                      : isSelected
-                        ? 'text-gray-900'
-                        : 'text-gray-900'
-                  }`}>
-                    {plan.name}
-                  </h4>
-
-                  <div className="mb-4">
-                    <div className="flex items-baseline justify-center gap-1">
-                      <span className={`text-3xl font-bold ${
-                        plan.popular
-                          ? 'text-white'
-                          : isSelected
-                            ? 'text-gray-900'
-                            : 'text-gray-900'
-                      }`}>
-                        ${formData.interval === "yearly" ? yearlyPrice : plan.monthlyPrice}
-                      </span>
-                      <span className={`text-sm ${
-                        plan.popular
-                          ? 'text-white/80'
-                          : 'text-gray-600'
-                      }`}>
-                        /{formData.interval === "yearly" ? "year" : "month"}
-                      </span>
-                    </div>
-                    {formData.interval === "yearly" && (
-                      <p className={`text-sm mt-1 font-medium ${
-                        plan.popular
-                          ? 'text-white/90'
-                          : 'text-emerald-600'
-                      }`}>
-                        Save ${savings}/year
-                      </p>
-                    )}
-                  </div>
-
-                  {/* User and Invoice Limits */}
-                  <div className={`flex justify-center gap-6 mb-4 pb-4 border-b ${
-                    plan.popular
-                      ? 'border-white/20'
-                      : isSelected
-                        ? 'border-indigo-200'
-                        : 'border-gray-200'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-gray-400" />
-                      <span className={`text-sm ${
-                        plan.popular ? 'text-white/90' : 'text-gray-600'
-                      }`}>
-                        {plan.limits.users === 1
-                          ? "Just you"
-                          : `${plan.limits.users} users`}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-gray-400" />
-                      <span className={`text-sm ${
-                        plan.popular ? 'text-white/90' : 'text-gray-600'
-                      }`}>
-                        {plan.limits.monthlyInvoices === -1
-                          ? "Unlimited"
-                          : `${plan.limits.monthlyInvoices}/mo`}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Features List */}
-                  <div className="space-y-3">
-                    {plan.features.map((feature, index) => (
-                      <div key={index} className={`flex items-center justify-start gap-2 text-sm ${
-                        plan.popular
-                          ? 'text-white/90'
-                          : isSelected
-                            ? 'text-gray-700'
-                            : 'text-gray-600'
-                      }`}>
-                        <Check className={`h-4 w-4 flex-shrink-0 ${
-                          plan.popular
-                            ? 'text-white'
-                            : 'text-emerald-500'
-                        }`} />
-                        {feature}
-                      </div>
-                    ))}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h3>
+                  <div className="text-3xl font-bold text-gray-900">
+                    ${formData.interval === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice}
+                    <span className="text-sm font-normal text-gray-600">
+                      /{formData.interval === 'monthly' ? 'month' : 'year'}
+                    </span>
                   </div>
                 </div>
+                <plan.icon className="h-8 w-8 text-indigo-600" />
               </div>
-            );
-          })}
+
+              <ul className="space-y-3">
+                {plan.features.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-3">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className={`text-sm ${
+                      plan.highlighted?.includes(feature)
+                        ? 'font-semibold text-gray-900'
+                        : 'text-gray-700'
+                    }`}>
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {formData.plan === plan.id && (
+                <div className="absolute top-4 right-4">
+                  <CheckCircle className="h-6 w-6 text-indigo-600" />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <Gift className="h-5 w-5 text-indigo-600 mt-0.5" />
-            <div>
-              <h3 className="font-medium text-indigo-900">Start your free trial</h3>
-              <p className="text-sm text-indigo-700 mt-1">
-                No credit card required. Cancel anytime during your 30-day trial.
-              </p>
-            </div>
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 text-gray-600 text-sm">
+            <Gift className="h-4 w-4 text-green-600" />
+            <span>30-day free trial " No credit card required " Cancel anytime</span>
           </div>
         </div>
       </div>

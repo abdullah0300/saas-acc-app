@@ -29,69 +29,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
 
     // Initialize session recovery
-const initializeAuth = async () => {
-  try {
-    const rememberMe = localStorage.getItem('smartcfo-remember-me');
-    const tempSession = sessionStorage.getItem('smartcfo-temp-session');
+    const initializeAuth = async () => {
+      try {
+        console.log('🔐 AuthContext: Initializing authentication');
+        
+        const rememberMe = localStorage.getItem('smartcfo-remember-me');
+        const tempSession = sessionStorage.getItem('smartcfo-temp-session');
+        
+        console.log('🔐 Remember settings:', { rememberMe, tempSession });
 
-    // Get current session WITHOUT triggering a refresh
-    const { data: { session }, error } = await supabase.auth.getSession();
-
-    if (error) {
-      console.error('Session recovery error:', error);
-      if (mounted) {
-        setLoading(false);
-      }
-      return;
-    }
-
-    if (session) {
-      // Check if this is an OAuth session (don't apply remember-me logic to OAuth)
-      const isOAuthSession = session.user?.app_metadata?.provider &&
-                            session.user.app_metadata.provider !== 'email';
-
-      if (isOAuthSession) {
-        // OAuth users are always "remembered" - don't sign them out
-        console.log('🔐 OAuth session detected, maintaining session');
-        console.log('🔐 OAuth user details:', {
-          id: session.user.id,
-          email: session.user.email,
-          provider: session.user.app_metadata?.provider
+        // Get current session WITHOUT triggering a refresh
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('🔐 Session check:', { 
+          hasSession: !!session, 
+          provider: session?.user?.app_metadata?.provider,
+          email: session?.user?.email,
+          error 
         });
-        if (mounted) {
-          setUser(session.user);
-          setLoading(false);
-        }
-      } else {
-        // Apply remember-me logic only to email/password users
-        if (!rememberMe && !tempSession) {
-          await supabase.auth.signOut();
+
+        if (error) {
+          console.error('Session recovery error:', error);
           if (mounted) {
-            setUser(null);
             setLoading(false);
           }
           return;
         }
 
+        if (session) {
+          // Apply remember-me logic to ALL users (OAuth and email/password)
+          console.log('🔐 Session detected, checking remember preference');
+
+          // OAuth users are treated the same as email users now
+          const isOAuthSession = session.user?.app_metadata?.provider &&
+                                session.user.app_metadata.provider !== 'email';
+
+          // For OAuth users, assume they want to stay logged in (like "remember me")
+          if (isOAuthSession || rememberMe || tempSession) {
+            console.log('🔐 Remember preference found or OAuth user, maintaining session');
+            if (mounted) {
+              setUser(session.user);
+              setLoading(false);
+            }
+          } else {
+            console.log('🔐 No remember preference, signing out user');
+            await supabase.auth.signOut();
+            if (mounted) {
+              setUser(null);
+              setLoading(false);
+            }
+            return;
+          }
+        } else {
+          console.log('🔐 No session found');
+          if (mounted) {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
         if (mounted) {
-          setUser(session.user);
           setLoading(false);
         }
       }
-
-      // Don't refresh here - let the keep-alive hook handle it
-    } else {
-      if (mounted) {
-        setLoading(false);
-      }
-    }
-  } catch (error) {
-    console.error('Auth initialization error:', error);
-    if (mounted) {
-      setLoading(false);
-    }
-  }
-};
+    };
 
     initializeAuth();
 
@@ -100,6 +101,8 @@ const initializeAuth = async () => {
       async (event, session) => {
         if (!mounted) return;
 
+        console.log('🔄 Auth state change:', event, session?.user?.email);
+
         const currentUser = session?.user ?? null;
         const previousUser = user;
         
@@ -107,31 +110,30 @@ const initializeAuth = async () => {
         
         // Handle auth events
         if (event === 'SIGNED_IN' && currentUser && !previousUser) {
+          console.log('✅ User signed in:', currentUser.email);
+
           // Check if this is an OAuth sign-in or regular sign-in
-          const isOAuth = session?.access_token && !previousUser;
+          const isOAuth = currentUser.app_metadata?.provider &&
+                          currentUser.app_metadata.provider !== 'email';
 
           await auditService.logLogin(currentUser.id, true, {
             method: isOAuth ? 'oauth' : 'password',
             email: currentUser.email
           });
 
-          // For OAuth users, ensure they have proper setup
-          if (isOAuth) {
-            try {
-              const { registrationService } = await import('../services/registrationService');
-              await registrationService.ensureUserSetupComplete(currentUser.id);
-            } catch (error) {
-              console.error('Error ensuring OAuth user setup:', error);
-            }
-          }
+          // All users go through SmartRedirect for setup check
+          console.log('🔐 Sign-in complete, SmartRedirect will handle routing');
+
         } else if (event === 'SIGNED_OUT' && previousUser) {
+          console.log('👋 User signed out');
           await auditService.logLogout(previousUser.id);
           // Clear remember me preference on sign out
           localStorage.removeItem('smartcfo-remember-me');
           sessionStorage.removeItem('smartcfo-temp-session');
         } else if (event === 'TOKEN_REFRESHED') {
-          console.log('Session token refreshed successfully');
+          console.log('🔄 Session token refreshed successfully');
         } else if (event === 'USER_UPDATED') {
+          console.log('👤 User updated');
           // Handle user updates if needed
           setUser(currentUser);
         }

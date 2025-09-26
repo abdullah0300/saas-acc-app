@@ -187,12 +187,8 @@ export const Register: React.FC = () => {
         throw new Error(result.error || "Registration failed");
       }
 
-      // Redirect to setup wizard for new users, dashboard for invited users
-      if (inviteDetails) {
-        navigate("/dashboard");
-      } else {
-        navigate("/setup");
-      }
+      // All users go through SmartRedirect for proper routing
+      navigate("/"); // SmartRedirect will handle setup vs dashboard routing
     } catch (err: any) {
       console.error("Registration error:", err);
       setError(err.message || "Registration failed. Please try again.");

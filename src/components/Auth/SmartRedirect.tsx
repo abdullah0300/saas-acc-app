@@ -1,3 +1,4 @@
+// src/components/Auth/SmartRedirect.tsx
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,6 +13,7 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
   const { user, loading: authLoading } = useAuth();
   const [checkingSetup, setCheckingSetup] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [setupCheckComplete, setSetupCheckComplete] = useState(false);
   const [timeoutReached, setTimeoutReached] = useState(false);
 
   // Safety timeout
@@ -29,82 +31,109 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
 
     const checkUserSetup = async () => {
       setCheckingSetup(true);
-      console.log('🔍 SmartRedirect: Checking user setup for user:', user.id);
-      console.log('🔍 User metadata:', {
-        provider: user.app_metadata?.provider,
-        email: user.email,
-        user_metadata: user.user_metadata
-      });
+      console.log('🔍 SmartRedirect: Starting setup check for:', user.id);
 
       try {
-        // First, ensure OAuth user has proper setup (this may take a moment)
-        if (user.app_metadata?.provider && user.app_metadata.provider !== 'email') {
-          console.log('🔐 OAuth user detected, ensuring setup completion...');
-          try {
-            const { registrationService } = await import('../../services/registrationService');
-            await registrationService.ensureUserSetupComplete(user.id);
-            console.log('✅ OAuth user setup completed');
-          } catch (setupError) {
-            console.warn('OAuth setup error (will retry):', setupError);
-            // Don't fail here - continue with check
-          }
-        }
+        // Unified setup check for ALL users (OAuth and email/password)
+        console.log('🔍 Checking setup completion for user:', user.id);
 
-        // Check if user has completed profile setup
+        // Clear any stuck setup flags first
+        const checkKey = `setup_check_${user.id}`;
+        delete (window as any)[checkKey];
+
+        // Check if user has completed onboarding setup
+        // Handle case where setup_completed column doesn't exist yet
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('company_name, country_code, setup_completed, first_name, last_name')
+          .select('company_name, first_name, last_name')
           .eq('id', user.id)
           .maybeSingle();
 
-        console.log('📋 Profile data:', profile);
-        if (profileError) console.error('Profile error:', profileError);
-
-        // Check if user has a subscription
-        const { data: subscription, error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .select('id, plan_name, status')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        console.log('💳 Subscription data:', subscription);
-        if (subscriptionError) console.error('Subscription error:', subscriptionError);
-
-        // More lenient checks for OAuth users
-        const isOAuthUser = user.app_metadata?.provider && user.app_metadata.provider !== 'email';
-        let profileIncomplete, noSubscription;
-
-        if (isOAuthUser) {
-          // For OAuth users, just check if they have a profile at all
-          profileIncomplete = !profile || (!profile.first_name && !profile.company_name);
-          noSubscription = !subscription || subscription.status !== 'active';
-        } else {
-          // For email users, require complete setup
-          profileIncomplete = !profile || !profile.company_name || !profile.setup_completed;
-          noSubscription = !subscription;
+        // If profile query fails, try without setup_completed column
+        let setupCompleted = false;
+        if (!profileError && profile) {
+          // Try to get setup_completed separately to handle column not existing
+          try {
+            const { data: setupData } = await supabase
+              .from('profiles')
+              .select('setup_completed')
+              .eq('id', user.id)
+              .maybeSingle();
+            setupCompleted = setupData?.setup_completed || false;
+          } catch (err) {
+            console.warn('setup_completed column not found, treating as false');
+            setupCompleted = false;
+          }
         }
 
-        const needsSetupResult = profileIncomplete || noSubscription;
+        if (!profile) {
+          // Create minimal profile for new users (OAuth or email)
+          console.log('📝 Creating minimal profile for new user');
+          const profileData: any = {
+            id: user.id,
+            email: user.email,
+            first_name: user.user_metadata?.full_name?.split(' ')[0] ||
+                        user.user_metadata?.first_name ||
+                        'User',
+            last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
+                       user.user_metadata?.last_name ||
+                       '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          // Only add setup_completed if column exists
+          try {
+            const { error: insertError } = await supabase.from('profiles').insert({
+              ...profileData,
+              setup_completed: false // All new users need setup
+            });
+            if (insertError) throw insertError;
+          } catch (insertError: any) {
+            if (insertError.message?.includes('setup_completed')) {
+              // Column doesn't exist, insert without it
+              const { error: fallbackError } = await supabase.from('profiles').insert(profileData);
+              if (fallbackError && fallbackError.code !== '23505') {
+                console.error('Profile creation error:', fallbackError);
+              }
+            } else if (insertError.code !== '23505') { // Ignore duplicate key error
+              console.error('Profile creation error:', insertError);
+            }
+          }
+
+          // New users always need setup
+          setNeedsSetup(true);
+        } else {
+          // Check if setup is completed
+          const needsSetup = !setupCompleted;
+          setNeedsSetup(needsSetup);
+        }
+
         console.log('📝 Setup check result:', {
-          isOAuthUser,
-          profileIncomplete,
-          noSubscription,
-          needsSetup: needsSetupResult
+          hasProfile: !!profile,
+          setupCompleted: setupCompleted,
+          needsSetup: !setupCompleted,
+          userType: user.app_metadata?.provider || 'email',
+          profile: profile,
+          userId: user.id,
+          willRedirectTo: !setupCompleted ? '/setup' : 'dashboard'
         });
 
-        setNeedsSetup(needsSetupResult);
+        // FORCE DEBUG - Always log the decision
+        console.log(`🚨 ROUTING DECISION: User ${user.email} will go to ${!setupCompleted ? 'SETUP WIZARD' : 'DASHBOARD'}`);
+        console.log(`🚨 needsSetup value: ${!setupCompleted}`);
       } catch (error) {
-        console.error('Error checking user setup:', error);
-        // For OAuth users, don't assume setup needed if check fails
-        const isOAuthUser = user.app_metadata?.provider && user.app_metadata.provider !== 'email';
-        if (isOAuthUser) {
-          console.log('OAuth user - proceeding to dashboard despite check error');
-          setNeedsSetup(false);
-        } else {
-          setNeedsSetup(true);
-        }
+        console.error('Setup check error:', error);
+
+        // Clear any stuck flags
+        const checkKey = `setup_check_${user.id}`;
+        delete (window as any)[checkKey];
+
+        // On error, assume user needs setup (safer option)
+        setNeedsSetup(true);
       } finally {
         setCheckingSetup(false);
+        setSetupCheckComplete(true); // Mark check as complete
       }
     };
 
@@ -112,12 +141,16 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
   }, [user, authLoading]);
 
   // Show loading while checking auth or setup status
-  if (authLoading || (user && checkingSetup)) {
+  // IMPORTANT: Wait for setup check to complete before making routing decisions
+  if (authLoading || (user && !setupCheckComplete && !timeoutReached)) {
     console.log('🔄 SmartRedirect loading state:', {
       authLoading,
       user: !!user,
       checkingSetup,
-      userId: user?.id
+      setupCheckComplete,
+      needsSetup,
+      userId: user?.id,
+      timeoutReached
     });
 
     return (

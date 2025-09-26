@@ -114,33 +114,63 @@ export class RegistrationService {
         }
       }
 
-      // 3. Call the setup function with proper parameters
-      const { data: setupResult, error: setupError } = await supabase.rpc('setup_new_user', {
-        p_user_id: authData.user.id,
-        p_email: data.email,
-        p_first_name: data.firstName,
-        p_last_name: data.lastName,
-        p_company_name: data.companyName || null,
-        p_country_code: data.country || 'US', // Default to US
-        p_state_code: data.state || null,
-        p_plan: isTeamMember ? null : data.plan,
-        p_interval: isTeamMember ? null : data.interval,
-        p_is_team_member: isTeamMember,
-        p_team_id: teamId,
-        p_invited_by: invitedBy
+      // 3. Create minimal profile only - let setup wizard handle the rest
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: authData.user.id,
+        email: data.email,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        setup_completed: false, // Always false for new registrations
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
 
-      if (setupError) {
-        console.error('Setup error:', setupError);
-        // Don't fail registration if setup has issues - we can retry later
+      if (profileError && profileError.code !== '23505') { // Ignore duplicate key error
+        console.error('Profile creation error:', profileError);
+        // Don't fail registration for profile creation issues
       }
 
-      // 4. Accept invitation if applicable
+      // 4. Create minimal user settings (will be updated in setup wizard)
+      const { error: settingsError } = await supabase.from('user_settings').insert({
+        user_id: authData.user.id,
+        base_currency: 'USD', // Default, will be updated in setup
+        date_format: 'MM/DD/YYYY', // Default, will be updated in setup
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+      if (settingsError && settingsError.code !== '23505') { // Ignore duplicate key error
+        console.error('Settings creation error:', settingsError);
+        // Don't fail registration for settings creation issues
+      }
+
+      // 5. Only create subscription for team members (invited users get team access)
+      if (isTeamMember && teamId) {
+        console.log('User is joining team, skipping individual subscription');
+      } else {
+        // Create trial subscription (will be updated in setup wizard)
+        const { error: subscriptionError } = await supabase.from('subscriptions').insert({
+          user_id: authData.user.id,
+          plan: 'simple_start', // Default trial plan
+          interval: 'monthly', // Default interval
+          status: 'trialing',
+          trial_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+        if (subscriptionError && subscriptionError.code !== '23505') { // Ignore duplicate key error
+          console.error('Subscription creation error:', subscriptionError);
+          // Don't fail registration for subscription creation issues
+        }
+      }
+
+      // 6. Accept invitation if applicable
       if (isTeamMember && data.inviteCode && inviteValidation?.invitation) {
         await this.acceptInvitation(data.inviteCode, authData.user.id);
       }
 
-      // 5. Send welcome email
+      // 7. Send welcome email
       try {
         const { createWelcomeNotification } = await import('../services/notifications');
         await createWelcomeNotification(authData.user.id, {
@@ -198,112 +228,8 @@ export class RegistrationService {
       .eq('id', invite.id);
   }
 
-  async ensureUserSetupComplete(userId: string) {
-    try {
-      // Add a flag to prevent multiple simultaneous checks
-      const checkKey = `setup_check_${userId}`;
-      if ((window as any)[checkKey]) {
-        console.log('Setup check already in progress');
-        return;
-      }
-      (window as any)[checkKey] = true;
-
-      // Get current user data first
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user || user.id !== userId) {
-        console.warn('User mismatch or not found for setup completion');
-        delete (window as any)[checkKey];
-        return;
-      }
-
-      // Check what's missing with a more robust approach
-      let needsSetup = false;
-
-      // Check profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, email, first_name, last_name')
-        .eq('id', userId)
-        .maybeSingle();
-
-      // Check subscription
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('id, status')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      // Check categories
-      const { data: categories } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('user_id', userId)
-        .limit(1);
-
-      console.log('🔍 Setup check results:', {
-        hasProfile: !!profile,
-        hasSubscription: !!subscription,
-        hasCategories: categories && categories.length > 0,
-        isOAuth: user.app_metadata?.provider !== 'email'
-      });
-
-      needsSetup = !profile || !subscription || !categories || categories.length === 0;
-
-      if (needsSetup) {
-        console.log('🔧 Running setup for OAuth user...');
-
-        // Get user info from OAuth data or existing profile
-        const firstName = user.user_metadata?.full_name?.split(' ')[0] ||
-                         user.user_metadata?.first_name ||
-                         profile?.first_name || '';
-        const lastName = user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
-                        user.user_metadata?.last_name ||
-                        profile?.last_name || '';
-        const email = user.email || profile?.email || '';
-
-        if (!email) {
-          console.error('Cannot setup user without email');
-          delete (window as any)[checkKey];
-          return;
-        }
-
-        // Run setup with OAuth user data
-        const { error: setupError } = await supabase.rpc('setup_new_user', {
-          p_user_id: userId,
-          p_email: email,
-          p_first_name: firstName,
-          p_last_name: lastName,
-          p_company_name: null, // Will be set in setup wizard if needed
-          p_country_code: 'US', // Default country
-          p_state_code: null,
-          p_plan: 'simple_start', // Default plan for OAuth users
-          p_interval: 'monthly', // Default billing
-          p_is_team_member: false,
-          p_team_id: null,
-          p_invited_by: null
-        });
-
-        if (setupError) {
-          console.error('Setup error for OAuth user:', setupError);
-          // Don't throw - let them proceed to dashboard
-        } else {
-          console.log('✅ OAuth user setup completed successfully');
-        }
-      } else {
-        console.log('✅ User setup already complete');
-      }
-
-      // Clean up flag
-      delete (window as any)[checkKey];
-    } catch (err) {
-      console.error('Error ensuring user setup:', err);
-      // Clean up flag on error too
-      const checkKey = `setup_check_${userId}`;
-      delete (window as any)[checkKey];
-      // Don't throw error - let OAuth users proceed
-    }
-  }
+  // Note: ensureUserSetupComplete is no longer needed
+  // All users now go through the setup wizard after registration
 }
 
 export const registrationService = new RegistrationService();
