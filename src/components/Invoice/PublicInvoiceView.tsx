@@ -5,6 +5,7 @@ import { supabase } from '../../services/supabaseClient';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { Invoice } from '../../types';
 import { countries } from '../../data/countries';
+import { PublicInvoicePayButton } from './PublicInvoicePayButton';
 import {
   FileText,
   Mail,
@@ -724,6 +725,11 @@ export const PublicInvoiceView: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* Payment Button - NEW SECTION */}
+          <div className="px-4 sm:px-6 lg:px-8 py-6">
+            <PublicInvoicePayButton invoice={invoice} />
+          </div>
 
           {/* Notes & Footer - Mobile Optimized */}
           {(invoice.notes || invoiceSettings?.invoice_footer) && (

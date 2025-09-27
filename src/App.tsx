@@ -30,6 +30,7 @@ import { ClientList } from './components/Client/ClientList';
 import { ClientForm } from './components/Client/ClientForm';
 import { SettingsLayout } from './components/Settings/SettingsLayout';
 import { ProfileSettings } from './components/Settings/ProfileSettings';
+import { PaymentSettings } from './components/Settings/PaymentSettings';
 import { TaxSettings } from './components/Settings/TaxSettings';
 import { CurrencySettings } from './components/Settings/CurrencySettings';
 import { InvoiceSettings } from './components/Invoice/InvoiceSettings';
@@ -250,6 +251,7 @@ function AppRoutes() {
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="/settings/profile" replace />} />
           <Route path="profile" element={<ProfileSettings />} />
+          <Route path="payment-accounts" element={<PaymentSettings />} />
           <Route path="tax" element={<TaxSettings />} />
           <Route path="currency" element={<CurrencySettings />} />
           <Route path="/settings/import-history" element={<ImportHistorySettings />} />

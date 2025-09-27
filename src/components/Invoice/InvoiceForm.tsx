@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Settings, Save, X, AlertCircle } from 'lucide-react';
 import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { InvoiceSettings } from './InvoiceSettings';
+import { InvoicePaymentSettings } from './InvoicePaymentSettings';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -1540,6 +1541,17 @@ if (!isUserSettingsReady) {
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Payment terms, bank details, thank you message..."
+            />
+          </div>
+
+          {/* Payment Settings - NEW SECTION */}
+          <div className="mt-6">
+            <InvoicePaymentSettings
+              invoiceId={id}
+              currency={formData.currency}
+              onUpdate={(settings) => {
+                // Optional: Store settings in form state if needed
+              }}
             />
           </div>
 

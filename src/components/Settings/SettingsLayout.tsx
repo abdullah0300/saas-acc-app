@@ -36,6 +36,7 @@ export const SettingsLayout: React.FC = () => {
     { path: "profile", label: "Profile", icon: User },
     { path: "team", label: "Team", icon: Users },
     { path: "subscription", label: "Subscription & Billing", icon: CreditCard },
+    { path: "payment-accounts", label: "Payment Accounts", icon: CreditCard },
     { path: "tax", label: "Tax Settings", icon: Percent },
     { path: "currency", label: "Currency", icon: Globe },
     { path: "import-history", label: "Import History", icon: Upload },
