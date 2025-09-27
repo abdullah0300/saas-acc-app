@@ -701,7 +701,7 @@ export const SetupWizard: React.FC = () => {
               </button>
             )}
             
-            {currentStep < 2 && (
+            {/* {currentStep < 2 && (
               <button
                 type="button"
                 onClick={handleSkip}
@@ -710,7 +710,7 @@ export const SetupWizard: React.FC = () => {
               >
                 Skip
               </button>
-            )}
+            )} */}
           </div>
 
           <button
