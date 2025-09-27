@@ -73,7 +73,7 @@ export const Login: React.FC = () => {
 };
 
   // Social authentication handlers
-  const handleSocialAuth = async (provider: 'google' | 'facebook' | 'linkedin') => {
+  const handleSocialAuth = async (provider: 'google' | 'facebook' | 'linkedin_oidc') => {
     setSocialLoading(provider);
     try {
       // Ensure HTTPS redirect URL
@@ -94,7 +94,7 @@ export const Login: React.FC = () => {
       console.log('OAuth redirect URL:', redirectUrl); // Debug log
 
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: provider as any,
         options: {
           redirectTo: `${redirectUrl}/`,
         },
@@ -245,7 +245,7 @@ export const Login: React.FC = () => {
                 )}
               </button>
 
-              <button
+              {/* <button
                 type="button"
                 onClick={() => handleSocialAuth('facebook')}
                 disabled={socialLoading === 'facebook'}
@@ -268,11 +268,11 @@ export const Login: React.FC = () => {
                     </span>
                   </>
                 )}
-              </button>
+              </button> */}
 
               <button
                 type="button"
-                onClick={() => handleSocialAuth('linkedin')}
+                onClick={() => handleSocialAuth('linkedin_oidc')}
                 disabled={socialLoading === 'linkedin'}
                 className="w-full flex items-center justify-center gap-3 px-6 py-4 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
               >
