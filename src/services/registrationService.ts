@@ -75,7 +75,11 @@ export class RegistrationService {
 
   async register(data: RegistrationData): Promise<RegistrationResult> {
     try {
-      // 1. Create auth user
+      console.log('🚀 Starting registration process...');
+      console.log('📧 Email:', data.email);
+      console.log('👥 Invite code:', data.inviteCode ? 'Present' : 'None');
+
+      // 1. Create auth user with minimal metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -84,152 +88,150 @@ export class RegistrationService {
             first_name: data.firstName,
             last_name: data.lastName,
             full_name: `${data.firstName} ${data.lastName}`.trim(),
-            company_name: data.companyName,
-            country: data.country,
-            state: data.state
+            // REMOVED: hardcoded company_name, country, state
+            // Let SetupWizard handle these properly
           }
         }
       });
 
       if (authError) {
+        console.error('❌ Auth error:', authError);
         return { success: false, error: authError.message };
       }
 
       if (!authData.user) {
+        console.error('❌ No user returned from auth');
         return { success: false, error: 'Failed to create user' };
       }
 
-      // 2. Determine if this is a team member registration
-      let isTeamMember = false;
-      let teamId = null;
-      let invitedBy = null;
-      let inviteValidation: any = null;
+      console.log('✅ User created successfully:', authData.user.id);
 
+      // 2. Handle team invitation if present
       if (data.inviteCode) {
-        inviteValidation = await this.validateInvitation(data.inviteCode);
-        if (inviteValidation.valid && inviteValidation.invitation) {
-          isTeamMember = true;
-          teamId = inviteValidation.invitation.team_id;
-          invitedBy = inviteValidation.invitation.invited_by;
+        console.log('🎟️ Processing team invitation...');
+        
+        const validation = await this.validateInvitation(data.inviteCode);
+        if (!validation.valid || !validation.invitation) {
+          console.error('❌ Invalid invitation');
+          return { success: false, error: validation.error || 'Invalid invitation' };
+        }
+
+        // Add user to team
+        try {
+          const { error: teamError } = await supabase
+            .from('team_members')
+            .insert({
+              user_id: authData.user.id,
+              team_id: validation.invitation.team_id,
+              email: data.email,
+              full_name: `${data.firstName} ${data.lastName}`.trim(),
+              role: validation.invitation.role,
+              status: 'active',
+              invited_by: validation.invitation.invited_by,
+              joined_at: new Date().toISOString(),
+              created_at: new Date().toISOString()
+            });
+
+          if (teamError) {
+            console.error('❌ Team member creation error:', teamError);
+            // Don't fail the entire registration for team errors
+            console.warn('⚠️ Failed to add to team, but user creation succeeded');
+          } else {
+            console.log('✅ User added to team successfully');
+          }
+
+          // Mark invitation as used (delete it)
+          await supabase
+            .from('team_invites')
+            .delete()
+            .eq('token', data.inviteCode);
+
+          return { 
+            success: true, 
+            user: authData.user,
+            isTeamMember: true,
+            teamId: validation.invitation.team_id
+          };
+        } catch (teamErr) {
+          console.error('❌ Team processing error:', teamErr);
+          // Continue with regular registration if team processing fails
         }
       }
 
-      // 3. Create minimal profile only - let setup wizard handle the rest
-      const { error: profileError } = await supabase.from('profiles').insert({
+      // 3. Create basic profile (without setup_completed flag)
+      console.log('👤 Creating user profile...');
+      
+      const profileData = {
         id: authData.user.id,
         email: data.email,
         first_name: data.firstName,
         last_name: data.lastName,
-        setup_completed: false, // Always false for new registrations
+        full_name: `${data.firstName} ${data.lastName}`.trim(),
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+        updated_at: new Date().toISOString(),
+        // CRITICAL: Don't set setup_completed here
+        // Let SetupWizard handle this after proper country/currency selection
+        setup_completed: false
+      };
 
-      if (profileError && profileError.code !== '23505') { // Ignore duplicate key error
-        console.error('Profile creation error:', profileError);
-        // Don't fail registration for profile creation issues
-      }
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert(profileData);
 
-      // 4. Create minimal user settings (will be updated in setup wizard)
-      const { error: settingsError } = await supabase.from('user_settings').insert({
-        user_id: authData.user.id,
-        base_currency: 'USD', // Default, will be updated in setup
-        date_format: 'MM/DD/YYYY', // Default, will be updated in setup
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-
-      if (settingsError && settingsError.code !== '23505') { // Ignore duplicate key error
-        console.error('Settings creation error:', settingsError);
-        // Don't fail registration for settings creation issues
-      }
-
-      // 5. Only create subscription for team members (invited users get team access)
-      if (isTeamMember && teamId) {
-        console.log('User is joining team, skipping individual subscription');
+      if (profileError && profileError.code !== '23505') {
+        console.error('❌ Profile creation error:', profileError);
+        // Don't fail registration for profile errors - auth user is already created
+        console.warn('⚠️ Profile creation failed, but user auth succeeded');
       } else {
-        // Create trial subscription (will be updated in setup wizard)
-        const { error: subscriptionError } = await supabase.from('subscriptions').insert({
-          user_id: authData.user.id,
-          plan: 'simple_start', // Default trial plan
-          interval: 'monthly', // Default interval
-          status: 'trialing',
-          trial_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-        if (subscriptionError && subscriptionError.code !== '23505') { // Ignore duplicate key error
-          console.error('Subscription creation error:', subscriptionError);
-          // Don't fail registration for subscription creation issues
-        }
+        console.log('✅ Profile created successfully');
       }
 
-      // 6. Accept invitation if applicable
-      if (isTeamMember && data.inviteCode && inviteValidation?.invitation) {
-        await this.acceptInvitation(data.inviteCode, authData.user.id);
+      // 4. Create subscription record (with plan info)
+      console.log('💳 Creating subscription...');
+      
+      const subscriptionData = {
+        user_id: authData.user.id,
+        plan: data.plan,
+        interval: data.interval,
+        status: 'trialing',
+        trial_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .insert(subscriptionData);
+
+      if (subscriptionError) {
+        console.error('❌ Subscription creation error:', subscriptionError);
+        // Don't fail registration for subscription errors
+        console.warn('⚠️ Subscription creation failed, but user auth succeeded');
+      } else {
+        console.log('✅ Subscription created successfully');
       }
 
-      // 7. Send welcome email
-      try {
-        const { createWelcomeNotification } = await import('../services/notifications');
-        await createWelcomeNotification(authData.user.id, {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          companyName: data.companyName
-        });
-      } catch (welcomeError) {
-        console.error('Welcome email error (non-critical):', welcomeError);
-      }
+      // CRITICAL: Don't create user_settings here!
+      // Let SetupWizard handle this with proper country/currency selection
+      console.log('⚠️ Skipping user_settings creation - SetupWizard will handle this');
 
-      return {
-        success: true,
+      console.log('🎉 Registration completed successfully!');
+      return { 
+        success: true, 
         user: authData.user,
-        teamId: teamId || authData.user.id,
-        isTeamMember
+        isTeamMember: false
       };
 
     } catch (err: any) {
-      console.error('Registration error:', err);
-      return { success: false, error: err.message || 'Registration failed' };
+      console.error('❌ Registration error:', err);
+      return { 
+        success: false, 
+        error: err.message || 'Registration failed. Please try again.' 
+      };
     }
   }
-
-  async acceptInvitation(inviteCode: string, userId: string) {
-    // First get the invitation details
-    const { data: invite } = await supabase
-      .from('team_invites')
-      .select('*')
-      .eq('token', inviteCode)
-      .single();
-
-    if (!invite) throw new Error('Invalid invitation');
-
-    // Add to team_members
-    const { error: memberError } = await supabase
-      .from('team_members')
-      .insert({
-        user_id: userId,
-        team_id: invite.team_id,
-        email: invite.email,
-        role: invite.role,
-        status: 'active',
-        invited_by: invite.invited_by,
-        joined_at: new Date().toISOString()
-      });
-
-    if (memberError) throw memberError;
-
-    // Delete the used invite
-    await supabase
-      .from('team_invites')
-      .delete()
-      .eq('id', invite.id);
-  }
-
-  // Note: ensureUserSetupComplete is no longer needed
-  // All users now go through the setup wizard after registration
 }
 
 export const registrationService = new RegistrationService();

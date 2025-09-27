@@ -1,946 +1,972 @@
-Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
-supabaseClient.ts:6 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.197Z #_acquireLock begin -1
-supabaseClient.ts:6 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.199Z #onAuthStateChange() registered callback with id c0546ef3-4c71-486b-90be-8af3e6cd80d8
-App.tsx:66 🔧 App.tsx Environment Debug:
-App.tsx:67 REACT_APP_SITE_URL: http://localhost:3000
-App.tsx:68 window.location.origin: http://localhost:3000
-AuthContext.tsx:34 🔐 AuthContext: Initializing authentication
-AuthContext.tsx:39 🔐 Remember settings: {rememberMe: null, tempSession: null}
-AuthContext.tsx:100 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.452Z #onAuthStateChange() registered callback with id 93661a7f-13e7-4335-8f80-7cd6c0f491e1
-AuthContext.tsx:146 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.457Z #unsubscribe() state change callback with id removed 93661a7f-13e7-4335-8f80-7cd6c0f491e1
-AuthContext.tsx:34 🔐 AuthContext: Initializing authentication
-AuthContext.tsx:39 🔐 Remember settings: {rememberMe: null, tempSession: null}
-AuthContext.tsx:100 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.459Z #onAuthStateChange() registered callback with id b0347835-2e8a-4a37-805c-1e89ecc3591d
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.461Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.462Z #_initialize() begin is PKCE flow true
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.955Z #_saveSession() {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.956Z #_notifyAllSubscribers(SIGNED_IN) begin {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …} broadcast = true
-AuthContext.tsx:104 🔄 Auth state change: SIGNED_IN vapeplussocial2@gmail.com
-AuthContext.tsx:113 ✅ User signed in: vapeplussocial2@gmail.com
-AuthContext.tsx:125 🔐 Sign-in complete, SmartRedirect will handle routing
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.957Z #_notifyAllSubscribers(SIGNED_IN) end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.957Z #_initialize() detected session in URL {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …} redirect type null
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.958Z #_saveSession() {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.958Z #_handleVisibilityChange()
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.958Z #_onVisibilityChanged(true) visibilityState visible
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.958Z #_stopAutoRefresh()
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.959Z #_startAutoRefresh()
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.959Z #_initialize() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.959Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.959Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.960Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.960Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.960Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.960Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.960Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.966Z #_notifyAllSubscribers(SIGNED_IN) begin {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …} broadcast = true
-AuthContext.tsx:104 🔄 Auth state change: SIGNED_IN vapeplussocial2@gmail.com
-AuthContext.tsx:113 ✅ User signed in: vapeplussocial2@gmail.com
-AuthContext.tsx:125 🔐 Sign-in complete, SmartRedirect will handle routing
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.968Z #_notifyAllSubscribers(SIGNED_IN) end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.968Z #_autoRefreshTokenTick() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.968Z #_acquireLock begin 0
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.969Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.970Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.970Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.970Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.970Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.971Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.971Z INITIAL_SESSION callback id c0546ef3-4c71-486b-90be-8af3e6cd80d8 session {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.971Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.971Z #_useSession end
-2GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.972Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.973Z auto refresh token tick lock not available
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.973Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.973Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.973Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.974Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.974Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.974Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.974Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.975Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.975Z #_acquireLock end
-AuthContext.tsx:44 🔐 Session check: {hasSession: true, provider: 'google', email: 'vapeplussocial2@gmail.com', error: null}
-AuthContext.tsx:61 🔐 Session detected, checking remember preference
-AuthContext.tsx:69 🔐 Remember preference found or OAuth user, maintaining session
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.976Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.976Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.976Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.977Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.977Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.977Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.978Z INITIAL_SESSION callback id 93661a7f-13e7-4335-8f80-7cd6c0f491e1 session {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.978Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.978Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.979Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.979Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.979Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.980Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.980Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.980Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.980Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.980Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.980Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:31.981Z #_acquireLock end
-AuthContext.tsx:44 🔐 Session check: {hasSession: true, provider: 'google', email: 'vapeplussocial2@gmail.com', error: null}
-AuthContext.tsx:61 🔐 Session detected, checking remember preference
-AuthContext.tsx:69 🔐 Remember preference found or OAuth user, maintaining session
-SmartRedirect.tsx:186 🏠 SmartRedirect: Redirecting to dashboard
-SmartRedirect.tsx:186 🏠 SmartRedirect: Redirecting to dashboard
-SmartRedirect.tsx:33 🔍 SmartRedirect: Starting setup check for: f1b35ec2-047c-47ad-80d9-b3c103fdabe3
-SmartRedirect.tsx:37 🔍 Checking setup completion for user: f1b35ec2-047c-47ad-80d9-b3c103fdabe3
-SmartRedirect.tsx:33 🔍 SmartRedirect: Starting setup check for: f1b35ec2-047c-47ad-80d9-b3c103fdabe3
-SmartRedirect.tsx:37 🔍 Checking setup completion for user: f1b35ec2-047c-47ad-80d9-b3c103fdabe3
-2GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.022Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.023Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.024Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.024Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.024Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.025Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.025Z #__loadSession() end
-AuthContext.tsx:104 🔄 Auth state change: INITIAL_SESSION vapeplussocial2@gmail.com
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.025Z INITIAL_SESSION callback id b0347835-2e8a-4a37-805c-1e89ecc3591d session {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.025Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.026Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.026Z #_acquireLock end
-SmartRedirect.tsx:143 🔄 SmartRedirect loading state: {authLoading: false, user: true, checkingSetup: true, userId: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3', timeoutReached: false}
-SmartRedirect.tsx:143 🔄 SmartRedirect loading state: {authLoading: false, user: true, checkingSetup: true, userId: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3', timeoutReached: false}
-SmartRedirect.tsx:33 🔍 SmartRedirect: Starting setup check for: f1b35ec2-047c-47ad-80d9-b3c103fdabe3
-SmartRedirect.tsx:37 🔍 Checking setup completion for user: f1b35ec2-047c-47ad-80d9-b3c103fdabe3
-SmartRedirect.tsx:143 🔄 SmartRedirect loading state: {authLoading: false, user: true, checkingSetup: true, userId: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3', timeoutReached: false}
-SmartRedirect.tsx:143 🔄 SmartRedirect loading state: {authLoading: false, user: true, checkingSetup: true, userId: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3', timeoutReached: false}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.087Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.093Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.093Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.093Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.094Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.094Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.095Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.095Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.095Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.096Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.126Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.126Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.127Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.127Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.127Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.128Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.128Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.128Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.129Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.150Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.151Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.151Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.152Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.152Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.153Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.153Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.154Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.154Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.299Z #_acquireLock begin -1
-4GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.300Z #_acquireLock begin -1
-2GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.301Z #_acquireLock begin -1
-3GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.302Z #_acquireLock begin -1
-3GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.303Z #_acquireLock begin -1
-3GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.304Z #_acquireLock begin -1
-3GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.305Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.331Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.331Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.332Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.333Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.334Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.335Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.335Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.335Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.338Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.352Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.352Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.353Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.353Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.353Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.354Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.354Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.354Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.355Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.357Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.357Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.357Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.357Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.358Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.358Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.358Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.358Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.359Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.360Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.360Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.361Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.361Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.361Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.361Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.361Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.362Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.362Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.366Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.366Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.367Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.367Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.367Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.367Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.368Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.368Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.368Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.369Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.369Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.369Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.370Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.370Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.370Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.370Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.370Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.371Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.372Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.372Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.372Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.372Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.373Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.373Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.373Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.373Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.374Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.375Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.375Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.375Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.375Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.376Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.376Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.376Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.376Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.377Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.381Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.381Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.381Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.381Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.382Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.382Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.383Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.383Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.384Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.385Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.386Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.386Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.386Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.386Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.387Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.387Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.387Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.388Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.389Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.390Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.390Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.391Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.392Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.392Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.392Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.392Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.393Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.394Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.394Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.394Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.395Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.395Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.395Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.396Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.396Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.396Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.397Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.398Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.398Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.398Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.398Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.399Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.400Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.400Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.401Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.403Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.403Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.404Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.404Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.405Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.405Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.405Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.405Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.406Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.407Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.407Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.407Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.407Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.408Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.408Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.408Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.408Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.409Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.410Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.410Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.410Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.411Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.411Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.411Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.411Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.412Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.412Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.414Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.414Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.414Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.415Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.415Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.416Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.417Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.417Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.417Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.421Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.421Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.421Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.422Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.422Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.422Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.423Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.423Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.423Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.425Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.425Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.425Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.425Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.425Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.426Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.426Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.426Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.426Z #_acquireLock end
-SmartRedirect.tsx:70 📝 Creating minimal profile for new user
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.767Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.769Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.769Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.770Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.771Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.772Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.772Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.773Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.773Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:32.774Z #_acquireLock end
-fetch.ts:15  GET https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/user_settings?select=notification_preferences&user_id=eq.f1b35ec2-047c-47ad-80d9-b3c103fdabe3 406 (Not Acceptable)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-fetch.ts:15  GET https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/subscriptions?select=*&user_id=eq.f1b35ec2-047c-47ad-80d9-b3c103fdabe3 406 (Not Acceptable)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-SmartRedirect.tsx:111 📝 Setup check result: {hasProfile: false, setupCompleted: false, needsSetup: true, userType: 'google', profile: null, …}
-SmartRedirect.tsx:122 🚨 ROUTING DECISION: User vapeplussocial2@gmail.com will go to SETUP WIZARD
-SmartRedirect.tsx:123 🚨 needsSetup value: true
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.237Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.237Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.237Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.238Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.238Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.238Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.238Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.238Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.239Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.239Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.625Z #_acquireLock begin -1
-fetch.ts:15  GET https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/user_settings?select=notification_preferences&user_id=eq.f1b35ec2-047c-47ad-80d9-b3c103fdabe3 406 (Not Acceptable)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.681Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.683Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.684Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.685Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.686Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.687Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.688Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.690Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.691Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.697Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.699Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.700Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.701Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.702Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.703Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.704Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.705Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.706Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.707Z #_acquireLock end
-fetch.ts:15  GET https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/subscriptions?select=*&user_id=eq.f1b35ec2-047c-47ad-80d9-b3c103fdabe3 406 (Not Acceptable)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.724Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.740Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.740Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.741Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.741Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.741Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.741Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.741Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.742Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.742Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.744Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.745Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.766Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.766Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.767Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.767Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.767Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.767Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.768Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.768Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.768Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.770Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.770Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.770Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.771Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.771Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.771Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.771Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.772Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:33.772Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.079Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.114Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.114Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.114Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.114Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.115Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.115Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.115Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.115Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.116Z #_acquireLock end
-fetch.ts:15  POST https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/subscriptions?columns=%22user_id%22%2C%22plan%22%2C%22interval%22%2C%22status%22%2C%22trial_end%22%2C%22current_period_start%22%2C%22current_period_end%22&select=* 409 (Conflict)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-SubscriptionContext.tsx:170 Error loading subscription: {code: '23505', details: null, hint: null, message: 'duplicate key value violates unique constraint "subscriptions_user_id_key"'}
-(anonymous) @ SubscriptionContext.tsx:170
-await in (anonymous)
-loadData @ SubscriptionContext.tsx:225
-(anonymous) @ SubscriptionContext.tsx:231
-react-stack-bottom-frame @ react-dom-client.development.js:23949
-runWithFiberInDEV @ react-dom-client.development.js:1518
-commitHookEffectListMount @ react-dom-client.development.js:11886
-commitHookPassiveMountEffects @ react-dom-client.development.js:12024
-reconnectPassiveEffects @ react-dom-client.development.js:14004
-recursivelyTraverseReconnectPassiveEffects @ react-dom-client.development.js:13975
-reconnectPassiveEffects @ react-dom-client.development.js:13997
-doubleInvokeEffectsOnFiber @ react-dom-client.development.js:15964
-runWithFiberInDEV @ react-dom-client.development.js:1518
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-commitDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15977
-flushPassiveEffects @ react-dom-client.development.js:15747
-(anonymous) @ react-dom-client.development.js:15379
-performWorkUntilDeadline @ scheduler.development.js:45
-<SubscriptionProvider>
-exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
-AppRoutes @ App.tsx:148
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooksAgain @ react-dom-client.development.js:5629
-renderWithHooks @ react-dom-client.development.js:5541
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<AppRoutes>
-exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
-App @ App.tsx:94
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooksAgain @ react-dom-client.development.js:5629
-renderWithHooks @ react-dom-client.development.js:5541
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<App>
-exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
-./src/index.tsx @ index.tsx:10
-options.factory @ react refresh:37
-__webpack_require__ @ bootstrap:22
-(anonymous) @ startup:7
-(anonymous) @ startup:7Understand this error
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.328Z #_acquireLock begin -1
-fetch.ts:15  GET https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/user_settings?select=notification_preferences&user_id=eq.f1b35ec2-047c-47ad-80d9-b3c103fdabe3 406 (Not Acceptable)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.370Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.370Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.370Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.371Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.371Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.371Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.371Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.371Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.372Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.375Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.376Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.398Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.398Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.399Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.401Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.401Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.401Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.402Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.402Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.403Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.404Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.404Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.405Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.405Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.405Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.405Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.406Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.406Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.406Z #_acquireLock end
-SettingsContext.tsx:143 No user settings found, creating defaults...
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.543Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.544Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.544Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.544Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.545Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.545Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.545Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.545Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.545Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.546Z #_acquireLock end
-SmartRedirect.tsx:111 📝 Setup check result: {hasProfile: true, setupCompleted: false, needsSetup: true, userType: 'google', profile: {…}, …}
-SmartRedirect.tsx:122 🚨 ROUTING DECISION: User vapeplussocial2@gmail.com will go to SETUP WIZARD
-SmartRedirect.tsx:123 🚨 needsSetup value: true
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.736Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.737Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.737Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.737Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.737Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.738Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.738Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.738Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.738Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.738Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.740Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.742Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.742Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.742Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.742Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.743Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.743Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.743Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.743Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.744Z #_acquireLock end
-fetch.ts:15  GET https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/user_settings?select=notification_preferences&user_id=eq.f1b35ec2-047c-47ad-80d9-b3c103fdabe3 406 (Not Acceptable)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-SettingsContext.tsx:143 No user settings found, creating defaults...
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.758Z #_acquireLock begin -1
-DataContext.tsx:132 User data loaded: {userId: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3', role: 'owner', teamId: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3', effectiveUserId: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3'}
-3GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.762Z #_acquireLock begin -1
-4GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.763Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.764Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.765Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.765Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.765Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.765Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.766Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.766Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.767Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.767Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.789Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.789Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.789Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.790Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.790Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.790Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.790Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.790Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.791Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.792Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.792Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.792Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.793Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.793Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.793Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.794Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.795Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.795Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.796Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.796Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.796Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.797Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.797Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.797Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.797Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.798Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.798Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.799Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.799Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.799Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.800Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.800Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.800Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.800Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.801Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.801Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.802Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.802Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.802Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.802Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.803Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.803Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.803Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.803Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.804Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.805Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.805Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.805Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.806Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.807Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.807Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.807Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.807Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.808Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.811Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.811Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.812Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.812Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.812Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.812Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.813Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.813Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.813Z #_acquireLock end
-SettingsContext.tsx:187 Settings created successfully: {id: 'd7ffe232-e6e8-44a9-a698-eed1e03e26d7', user_id: 'f1b35ec2-047c-47ad-80d9-b3c103fdabe3', date_format: 'MM/DD/YYYY', time_zone: 'America/New_York', fiscal_year_start: 1, …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.973Z #_acquireLock begin -1
-SmartRedirect.tsx:111 📝 Setup check result: {hasProfile: true, setupCompleted: false, needsSetup: true, userType: 'google', profile: {…}, …}
-SmartRedirect.tsx:122 🚨 ROUTING DECISION: User vapeplussocial2@gmail.com will go to SETUP WIZARD
-SmartRedirect.tsx:123 🚨 needsSetup value: true
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.977Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.977Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.977Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.978Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.978Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.978Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.978Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.979Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:34.979Z #_acquireLock end
-fetch.ts:15  POST https://adsbnzqorfmgnneiopcr.supabase.co/rest/v1/user_settings?columns=%22user_id%22%2C%22base_currency%22%2C%22enabled_currencies%22%2C%22date_format%22%2C%22fiscal_year_start%22%2C%22country%22&select=* 409 (Conflict)
-(anonymous) @ fetch.ts:15
-(anonymous) @ fetch.ts:46
-fulfilled @ constants.ts:35
-Promise.then
-step @ constants.ts:35
-(anonymous) @ constants.ts:35
-__webpack_modules__../node_modules/@supabase/supabase-js/dist/module/lib/fetch.js.__awaiter @ constants.ts:35
-(anonymous) @ fetch.ts:34
-then @ PostgrestBuilder.ts:101Understand this error
-SettingsContext.tsx:161 Failed to create user settings: {code: '23505', details: null, hint: null, message: 'duplicate key value violates unique constraint "user_settings_user_id_key"'}
-loadSettings @ SettingsContext.tsx:161
-await in loadSettings
-(anonymous) @ SettingsContext.tsx:89
-react-stack-bottom-frame @ react-dom-client.development.js:23949
-runWithFiberInDEV @ react-dom-client.development.js:1518
-commitHookEffectListMount @ react-dom-client.development.js:11886
-commitHookPassiveMountEffects @ react-dom-client.development.js:12024
-reconnectPassiveEffects @ react-dom-client.development.js:14004
-recursivelyTraverseReconnectPassiveEffects @ react-dom-client.development.js:13975
-reconnectPassiveEffects @ react-dom-client.development.js:14051
-recursivelyTraverseReconnectPassiveEffects @ react-dom-client.development.js:13975
-reconnectPassiveEffects @ react-dom-client.development.js:13997
-recursivelyTraverseReconnectPassiveEffects @ react-dom-client.development.js:13975
-reconnectPassiveEffects @ react-dom-client.development.js:13997
-recursivelyTraverseReconnectPassiveEffects @ react-dom-client.development.js:13975
-reconnectPassiveEffects @ react-dom-client.development.js:14051
-recursivelyTraverseReconnectPassiveEffects @ react-dom-client.development.js:13975
-reconnectPassiveEffects @ react-dom-client.development.js:13997
-recursivelyTraverseReconnectPassiveEffects @ react-dom-client.development.js:13975
-reconnectPassiveEffects @ react-dom-client.development.js:13997
-doubleInvokeEffectsOnFiber @ react-dom-client.development.js:15964
-runWithFiberInDEV @ react-dom-client.development.js:1518
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15925
-commitDoubleInvokeEffectsInDEV @ react-dom-client.development.js:15977
-flushPassiveEffects @ react-dom-client.development.js:15747
-(anonymous) @ react-dom-client.development.js:15379
-performWorkUntilDeadline @ scheduler.development.js:45
-<SettingsProvider>
-exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
-AppRoutes @ App.tsx:151
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooksAgain @ react-dom-client.development.js:5629
-renderWithHooks @ react-dom-client.development.js:5541
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<AppRoutes>
-exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
-App @ App.tsx:94
-react-stack-bottom-frame @ react-dom-client.development.js:23863
-renderWithHooksAgain @ react-dom-client.development.js:5629
-renderWithHooks @ react-dom-client.development.js:5541
-updateFunctionComponent @ react-dom-client.development.js:8897
-beginWork @ react-dom-client.development.js:10522
-runWithFiberInDEV @ react-dom-client.development.js:1518
-performUnitOfWork @ react-dom-client.development.js:15130
-workLoopSync @ react-dom-client.development.js:14956
-renderRootSync @ react-dom-client.development.js:14936
-performWorkOnRoot @ react-dom-client.development.js:14417
-performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:16216
-performWorkUntilDeadline @ scheduler.development.js:45
-<App>
-exports.jsxDEV @ react-jsx-dev-runtime.development.js:336
-./src/index.tsx @ index.tsx:10
-options.factory @ react refresh:37
-__webpack_require__ @ bootstrap:22
-(anonymous) @ startup:7
-(anonymous) @ startup:7Understand this error
-SettingsContext.tsx:165 Settings already exist, trying to fetch again...
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.210Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.210Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.211Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.211Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.211Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.212Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.212Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.212Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.212Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.212Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.440Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.441Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.441Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.441Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.441Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.442Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.442Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.442Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.442Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.442Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.443Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.444Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.444Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.444Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.445Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.445Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.445Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.446Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.446Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.446Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.472Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.473Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.474Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.474Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.474Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.474Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.475Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.475Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.475Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.475Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.555Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.556Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.556Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.556Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.557Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.557Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.557Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.557Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.557Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.558Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.559Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.561Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.561Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.561Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.562Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.562Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.563Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.563Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.563Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.564Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.633Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.634Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.635Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.635Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.635Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.636Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.636Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.637Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.637Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.637Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.656Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.657Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.657Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.657Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.657Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.657Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.658Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.658Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.658Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:35.658Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.076Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.077Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.077Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.077Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.078Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.078Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.078Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.078Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.078Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.079Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.216Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.217Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.218Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.218Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.218Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.219Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.219Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.219Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.219Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:36.220Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.024Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.025Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.025Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.025Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.026Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.026Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.026Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.026Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.027Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.027Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.029Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.030Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.030Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.030Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.031Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.031Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.031Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.031Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.032Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.032Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.060Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.060Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.060Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.061Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.061Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.061Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.061Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.062Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.062Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.062Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.660Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.661Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.661Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.662Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.662Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.662Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.662Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.663Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.663Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:37.663Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.094Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.096Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.097Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.097Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.098Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.098Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.099Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.099Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.099Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.100Z #_acquireLock end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.294Z #_acquireLock begin -1
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.295Z #_acquireLock lock acquired for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.295Z #_useSession begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.295Z #__loadSession() begin
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.295Z #getSession() session from storage {access_token: 'eyJhbGciOiJIUzI1NiIsImtpZCI6IkJBa1YvNk0zOHZ2QmZ4V3…xzZX0.oXodWYKgz0spwYJFIAyRuKkvMpjQA3Jy5zad8v_CibQ', token_type: 'bearer', expires_in: 3600, expires_at: 1758912152, refresh_token: 'rg2im5w4czdn', …}
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.296Z #__loadSession() session has not expired expires_at 1758912152
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.296Z #__loadSession() end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.296Z #_useSession end
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.296Z #_acquireLock lock released for storage key sb-smartcfo-auth-token
-GoTrueClient.ts:284 GoTrueClient@0 (2.69.1) 2025-09-26T17:42:38.297Z #_acquireLock end
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.ai_insights (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  insight_date date NOT NULL DEFAULT CURRENT_DATE,
+  insights_json jsonb NOT NULL,
+  generated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_insights_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_insights_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ai_interactions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  action_type text NOT NULL,
+  context_data jsonb DEFAULT '{}'::jsonb,
+  ai_suggestion text,
+  user_choice text,
+  outcome text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_interactions_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_interactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ai_suggestions_cache (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  feature_type text NOT NULL,
+  context_hash text NOT NULL,
+  suggestions_json jsonb NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_suggestions_cache_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_suggestions_cache_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ai_user_context (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  business_type text,
+  location text,
+  business_stage text DEFAULT 'startup'::text,
+  monthly_revenue_range text,
+  patterns_json jsonb DEFAULT '{}'::jsonb,
+  preferences_json jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_user_context_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_user_context_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.audit_logs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  team_id uuid,
+  action text NOT NULL CHECK (action = ANY (ARRAY['login'::text, 'logout'::text, 'login_failed'::text, 'create'::text, 'update'::text, 'delete'::text, 'view'::text, 'export'::text, 'invite_sent'::text, 'invite_accepted'::text, 'invite_rejected'::text, 'subscription_changed'::text, 'payment_processed'::text, 'settings_updated'::text, 'password_changed'::text])),
+  entity_type text CHECK (entity_type = ANY (ARRAY['income'::text, 'expense'::text, 'invoice'::text, 'client'::text, 'category'::text, 'team_member'::text, 'subscription'::text, 'settings'::text, 'report'::text, 'recurring_invoice'::text, 'budget'::text, 'tax_rate'::text, 'user'::text])),
+  entity_id uuid,
+  entity_name text,
+  changes jsonb,
+  metadata jsonb,
+  ip_address inet,
+  user_agent text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT audit_logs_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.budgets (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  category_id uuid,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  period text NOT NULL CHECK (period = ANY (ARRAY['monthly'::text, 'quarterly'::text, 'yearly'::text])),
+  start_date date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT budgets_pkey PRIMARY KEY (id),
+  CONSTRAINT budgets_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT budgets_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+);
+CREATE TABLE public.calendar_events (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  external_id text UNIQUE,
+  title text NOT NULL,
+  description text,
+  start_time timestamp with time zone NOT NULL,
+  end_time timestamp with time zone,
+  attendees jsonb DEFAULT '[]'::jsonb,
+  is_client_meeting boolean DEFAULT false,
+  related_client_id uuid,
+  related_invoice_id uuid,
+  ai_suggested_actions jsonb DEFAULT '[]'::jsonb,
+  sync_status text DEFAULT 'pending'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT calendar_events_pkey PRIMARY KEY (id),
+  CONSTRAINT calendar_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT calendar_events_related_client_id_fkey FOREIGN KEY (related_client_id) REFERENCES public.clients(id),
+  CONSTRAINT calendar_events_related_invoice_id_fkey FOREIGN KEY (related_invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.categories (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  type USER-DEFINED NOT NULL,
+  color text DEFAULT '#3B82F6'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  import_session_id uuid,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  description text,
+  CONSTRAINT categories_pkey PRIMARY KEY (id),
+  CONSTRAINT categories_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT categories_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT categories_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.category_summaries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  month date NOT NULL,
+  category_id uuid,
+  category_name text NOT NULL,
+  category_type text NOT NULL CHECK (category_type = ANY (ARRAY['income'::text, 'expense'::text])),
+  total_amount numeric DEFAULT 0,
+  transaction_count integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT category_summaries_pkey PRIMARY KEY (id),
+  CONSTRAINT category_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT category_summaries_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+);
+CREATE TABLE public.chat_conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  messages jsonb DEFAULT '[]'::jsonb,
+  current_context jsonb DEFAULT '{}'::jsonb,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'cancelled'::text])),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT chat_conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.chat_pending_actions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid,
+  user_id uuid,
+  action_type text NOT NULL CHECK (action_type = ANY (ARRAY['expense'::text, 'income'::text, 'invoice'::text, 'query'::text])),
+  action_data jsonb NOT NULL,
+  confidence_score numeric,
+  user_confirmed boolean DEFAULT false,
+  executed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT chat_pending_actions_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_pending_actions_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id),
+  CONSTRAINT chat_pending_actions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.client_summaries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  client_id uuid,
+  month date NOT NULL,
+  client_name text NOT NULL,
+  revenue numeric DEFAULT 0,
+  invoice_count integer DEFAULT 0,
+  paid_invoices integer DEFAULT 0,
+  pending_amount numeric DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT client_summaries_pkey PRIMARY KEY (id),
+  CONSTRAINT client_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT client_summaries_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id)
+);
+CREATE TABLE public.clients (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  email text,
+  phone text,
+  address text,
+  created_at timestamp with time zone DEFAULT now(),
+  phone_country_code text DEFAULT '+1'::text,
+  import_session_id uuid,
+  vat_number character varying,
+  country_code character varying,
+  is_vat_registered boolean DEFAULT false,
+  credit_balance numeric DEFAULT 0,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  company_name text,
+  CONSTRAINT clients_pkey PRIMARY KEY (id),
+  CONSTRAINT clients_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT clients_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT clients_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.country_configs (
+  country_code character varying NOT NULL,
+  country_name text NOT NULL,
+  default_currency character varying NOT NULL,
+  default_tax_rate numeric DEFAULT 0,
+  default_tax_name text DEFAULT 'Tax'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT country_configs_pkey PRIMARY KEY (country_code)
+);
+CREATE TABLE public.credit_note_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  credit_note_id uuid NOT NULL,
+  invoice_item_id uuid,
+  description text NOT NULL,
+  quantity numeric NOT NULL DEFAULT 1,
+  rate numeric NOT NULL,
+  amount numeric NOT NULL,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  net_amount numeric NOT NULL,
+  gross_amount numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT credit_note_items_pkey PRIMARY KEY (id),
+  CONSTRAINT credit_note_items_invoice_item_id_fkey FOREIGN KEY (invoice_item_id) REFERENCES public.invoice_items(id),
+  CONSTRAINT credit_note_items_credit_note_id_fkey FOREIGN KEY (credit_note_id) REFERENCES public.credit_notes(id)
+);
+CREATE TABLE public.credit_notes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  credit_note_number text NOT NULL,
+  invoice_id uuid NOT NULL,
+  client_id uuid,
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  reason text CHECK (reason = ANY (ARRAY['return'::text, 'adjustment'::text, 'cancellation'::text, 'other'::text])),
+  reason_description text,
+  subtotal numeric NOT NULL DEFAULT 0 CHECK (subtotal >= 0::numeric),
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  total numeric NOT NULL DEFAULT 0 CHECK (total >= 0::numeric),
+  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'issued'::text, 'applied'::text])),
+  notes text,
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  applied_to_income boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  tax_metadata jsonb,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  CONSTRAINT credit_notes_pkey PRIMARY KEY (id),
+  CONSTRAINT credit_notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT credit_notes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT credit_notes_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT credit_notes_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT credit_notes_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT credit_notes_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.email_logs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid,
+  recipient_email text NOT NULL,
+  subject text NOT NULL,
+  status text DEFAULT 'sent'::text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'bounced'::text, 'opened'::text, 'clicked'::text])),
+  sent_at timestamp with time zone DEFAULT now(),
+  opened_at timestamp with time zone,
+  clicked_at timestamp with time zone,
+  error_message text,
+  metadata jsonb,
+  CONSTRAINT email_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT email_logs_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.email_templates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  subject text NOT NULL,
+  body_html text NOT NULL,
+  body_text text,
+  template_type text DEFAULT 'invoice'::text CHECK (template_type = ANY (ARRAY['invoice'::text, 'reminder'::text, 'receipt'::text, 'custom'::text])),
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT email_templates_pkey PRIMARY KEY (id),
+  CONSTRAINT email_templates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.exchange_rates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  from_currency text NOT NULL,
+  to_currency text NOT NULL,
+  rate numeric NOT NULL CHECK (rate > 0::numeric),
+  date date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT exchange_rates_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.expenses (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  category_id uuid,
+  description text NOT NULL,
+  date date NOT NULL,
+  vendor text,
+  receipt_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  total_with_tax numeric DEFAULT (amount + COALESCE(tax_amount, (0)::numeric)),
+  vendor_id uuid,
+  import_session_id uuid,
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  ec_acquisition boolean DEFAULT false,
+  reverse_charge_applicable boolean DEFAULT false,
+  base_tax_amount numeric DEFAULT 0,
+  is_tax_deductible boolean DEFAULT true,
+  tax_point_date date,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  is_vat_reclaimable boolean DEFAULT true,
+  reference_number text,
+  CONSTRAINT expenses_pkey PRIMARY KEY (id),
+  CONSTRAINT expenses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT expenses_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT expenses_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT expenses_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT expenses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT expenses_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id)
+);
+CREATE TABLE public.import_history (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  import_session_id uuid NOT NULL UNIQUE,
+  import_date timestamp with time zone NOT NULL,
+  file_name text,
+  import_type text NOT NULL DEFAULT 'ai_csv_import'::text,
+  import_summary jsonb NOT NULL DEFAULT '{}'::jsonb,
+  can_undo_until timestamp with time zone NOT NULL,
+  is_undone boolean DEFAULT false,
+  undone_at timestamp with time zone,
+  undo_results jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT import_history_pkey PRIMARY KEY (id),
+  CONSTRAINT import_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.income (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  category_id uuid,
+  description text NOT NULL,
+  date date NOT NULL,
+  reference_number text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  total_with_tax numeric DEFAULT (amount + COALESCE(tax_amount, (0)::numeric)),
+  client_id uuid,
+  import_session_id uuid,
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  credit_note_id uuid,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  is_credit_adjustment boolean DEFAULT false,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  base_tax_amount numeric DEFAULT 0,
+  CONSTRAINT income_pkey PRIMARY KEY (id),
+  CONSTRAINT income_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT income_credit_note_id_fkey FOREIGN KEY (credit_note_id) REFERENCES public.credit_notes(id),
+  CONSTRAINT income_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT income_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT income_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT income_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT income_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id)
+);
+CREATE TABLE public.invoice_access_tokens (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  token uuid NOT NULL UNIQUE,
+  invoice_id uuid NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  can_accept boolean DEFAULT false,
+  accepted_at timestamp with time zone,
+  CONSTRAINT invoice_access_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_access_tokens_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_activities (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  action text NOT NULL,
+  details jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT invoice_activities_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT invoice_activities_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_credit_tracking (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  invoice_id uuid NOT NULL UNIQUE,
+  total_credited numeric DEFAULT 0,
+  credit_note_count integer DEFAULT 0,
+  last_credit_date timestamp without time zone,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT invoice_credit_tracking_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_credit_tracking_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_items (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid,
+  description text NOT NULL,
+  quantity numeric NOT NULL DEFAULT 1,
+  rate numeric NOT NULL,
+  amount numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  net_amount numeric NOT NULL,
+  gross_amount numeric NOT NULL,
+  CONSTRAINT invoice_items_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_payments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  payment_date timestamp with time zone DEFAULT now(),
+  payment_method text,
+  reference_number text,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT invoice_payments_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_reminders (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL,
+  reminder_type text CHECK (reminder_type = ANY (ARRAY['due_soon'::text, 'overdue'::text, 'sent'::text, 'paid'::text])),
+  sent_date timestamp with time zone DEFAULT now(),
+  sent_via text CHECK (sent_via = ANY (ARRAY['email'::text, 'whatsapp'::text, 'both'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT invoice_reminders_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_reminders_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  company_name text,
+  company_logo text,
+  company_address text,
+  company_phone text,
+  company_email text,
+  company_website text,
+  tax_number text,
+  invoice_prefix text DEFAULT 'INV-'::text,
+  invoice_color text DEFAULT '#3B82F6'::text,
+  payment_terms integer DEFAULT 30,
+  invoice_notes text,
+  invoice_footer text,
+  default_tax_rate numeric DEFAULT 0,
+  email_notifications boolean DEFAULT true,
+  whatsapp_notifications boolean DEFAULT false,
+  notification_email text,
+  notification_phone text,
+  reminder_days integer DEFAULT 3,
+  payment_instructions text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  next_number integer DEFAULT 1,
+  due_days integer DEFAULT 30,
+  auto_send_recurring boolean DEFAULT false,
+  payment_info jsonb DEFAULT '{}'::jsonb,
+  bank_name text,
+  account_number text,
+  routing_number text,
+  paypal_email text,
+  fill_number_gaps boolean DEFAULT true,
+  credit_note_prefix text DEFAULT 'CN-'::text,
+  next_credit_note_number integer DEFAULT 1,
+  CONSTRAINT invoice_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.invoice_templates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  template_data jsonb NOT NULL,
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT invoice_templates_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_templates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.invoices (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  invoice_number text NOT NULL,
+  client_id uuid,
+  date date NOT NULL,
+  due_date date NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'draft'::invoice_status,
+  subtotal numeric NOT NULL DEFAULT 0 CHECK (subtotal >= 0::numeric),
+  tax_rate numeric DEFAULT 0 CHECK (tax_rate >= 0::numeric AND tax_rate <= 100::numeric),
+  tax_amount numeric DEFAULT 0,
+  total numeric NOT NULL DEFAULT 0 CHECK (total >= 0::numeric),
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  template_id uuid,
+  sent_date timestamp with time zone,
+  viewed_date timestamp with time zone,
+  paid_date timestamp with time zone,
+  last_emailed_at timestamp with time zone,
+  email_count integer DEFAULT 0,
+  income_category_id uuid,
+  invoice_type text DEFAULT 'simple'::text CHECK (invoice_type = ANY (ARRAY['simple'::text, 'detailed'::text])),
+  detailed_data jsonb DEFAULT '{}'::jsonb,
+  has_discount boolean DEFAULT false,
+  discount_type text CHECK (discount_type = ANY (ARRAY['percentage'::text, 'fixed'::text])),
+  discount_value numeric DEFAULT 0,
+  discount_amount numeric DEFAULT 0,
+  shipping_amount numeric DEFAULT 0,
+  has_payment_schedule boolean DEFAULT false,
+  payment_schedule jsonb,
+  amount_paid numeric DEFAULT 0,
+  balance_due numeric DEFAULT 0,
+  additional_charges jsonb DEFAULT '[]'::jsonb,
+  viewed_at timestamp with time zone,
+  partially_paid_at timestamp with time zone,
+  draft_accepted_at timestamp with time zone,
+  draft_accepted_by text,
+  import_session_id uuid,
+  base_amount numeric,
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  tax_scheme text,
+  is_reverse_charge boolean DEFAULT false,
+  intra_eu_supply boolean DEFAULT false,
+  has_credit_notes boolean DEFAULT false,
+  total_credited numeric DEFAULT 0,
+  tax_point_date date,
+  actual_paid_date date,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  base_tax_amount numeric DEFAULT 0,
+  deleted_by uuid,
+  CONSTRAINT invoices_pkey PRIMARY KEY (id),
+  CONSTRAINT invoices_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT invoices_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT invoices_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT invoices_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT invoices_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT invoices_income_category_id_fkey FOREIGN KEY (income_category_id) REFERENCES public.categories(id),
+  CONSTRAINT invoices_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.learned_patterns (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  pattern_type text NOT NULL CHECK (pattern_type = ANY (ARRAY['client_payment_speed'::text, 'client_order_frequency'::text, 'client_typical_amount'::text, 'expense_recurring'::text, 'expense_vendor_average'::text, 'revenue_seasonal'::text, 'revenue_monthly_trend'::text, 'invoice_payment_pattern'::text, 'category_spending_trend'::text])),
+  entity_id uuid,
+  entity_type text CHECK (entity_type = ANY (ARRAY['client'::text, 'vendor'::text, 'category'::text, 'general'::text])),
+  pattern_data jsonb NOT NULL,
+  confidence_score numeric DEFAULT 0.5 CHECK (confidence_score >= 0::numeric AND confidence_score <= 1::numeric),
+  sample_size integer DEFAULT 1,
+  last_updated timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT learned_patterns_pkey PRIMARY KEY (id),
+  CONSTRAINT learned_patterns_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.manual_exchange_rates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  from_currency text NOT NULL,
+  to_currency text NOT NULL,
+  rate numeric NOT NULL,
+  reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  expires_at timestamp with time zone,
+  is_active boolean DEFAULT true,
+  CONSTRAINT manual_exchange_rates_pkey PRIMARY KEY (id),
+  CONSTRAINT manual_exchange_rates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.monthly_summaries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  month date NOT NULL,
+  total_income numeric DEFAULT 0,
+  total_expenses numeric DEFAULT 0,
+  net_profit numeric DEFAULT 0,
+  invoice_count integer DEFAULT 0,
+  client_count integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT monthly_summaries_pkey PRIMARY KEY (id),
+  CONSTRAINT monthly_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.mtd_credentials (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  access_token text,
+  refresh_token text,
+  expires_at timestamp without time zone,
+  vrn text,
+  test_mode boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT mtd_credentials_pkey PRIMARY KEY (id),
+  CONSTRAINT mtd_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.notification_email_queue (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  notification_id uuid,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])),
+  attempts integer DEFAULT 0,
+  last_attempt_at timestamp with time zone,
+  error_message text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notification_email_queue_pkey PRIMARY KEY (id),
+  CONSTRAINT notification_email_queue_notification_id_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['welcome'::text, 'invoice_sent'::text, 'invoice_viewed'::text, 'invoice_paid'::text, 'invoice_overdue'::text, 'invoice_generated'::text, 'payment_received'::text, 'expense_added'::text, 'budget_exceeded'::text, 'team_invited'::text, 'team_joined'::text, 'team_removed'::text, 'subscription_upgraded'::text, 'subscription_downgraded'::text, 'subscription_expiring'::text, 'system_update'::text, 'feature_announcement'::text, 'credit_note_created'::text, 'credit_note_issued'::text, 'credit_note_applied'::text])),
+  title text NOT NULL,
+  message text NOT NULL,
+  action_url text,
+  action_label text DEFAULT 'View'::text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  priority text DEFAULT 'normal'::text CHECK (priority = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'urgent'::text])),
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  read_at timestamp with time zone,
+  expires_at timestamp with time zone,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.pattern_updates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  pattern_id uuid NOT NULL,
+  update_type text NOT NULL CHECK (update_type = ANY (ARRAY['new_data_point'::text, 'accuracy_adjustment'::text, 'manual_correction'::text, 'confidence_change'::text])),
+  old_value jsonb,
+  new_value jsonb,
+  update_reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT pattern_updates_pkey PRIMARY KEY (id),
+  CONSTRAINT pattern_updates_pattern_id_fkey FOREIGN KEY (pattern_id) REFERENCES public.learned_patterns(id)
+);
+CREATE TABLE public.payments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  invoice_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  payment_date date NOT NULL DEFAULT CURRENT_DATE,
+  payment_method text CHECK (payment_method = ANY (ARRAY['cash'::text, 'bank_transfer'::text, 'credit_card'::text, 'paypal'::text, 'other'::text])),
+  reference_number text,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT payments_pkey PRIMARY KEY (id),
+  CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.pending_invites (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  team_id uuid NOT NULL,
+  email text NOT NULL,
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
+  invited_by uuid NOT NULL,
+  invite_code text NOT NULL UNIQUE,
+  expires_at timestamp with time zone NOT NULL,
+  accepted boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT pending_invites_pkey PRIMARY KEY (id),
+  CONSTRAINT pending_invites_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
+  CONSTRAINT pending_invites_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.plan_features (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  feature_key text NOT NULL,
+  feature_value text NOT NULL,
+  feature_limit integer,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT plan_features_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  email text NOT NULL UNIQUE,
+  full_name text,
+  company_name text,
+  company_logo text,
+  company_address text,
+  phone text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  first_name text,
+  last_name text,
+  tax_regime character varying,
+  tax_registration_number text,
+  setup_completed boolean DEFAULT false,
+  setup_completed_at timestamp with time zone,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.recurring_invoices (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  client_id uuid,
+  template_data jsonb NOT NULL,
+  frequency text NOT NULL CHECK (frequency = ANY (ARRAY['weekly'::text, 'biweekly'::text, 'monthly'::text, 'quarterly'::text, 'yearly'::text])),
+  next_date date NOT NULL,
+  last_generated date,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  invoice_id uuid,
+  end_date date,
+  CONSTRAINT recurring_invoices_pkey PRIMARY KEY (id),
+  CONSTRAINT recurring_invoices_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT recurring_invoices_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT recurring_invoices_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.subscriptions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  interval USER-DEFINED NOT NULL DEFAULT 'monthly'::subscription_interval,
+  status text NOT NULL DEFAULT 'trialing'::text,
+  trial_end timestamp with time zone DEFAULT (now() + '30 days'::interval),
+  current_period_start timestamp with time zone DEFAULT now(),
+  current_period_end timestamp with time zone DEFAULT (now() + '30 days'::interval),
+  cancel_at_period_end boolean DEFAULT false,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  plan USER-DEFINED NOT NULL DEFAULT 'simple_start'::subscription_plan_new,
+  CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.subscriptions_backup_advanced (
+  id uuid,
+  user_id uuid,
+  plan text,
+  interval text,
+  status text,
+  trial_end timestamp with time zone,
+  current_period_start timestamp with time zone,
+  current_period_end timestamp with time zone,
+  cancel_at_period_end boolean,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
+  backed_up_at timestamp with time zone DEFAULT now()
+);
+CREATE TABLE public.tax_audit_trail (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  country_code text NOT NULL,
+  source_type text NOT NULL,
+  source_id uuid NOT NULL,
+  target_type text NOT NULL,
+  target_id uuid NOT NULL,
+  transformation text,
+  metadata jsonb,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT tax_audit_trail_pkey PRIMARY KEY (id),
+  CONSTRAINT tax_audit_trail_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.tax_rates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  rate numeric NOT NULL CHECK (rate >= 0::numeric AND rate <= 100::numeric),
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tax_rates_pkey PRIMARY KEY (id),
+  CONSTRAINT tax_rates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.team_invites (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  team_id uuid NOT NULL,
+  email text NOT NULL,
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
+  invited_by uuid NOT NULL,
+  token uuid NOT NULL UNIQUE,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_invites_pkey PRIMARY KEY (id),
+  CONSTRAINT team_invites_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
+  CONSTRAINT team_invites_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.team_members (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  team_id uuid NOT NULL,
+  email text NOT NULL,
+  full_name text,
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])),
+  status text NOT NULL DEFAULT 'invited'::text CHECK (status = ANY (ARRAY['active'::text, 'invited'::text, 'disabled'::text])),
+  invited_by uuid NOT NULL,
+  joined_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_members_pkey PRIMARY KEY (id),
+  CONSTRAINT team_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT team_members_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
+  CONSTRAINT team_members_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.uk_vat_returns (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  period_start date NOT NULL,
+  period_end date NOT NULL,
+  period_key text,
+  box1_vat_due_sales numeric DEFAULT 0,
+  box2_vat_due_acquisitions numeric DEFAULT 0,
+  box3_total_vat_due numeric DEFAULT 0,
+  box4_vat_reclaimed numeric DEFAULT 0,
+  box5_net_vat_due numeric DEFAULT 0,
+  box6_total_sales_ex_vat numeric DEFAULT 0 CHECK (box6_total_sales_ex_vat = round(box6_total_sales_ex_vat)),
+  box7_total_purchases_ex_vat numeric DEFAULT 0 CHECK (box7_total_purchases_ex_vat = round(box7_total_purchases_ex_vat)),
+  box8_total_supplies_ex_vat numeric DEFAULT 0,
+  box9_total_acquisitions_ex_vat numeric DEFAULT 0,
+  base_currency text NOT NULL,
+  status text DEFAULT 'draft'::text,
+  submitted_at timestamp without time zone,
+  hmrc_receipt text,
+  notes text,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  mtd_submission_id text,
+  mtd_correlation_id text,
+  mtd_response jsonb,
+  CONSTRAINT uk_vat_returns_pkey PRIMARY KEY (id),
+  CONSTRAINT uk_vat_returns_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_goals (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  goal_type text NOT NULL CHECK (goal_type = ANY (ARRAY['revenue_target'::text, 'expense_reduction'::text, 'client_acquisition'::text, 'profit_margin'::text, 'cash_flow'::text, 'custom'::text])),
+  goal_name text NOT NULL,
+  target_value numeric,
+  target_date date,
+  current_value numeric DEFAULT 0,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'paused'::text, 'cancelled'::text])),
+  progress_data jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_goals_pkey PRIMARY KEY (id),
+  CONSTRAINT user_goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  date_format text DEFAULT 'MM/DD/YYYY'::text,
+  time_zone text DEFAULT 'America/New_York'::text,
+  fiscal_year_start integer DEFAULT 1,
+  notification_preferences jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  country character varying,
+  state character varying,
+  mfa_backup_codes ARRAY,
+  security_notifications boolean DEFAULT true,
+  base_currency text DEFAULT 'USD'::text,
+  enabled_currencies ARRAY DEFAULT ARRAY['USD'::text],
+  vat_registration_number character varying,
+  vat_scheme character varying DEFAULT 'standard'::character varying CHECK (vat_scheme::text = ANY (ARRAY['standard'::character varying, 'flat_rate'::character varying, 'cash'::character varying]::text[])),
+  flat_rate_percentage numeric,
+  vat_period_type character varying DEFAULT 'quarterly'::character varying CHECK (vat_period_type::text = ANY (ARRAY['monthly'::character varying, 'quarterly'::character varying]::text[])),
+  mtd_enabled boolean DEFAULT false,
+  tax_registration_number text,
+  tax_scheme text DEFAULT 'standard'::text,
+  tax_return_period text DEFAULT 'quarterly'::text,
+  is_tax_registered boolean DEFAULT false,
+  uk_vat_scheme text DEFAULT 'standard'::text,
+  uk_vat_flat_rate numeric DEFAULT 0,
+  uk_vat_registration_date date,
+  us_tax_id text,
+  au_abn text,
+  ca_gst_number text,
+  tax_id text,
+  uk_flat_rate_limited_cost_trader boolean DEFAULT false,
+  uk_vat_cash_accounting boolean DEFAULT false,
+  uk_vat_annual_accounting boolean DEFAULT false,
+  CONSTRAINT user_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_settings_backup_before_revert (
+  id uuid,
+  user_id uuid,
+  date_format text,
+  time_zone text,
+  fiscal_year_start integer,
+  notification_preferences jsonb,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
+  country character varying,
+  state character varying,
+  mfa_backup_codes ARRAY,
+  security_notifications boolean,
+  base_currency text,
+  enabled_currencies jsonb
+);
+CREATE TABLE public.vat_periods (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  period_start date NOT NULL,
+  period_end date NOT NULL,
+  status character varying DEFAULT 'open'::character varying CHECK (status::text = ANY (ARRAY['open'::character varying, 'locked'::character varying, 'submitted'::character varying]::text[])),
+  locked_at timestamp with time zone,
+  vat_return_data jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT vat_periods_pkey PRIMARY KEY (id),
+  CONSTRAINT vat_periods_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.vat_submissions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  period_id uuid NOT NULL,
+  submission_date timestamp with time zone DEFAULT now(),
+  boxes_data jsonb NOT NULL,
+  mtd_receipt character varying,
+  status character varying DEFAULT 'draft'::character varying CHECK (status::text = ANY (ARRAY['draft'::character varying, 'submitted'::character varying, 'accepted'::character varying, 'rejected'::character varying]::text[])),
+  error_message text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT vat_submissions_pkey PRIMARY KEY (id),
+  CONSTRAINT vat_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT vat_submissions_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.vat_periods(id)
+);
+CREATE TABLE public.vendors (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  email text,
+  phone text,
+  address text,
+  tax_id text,
+  payment_terms integer DEFAULT 30,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  import_session_id uuid,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  CONSTRAINT vendors_pkey PRIMARY KEY (id),
+  CONSTRAINT vendors_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT vendors_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT vendors_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
