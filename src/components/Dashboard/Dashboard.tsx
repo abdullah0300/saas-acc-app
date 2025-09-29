@@ -110,6 +110,18 @@ export const Dashboard: React.FC = () => {
 
   const [error, setError] = useState('');
   const { businessData, businessDataLoading } = useData();
+  // Initialize with session storage, default to hidden
+  const [showPrivateNumbers, setShowPrivateNumbers] = useState(() => {
+    const saved = sessionStorage.getItem('dashboardPrivacyMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  // Save preference to session storage whenever it changes
+  const togglePrivateNumbers = () => {
+    const newValue = !showPrivateNumbers;
+    setShowPrivateNumbers(newValue);
+    sessionStorage.setItem('dashboardPrivacyMode', JSON.stringify(newValue));
+  };
 const { incomes, expenses, invoices, clients } = businessData;
 const [showImportWizard, setShowImportWizard] = useState(false);
 const [showMonthlyBanner, setShowMonthlyBanner] = useState(false);
@@ -476,9 +488,17 @@ const handleBannerClose = () => {
   }
 
   const growth = calculateGrowth();
-  const profitMargin = stats?.totalIncome > 0 
-    ? ((stats.netProfit / stats.totalIncome) * 100).toFixed(1) 
+  const profitMargin = stats?.totalIncome > 0
+    ? ((stats.netProfit / stats.totalIncome) * 100).toFixed(1)
     : '0';
+
+  // Helper function to hide numbers when privacy is enabled
+  const formatPrivateValue = (value: string | number) => {
+    if (!showPrivateNumbers) {
+      return '••••••';
+    }
+    return typeof value === 'string' ? value : formatCurrency(value);
+  };
 
   return (
   <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
@@ -506,15 +526,22 @@ const handleBannerClose = () => {
           </div>
           
           <div className="flex gap-3">
-  {/* ADD THIS NEW IMPORT BUTTON */}
-  {/* <button
-    onClick={() => setShowImportWizard(true)}
-    className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg shadow-purple-200"
+  {/* Privacy Toggle Button */}
+  <button
+    onClick={togglePrivateNumbers}
+    className={`inline-flex items-center px-4 py-2.5 rounded-xl transition-all transform hover:scale-105 shadow-md ${
+      showPrivateNumbers
+        ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+        : 'bg-gradient-to-r from-indigo-100 to-purple-100 hover:from-indigo-200 hover:to-purple-200 text-indigo-700 border border-indigo-200'
+    }`}
+    title={showPrivateNumbers ? 'Hide sensitive numbers' : 'Show sensitive numbers'}
   >
-    <Upload className="h-4 w-4 mr-2" />
-    Import Data
-  </button> */}
-  
+    <Eye className={`h-4 w-4 mr-2 ${!showPrivateNumbers ? 'opacity-60' : ''}`} />
+    <span className="text-sm font-medium">
+      {showPrivateNumbers ? 'Hide' : 'Show'}
+    </span>
+  </button>
+
   <Link
     to="/income/new"
     className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
@@ -549,20 +576,20 @@ const handleBannerClose = () => {
   {stats?.creditNoteAmount > 0 ? (
     <div>
       <p className="text-3xl font-bold text-gray-900 mt-1">
-        {formatCurrency(stats?.totalIncome || 0)}
+        {formatPrivateValue(stats?.totalIncome || 0)}
       </p>
       <div className="mt-2 space-y-1">
         <div className="text-xs text-gray-500">
-          Gross: {formatCurrency(stats?.grossIncome || 0)}
+          Gross: {showPrivateNumbers ? formatCurrency(stats?.grossIncome || 0) : '••••••'}
         </div>
         <div className="text-xs text-red-600">
-          Credits: -{formatCurrency(stats?.creditNoteAmount || 0)}
+          Credits: -{showPrivateNumbers ? formatCurrency(stats?.creditNoteAmount || 0) : '••••••'}
         </div>
       </div>
     </div>
   ) : (
     <p className="text-3xl font-bold text-gray-900 mt-1">
-      {formatCurrency(stats?.totalIncome || 0)}
+      {formatPrivateValue(stats?.totalIncome || 0)}
     </p>
   )}
   
@@ -580,7 +607,7 @@ const handleBannerClose = () => {
             </div>
             <p className="text-sm font-medium text-gray-600">Total Expenses</p>
             <p className="text-3xl font-bold text-gray-900 mt-1">
-              {formatCurrency(stats?.totalExpenses || 0)}
+              {formatPrivateValue(stats?.totalExpenses || 0)}
             </p>
             <p className="text-sm text-gray-500 mt-2">This month</p>
           </div>
@@ -596,7 +623,7 @@ const handleBannerClose = () => {
             </div>
             <p className="text-sm font-medium text-indigo-100">Net Profit</p>
             <p className="text-3xl font-bold mt-1">
-              {formatCurrency(stats?.netProfit || 0)}
+              {formatPrivateValue(stats?.netProfit || 0)}
             </p>
             <p className="text-sm text-indigo-100 mt-2">
               {stats?.netProfit >= 0 ? 'Profit' : 'Loss'} this period
@@ -619,7 +646,7 @@ const handleBannerClose = () => {
               {stats?.pendingInvoices || 0}
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              {formatCurrency(stats?.totalPending || 0)} outstanding
+              {showPrivateNumbers ? formatCurrency(stats?.totalPending || 0) : '••••••'} outstanding
             </p>
           </div>
         </div>
