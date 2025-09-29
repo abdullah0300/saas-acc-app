@@ -49,7 +49,7 @@ import {
 import { getInvoices, deleteInvoice, updateInvoice, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { format, addDays, differenceInDays, parseISO } from 'date-fns';
+import { format, addDays, differenceInDays, parseISO, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, startOfYear, endOfYear, subYears } from 'date-fns';
 import { Invoice, InvoiceStatus, Client, Category } from '../../types';
 import { supabase } from '../../services/supabaseClient';
 import { formatPhoneForWhatsApp } from '../../utils/phoneUtils';
@@ -128,6 +128,12 @@ export const InvoiceList: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  // Date range filter states (same as IncomeList)
+  const [dateRange, setDateRange] = useState<string>('this-month');
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Check if UK user for VAT features - based on country, not currency
   const isUKUser = userSettings?.country === 'GB';
@@ -291,6 +297,57 @@ export const InvoiceList: React.FC = () => {
   const filteredInvoices = React.useMemo(() => {
     let filtered = invoices;
 
+    // Date Range Filter - SAME AS IncomeList
+    if (dateRange !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(invoice => {
+        const invoiceDate = parseISO(invoice.date);
+
+        switch (dateRange) {
+          case 'today':
+            return format(invoiceDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+
+          case 'this-week':
+            const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday start
+            const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+            return invoiceDate >= weekStart && invoiceDate <= weekEnd;
+
+          case 'this-month':
+            const monthStart = startOfMonth(now);
+            const monthEnd = endOfMonth(now);
+            return invoiceDate >= monthStart && invoiceDate <= monthEnd;
+
+          case 'last-month':
+            const lastMonth = subMonths(now, 1);
+            const lastMonthStart = startOfMonth(lastMonth);
+            const lastMonthEnd = endOfMonth(lastMonth);
+            return invoiceDate >= lastMonthStart && invoiceDate <= lastMonthEnd;
+
+          case 'this-year':
+            const yearStart = startOfYear(now);
+            const yearEnd = endOfYear(now);
+            return invoiceDate >= yearStart && invoiceDate <= yearEnd;
+
+          case 'last-year':
+            const lastYear = subYears(now, 1);
+            const lastYearStart = startOfYear(lastYear);
+            const lastYearEnd = endOfYear(lastYear);
+            return invoiceDate >= lastYearStart && invoiceDate <= lastYearEnd;
+
+          case 'custom':
+            if (customStartDate && customEndDate) {
+              const customStart = parseISO(customStartDate);
+              const customEnd = parseISO(customEndDate);
+              return invoiceDate >= customStart && invoiceDate <= customEnd;
+            }
+            return true;
+
+          default:
+            return true;
+        }
+      });
+    }
+
     if (searchTerm) {
       filtered = filtered.filter(invoice =>
         invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -336,7 +393,7 @@ export const InvoiceList: React.FC = () => {
     });
 
     return filtered;
-  }, [invoices, searchTerm, statusFilter, currencyFilter, clientFilter, categoryFilter, typeFilter, sortBy, recurringInvoices, baseCurrency]);
+  }, [invoices, searchTerm, statusFilter, currencyFilter, clientFilter, categoryFilter, typeFilter, sortBy, recurringInvoices, baseCurrency, dateRange, customStartDate, customEndDate]);
 
   // Pagination logic
   const getPaginatedInvoices = () => {
@@ -380,11 +437,90 @@ export const InvoiceList: React.FC = () => {
     setSelectAll(false);
   };
 
+  // Helper functions for date ranges (same as IncomeList)
+  const getDateRangeDisplayName = (range: string) => {
+    const currentYear = new Date().getFullYear();
+
+    switch (range) {
+      case 'today':
+        return 'Today';
+      case 'this-week':
+        return 'This Week';
+      case 'this-month':
+        return 'This Month';
+      case 'last-month':
+        return 'Last Month';
+      case 'this-year':
+        return `This Year (${currentYear})`;
+      case 'last-year':
+        return `Last Year (${currentYear - 1})`;
+      case 'custom':
+        if (customStartDate && customEndDate) {
+          return `${format(parseISO(customStartDate), 'MMM dd, yyyy')} - ${format(parseISO(customEndDate), 'MMM dd, yyyy')}`;
+        }
+        return 'Custom Range';
+      case 'all':
+        return 'All Time';
+      default:
+        return 'Selected Period';
+    }
+  };
+
+  // Function to search all time when user wants to expand
+  const searchAllTime = () => {
+    setDateRange('all');
+  };
+
+  // Handle custom date range
+  const handleCustomDateRange = () => {
+    if (!customStartDate || !customEndDate) {
+      alert('Please select both start and end dates');
+      return;
+    }
+
+    if (new Date(customStartDate) > new Date(customEndDate)) {
+      alert('Start date cannot be after end date');
+      return;
+    }
+
+    setDateRange('custom');
+    setShowCustomDatePicker(false);
+  };
+
+  // Reset custom date picker
+  const resetCustomDatePicker = () => {
+    setCustomStartDate('');
+    setCustomEndDate('');
+    setShowCustomDatePicker(false);
+  };
+
+  // Helper function to get search results count message
+  const getSearchResultsMessage = () => {
+    const totalInvoices = invoices.length;
+    const filteredCount = filteredInvoices.length;
+    const isSearching = searchTerm.length > 0;
+    const scopeName = getDateRangeDisplayName(dateRange);
+
+    if (isSearching) {
+      return {
+        primary: `Found ${filteredCount} result${filteredCount !== 1 ? 's' : ''}`,
+        secondary: `Searching in: ${scopeName}`,
+        showExpandOption: filteredCount < 5 && dateRange !== 'all' && totalInvoices > filteredCount
+      };
+    }
+
+    return {
+      primary: `Showing ${filteredCount} invoice${filteredCount !== 1 ? 's' : ''}`,
+      secondary: `From: ${scopeName}`,
+      showExpandOption: false
+    };
+  };
+
   // Reset pagination when filters change
   React.useEffect(() => {
     setCurrentPage(1);
     clearSelections();
-  }, [searchTerm, statusFilter, currencyFilter, clientFilter, categoryFilter, typeFilter, sortBy]);
+  }, [searchTerm, statusFilter, currencyFilter, clientFilter, categoryFilter, typeFilter, sortBy, dateRange, customStartDate, customEndDate]);
 
   // Bulk delete function with loading state
   const handleBulkDelete = async () => {
@@ -1150,13 +1286,24 @@ export const InvoiceList: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by invoice number or client..."
+                placeholder={`Search invoices in ${getDateRangeDisplayName(dateRange)}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
+
+              {/* Search Scope Badge */}
+              {searchTerm && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg text-sm font-medium border border-indigo-200">
+                    <Calendar className="h-3 w-3" />
+                    <span className="hidden sm:inline">{getDateRangeDisplayName(dateRange)}</span>
+                    <span className="sm:hidden">Period</span>
+                  </div>
+                </div>
+              )}
             </div>
-            
+
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="inline-flex items-center px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all"
@@ -1166,9 +1313,59 @@ export const InvoiceList: React.FC = () => {
               <ChevronDown className={`h-4 w-4 ml-2 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </button>
           </div>
+
+          {/* Search Results Indicator */}
+          {(searchTerm || filteredInvoices.length !== invoices.length) && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-4 px-4 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200/50">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-indigo-700">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+                  <span className="font-semibold text-sm">
+                    {getSearchResultsMessage().primary}
+                  </span>
+                </div>
+                <div className="text-sm text-indigo-600">
+                  {getSearchResultsMessage().secondary}
+                </div>
+              </div>
+
+              {/* Expand Search Option */}
+              {getSearchResultsMessage().showExpandOption && (
+                <button
+                  onClick={searchAllTime}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-sm text-indigo-600 rounded-lg hover:bg-white transition-all text-sm font-medium shadow-sm hover:shadow-md border border-indigo-200/50"
+                >
+                  <Search className="h-3 w-3" />
+                  <span>Search All Time</span>
+                </button>
+              )}
+            </div>
+          )}
           
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4 pt-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7 gap-4 mt-4 pt-4 border-t">
+              {/* Date Range Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                  <Calendar className="h-4 w-4 text-indigo-500" />
+                  Date Range
+                </label>
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="today">Today</option>
+                  <option value="this-week">This Week</option>
+                  <option value="this-month">This Month</option>
+                  <option value="last-month">Last Month</option>
+                  <option value="this-year">This Year</option>
+                  <option value="last-year">Last Year</option>
+                  <option value="custom">Custom Range</option>
+                  <option value="all">All Time</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                 <select
