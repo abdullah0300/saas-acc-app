@@ -609,44 +609,44 @@ export const InvoiceList: React.FC = () => {
     const getBaseAmount = (invoice: Invoice) => {
       if (invoice.base_amount) return invoice.base_amount;
       return convertToBaseCurrency(
-        invoice.total, 
-        invoice.currency || baseCurrency, 
+        invoice.total,
+        invoice.currency || baseCurrency,
         invoice.exchange_rate || 1
       );
     };
-    
-    const totalAmount = invoices.reduce((sum, inv) => sum + getBaseAmount(inv), 0);
-    const paidAmount = invoices
+
+    const totalAmount = filteredInvoices.reduce((sum, inv) => sum + getBaseAmount(inv), 0);
+    const paidAmount = filteredInvoices
       .filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + getBaseAmount(inv), 0);
-    const pendingAmount = invoices
+    const pendingAmount = filteredInvoices
       .filter(inv => inv.status === 'sent')
       .reduce((sum, inv) => sum + getBaseAmount(inv), 0);
-    const overdueAmount = invoices
+    const overdueAmount = filteredInvoices
       .filter(inv => inv.status === 'overdue')
       .reduce((sum, inv) => sum + getBaseAmount(inv), 0);
-    
+
     // Draft invoices
-    const draftInvoices = invoices.filter(inv => inv.status === 'draft');
+    const draftInvoices = filteredInvoices.filter(inv => inv.status === 'draft');
     const draftAmount = draftInvoices.reduce((sum, inv) => sum + getBaseAmount(inv), 0);
-    
+
     // Credit notes totals (already in base currency)
-    const totalCredited = invoices.reduce((sum, inv) => 
+    const totalCredited = filteredInvoices.reduce((sum, inv) =>
       sum + (inv.total_credited || 0), 0
     );
-    const invoicesWithCredits = invoices.filter(inv => inv.has_credit_notes).length;
-    
+    const invoicesWithCredits = filteredInvoices.filter(inv => inv.has_credit_notes).length;
+
     // Currency breakdown (in original currency)
-    const currencyBreakdown = invoices.reduce((acc, inv) => {
+    const currencyBreakdown = filteredInvoices.reduce((acc, inv) => {
       const currency = inv.currency || baseCurrency;
       if (!acc[currency]) acc[currency] = { total: 0, count: 0 };
       acc[currency].total += inv.total;
       acc[currency].count += 1;
       return acc;
     }, {} as Record<string, { total: number; count: number }>);
-    
+
     return {
-      totalInvoices: invoices.length,
+      totalInvoices: filteredInvoices.length,
       totalAmount,
       paidAmount,
       pendingAmount,
@@ -656,9 +656,9 @@ export const InvoiceList: React.FC = () => {
       totalCredited,
       invoicesWithCredits,
       currencyBreakdown,
-      averageInvoiceValue: invoices.length > 0 ? totalAmount / invoices.length : 0
+      averageInvoiceValue: filteredInvoices.length > 0 ? totalAmount / filteredInvoices.length : 0
     };
-  }, [invoices, baseCurrency]);
+  }, [filteredInvoices, baseCurrency]);
 
   const handleDelete = (id: string) => {
     const invoice = invoices.find(inv => inv.id === id);
