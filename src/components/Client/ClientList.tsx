@@ -25,7 +25,7 @@ import {
   AlertCircle,
   Activity
 } from 'lucide-react';
-import { getClients, deleteClient, getInvoices, getIncomes } from '../../services/database';
+import { deleteClient } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { Client, Invoice, Income } from '../../types';
@@ -46,8 +46,6 @@ export const ClientList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, baseCurrency } = useSettings();
   const [filteredClients, setFilteredClients] = useState<ClientWithMetrics[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [incomes, setIncomes] = useState<Income[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'overdue'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'revenue' | 'recent'>('recent');
@@ -55,9 +53,9 @@ export const ClientList: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [error, setError] = useState('');
   const { businessData, businessDataLoading, refreshBusinessData } = useData();
-const { clients: rawClients } = businessData;
-const [clients, setClients] = useState<ClientWithMetrics[]>([]);
-const loading = businessDataLoading;
+  const { clients: rawClients, invoices, incomes } = businessData;
+  const [clients, setClients] = useState<ClientWithMetrics[]>([]);
+  const loading = businessDataLoading;
 
   // Stats
   const [stats, setStats] = useState({
@@ -68,41 +66,28 @@ const loading = businessDataLoading;
   });
 
   useEffect(() => {
-  if (rawClients.length > 0) {
+  if (rawClients.length > 0 && invoices.length >= 0 && incomes.length >= 0) {
     processClientData();
   }
-}, [user, rawClients]); // Now depends on cached data
+}, [rawClients, invoices, incomes]); // Depends on all cached data
 
   useEffect(() => {
     filterAndSortClients();
   }, [searchTerm, statusFilter, sortBy, clients]);
 
-  const processClientData = async () => {
-  if (!user || !rawClients.length) return;
-  
+  const processClientData = () => {
+  if (!rawClients.length) return;
+
   try {
-    // We don't need setLoading anymore since we use businessDataLoading
-    // setLoading(true); // ❌ Remove this
-    
-    // Load additional data needed for metrics
-    const [invoiceList, incomeList] = await Promise.all([
-      getInvoices(user.id),
-      getIncomes(user.id)
-    ]);
-    
-    setInvoices(invoiceList); // Store for later use
-    setIncomes(incomeList);   // Store for later use
-    
-    // Process client metrics using existing function
-    const enrichedClients = processClientMetrics(rawClients, invoiceList, incomeList);
+    // Use cached data from DataContext - no API calls needed!
+    const enrichedClients = processClientMetrics(rawClients, invoices, incomes);
     setClients(enrichedClients);
-    
+
     // Calculate stats
     calculateStats(enrichedClients);
   } catch (err: any) {
     setError(err.message);
   }
-  // No finally block needed since we're not managing loading state
 };
 
   const processClientMetrics = (

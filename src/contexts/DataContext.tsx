@@ -31,12 +31,13 @@ interface DataContextType {
   addExpenseToCache: (expense: any) => void;
   addInvoiceToCache: (invoice: any) => void;
   addClientToCache: (client: any) => void;
-  addBudgetToCache: (budget: any) => void; // ✅ Add this
-  updateBudgetInCache: (id: string, budget: any) => void; // ✅ Add this
-  removeBudgetFromCache: (id: string) => void; // ✅ Add this
+  addBudgetToCache: (budget: any) => void;
+  updateBudgetInCache: (id: string, budget: any) => void;
+  removeBudgetFromCache: (id: string) => void;
   updateIncomeInCache: (id: string, income: any) => void;
-    updateExpenseInCache: (id: string, expense: any) => void; // ADD THIS LINE
-    setProcessedReport: (period: string, data: any) => void;
+  updateExpenseInCache: (id: string, expense: any) => void;
+  updateClientInCache: (id: string, client: any) => void;
+  setProcessedReport: (period: string, data: any) => void;
   getProcessedReport: (period: string) => any | null;
 
 }
@@ -310,6 +311,15 @@ const addClientToCache = (newClient: any) => {
   }));
 };
 
+const updateClientInCache = (id: string, updatedClient: any) => {
+  setBusinessData(prev => ({
+    ...prev,
+    clients: prev.clients.map(client =>
+      client.id === id ? updatedClient : client
+    )
+  }));
+};
+
   return (
   <DataContext.Provider value={{
     subscription,
@@ -328,11 +338,12 @@ const addClientToCache = (newClient: any) => {
     addClientToCache,
     addBudgetToCache,
     updateBudgetInCache,
-     updateExpenseInCache,
-     updateIncomeInCache,
+    updateExpenseInCache,
+    updateIncomeInCache,
+    updateClientInCache,
     removeBudgetFromCache,
-    setProcessedReport, 
-    getProcessedReport   
+    setProcessedReport,
+    getProcessedReport
   }}>
       {children}
     </DataContext.Provider>

@@ -134,6 +134,11 @@ const [dismissedInsights, setDismissedInsights] = useState<string[]>(() => {
 const [showAllInsights, setShowAllInsights] = useState(false);
 const { userSettings } = useSettings();
 
+  // Custom date range states
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
   // Data states
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [categoryData, setCategoryData] = useState<{ income: CategoryBreakdown[], expense: CategoryBreakdown[] }>({ income: [], expense: [] });
@@ -171,7 +176,7 @@ const { userSettings } = useSettings();
  useEffect(() => {
   clearOldDismissedInsights();
   loadReportData();
-}, [user, period]);
+}, [user, period, customStartDate, customEndDate]);
 
 // Set the currency formatter for insights
 useEffect(() => {
@@ -184,9 +189,12 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
   const loadReportData = async () => {
   if (!user) return;
 
+  // Generate cache key once at the top
+  const cacheKey = period === 'custom' ? `${period}-${customStartDate}-${customEndDate}` : period;
+
   try {
-    // Check cache first
-    const cachedReport = getProcessedReport(period);
+    // Check cache first (use custom dates in cache key if applicable)
+    const cachedReport = getProcessedReport(cacheKey);
     if (cachedReport) {
       // Use cached data instantly
       setKpiMetrics(cachedReport.kpiMetrics);
@@ -195,19 +203,20 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       setCashFlowData(cachedReport.cashFlowData);
       setClientMetrics(cachedReport.clientMetrics);
       setTopVendors(cachedReport.topVendors);
-      
+      setLoading(false);
+
       // Don't show loading for cached data
       return;
     }
-    
+
     // If no cache, show loading
     setLoading(true);
-    
+
     // Calculate date range
     const endDate = new Date();
     let startDate;
     let comparisonStartDate;
-    
+
     switch (period) {
       case '1month':
         startDate = subMonths(endDate, 1);
@@ -228,6 +237,16 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
       case 'ytd':
         startDate = startOfYear(endDate);
         comparisonStartDate = startOfYear(subMonths(endDate, 12));
+        break;
+      case 'custom':
+        if (!customStartDate || !customEndDate) {
+          setLoading(false);
+          return;
+        }
+        startDate = parseISO(customStartDate);
+        const daysDiff = differenceInDays(parseISO(customEndDate), startDate);
+        comparisonStartDate = subMonths(startDate, Math.ceil(daysDiff / 30));
+        endDate.setTime(parseISO(customEndDate).getTime());
         break;
       default:
         startDate = subMonths(endDate, 6);
@@ -256,10 +275,10 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
 
     // Set all state with processed data from edge function
     const { data } = reportData;
-    
+
     // Cache the processed data
-    setProcessedReport(period, data);
-    
+    setProcessedReport(cacheKey, data);
+
     // Set all state
     setKpiMetrics(data.kpiMetrics);
     setMonthlyData(data.monthlyData);
@@ -428,14 +447,22 @@ const getDateRangeForPeriod = () => {
             <div className="flex items-center gap-1 bg-gray-50/80 rounded-xl p-1">
               <select
                 value={period}
-                onChange={(e) => setPeriod(e.target.value)}
+                onChange={(e) => {
+                  setPeriod(e.target.value);
+                  if (e.target.value === 'custom') {
+                    setShowCustomDatePicker(true);
+                  } else {
+                    setShowCustomDatePicker(false);
+                  }
+                }}
                 className="px-3 py-1.5 text-sm font-medium bg-transparent border-none outline-none cursor-pointer text-gray-700 rounded-lg hover:bg-white/60"
               >
-                <option value="1month">Last Month</option>
-                <option value="3months">Last 3 Months</option>
-                <option value="6months">Last 6 Months</option>
-                <option value="1year">Last Year</option>
+                <option value="1month">Last 30 Days</option>
+                <option value="3months">Last 90 Days</option>
+                <option value="6months">Last 180 Days</option>
+                <option value="1year">Last 365 Days</option>
                 <option value="ytd">Year to Date</option>
+                <option value="custom">Custom Range</option>
               </select>
             </div>
             
@@ -469,6 +496,86 @@ const getDateRangeForPeriod = () => {
           </div>
         </div>
       </div>
+
+      {/* Custom Date Range Picker */}
+      {(period === 'custom' || showCustomDatePicker) && (
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-100/80 shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-indigo-50 rounded-lg">
+              <Calendar className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Custom Date Range</h3>
+              <p className="text-sm text-gray-500">Select a specific period for your report</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                if (!customStartDate || !customEndDate) {
+                  alert('Please select both start and end dates');
+                  return;
+                }
+                if (new Date(customStartDate) > new Date(customEndDate)) {
+                  alert('Start date cannot be after end date');
+                  return;
+                }
+                setPeriod('custom');
+                setShowCustomDatePicker(false);
+              }}
+              disabled={!customStartDate || !customEndDate}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Calendar className="h-4 w-4" />
+              Apply Range
+            </button>
+            <button
+              onClick={() => {
+                setCustomStartDate('');
+                setCustomEndDate('');
+                setPeriod('6months');
+                setShowCustomDatePicker(false);
+              }}
+              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+
+          {customStartDate && customEndDate && (
+            <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+              <p className="text-sm text-indigo-700">
+                <span className="font-medium">Selected Range:</span> {format(parseISO(customStartDate), 'MMM dd, yyyy')} - {format(parseISO(customEndDate), 'MMM dd, yyyy')}
+                <span className="ml-2 text-indigo-600">
+                  ({differenceInDays(parseISO(customEndDate), parseISO(customStartDate))} days)
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
 {/* Report Cards Section - Updated Styling */}
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

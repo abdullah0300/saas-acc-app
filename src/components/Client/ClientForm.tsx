@@ -8,7 +8,7 @@ import { COUNTRY_CODES } from '../../utils/phoneUtils'; // ← ADD THIS IMPORT
 
 export const ClientForm: React.FC = () => {
   const { user } = useAuth();
-  const { addClientToCache } = useData();
+  const { addClientToCache, updateClientInCache } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -71,15 +71,15 @@ export const ClientForm: React.FC = () => {
       };
 
       if (isEdit && id) {
-  await updateClient(id, clientData);
-  // For edits, we need to refresh the entire cache since we can't easily update individual items
-  // Note: You could also implement an updateClientInCache method in DataContext if needed
-} else {
-  const newClient = await createClient(clientData);
-  addClientToCache(newClient); // ✅ Add to cache
-}
+        await updateClient(id, clientData);
+        // Update cache with edited client data
+        updateClientInCache(id, { id, ...clientData });
+      } else {
+        const newClient = await createClient(clientData);
+        addClientToCache(newClient);
+      }
 
-navigate('/clients');
+      navigate('/clients');
     } catch (err: any) {
       setError(err.message);
     } finally {
