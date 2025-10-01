@@ -1536,7 +1536,13 @@ export const InvoiceList: React.FC = () => {
                 </label>
                 <select
                   value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setDateRange(value);
+                    if (value === 'custom') {
+                      setShowCustomDatePicker(true);
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="today">Today</option>
@@ -1549,6 +1555,65 @@ export const InvoiceList: React.FC = () => {
                   <option value="all">All Time</option>
                 </select>
               </div>
+
+              {/* Custom Date Range Picker */}
+              {showCustomDatePicker && (
+                <div className="col-span-full">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-blue-900">Select Custom Date Range</h4>
+                      <button
+                        onClick={() => {
+                          setShowCustomDatePicker(false);
+                          setDateRange('this-month');
+                        }}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                        <input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                        <input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCustomDateRange}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCustomStartDate('');
+                          setCustomEndDate('');
+                          setShowCustomDatePicker(false);
+                          setDateRange('this-month');
+                        }}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
