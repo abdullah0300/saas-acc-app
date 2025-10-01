@@ -23,6 +23,7 @@ import { InvoiceList } from './components/Invoice/InvoiceList';
 import { InvoiceForm } from './components/Invoice/InvoiceForm';
 import { InvoiceView } from './components/Invoice/InvoiceView';
 import { PublicInvoiceView } from './components/Invoice/PublicInvoiceView';
+import { InvoiceTemplatesPage } from './components/Invoice/InvoiceTemplatesPage';
 import { ReportsOverview } from './components/Reports/ReportsOverview';
 import { ProfitLossReport } from './components/Reports/ProfitLossReport';
 import { VATReport } from './components/Reports/VATReport';
@@ -55,6 +56,7 @@ import { CreditNoteView } from './components/CreditNote/CreditNoteView';
 import { VATReturn } from './components/Reports/VATReturn';
 import { RecurringInvoices } from './components/Invoice/RecurringInvoices';
 import { RecurringInvoiceEdit } from './components/Invoice/RecurringInvoiceEdit';
+import { RecurringInvoiceTemplateEdit } from './components/Invoice/RecurringInvoiceTemplateEdit';
 import { SetupWizard } from './components/Onboarding/SetupWizard';
 import { PrivacyPolicy } from './components/Legal/PrivacyPolicy';
 import { TermsOfService } from './components/Legal/TermsOfService';
@@ -178,10 +180,12 @@ function AppRoutes() {
         <Route path="/invoices/new" element={<InvoiceForm />} />
         <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
         <Route path="/invoices/:id/view" element={<InvoiceView />} />
+        <Route path="/invoices/templates" element={<InvoiceTemplatesPage />} />
         <Route path="/reports/vat-return" element={<VATReturn />} />
         {/* Recurring */}
         <Route path="/invoices/recurring" element={<RecurringInvoices />} />
         <Route path="/invoices/recurring/edit/:id" element={<RecurringInvoiceEdit />} />
+        <Route path="/invoices/recurring/template/:id" element={<RecurringInvoiceTemplateEdit />} />
         
         {/* Notifications */}
         <Route path="/notifications" element={<NotificationCenter />} />

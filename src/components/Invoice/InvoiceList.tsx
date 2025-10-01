@@ -1081,12 +1081,23 @@ export const InvoiceList: React.FC = () => {
                 
                 {showActionsDropdown && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
+                    <div
+                      className="fixed inset-0 z-10"
                       onClick={() => setShowActionsDropdown(false)}
                     />
-                    
+
                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-20 overflow-hidden">
+                      <button
+                        onClick={() => {
+                          navigate('/invoices/templates');
+                          setShowActionsDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center transition-colors"
+                      >
+                        <FileText className="h-4 w-4 mr-3 text-gray-500" />
+                        <span className="text-gray-700">Invoice Templates</span>
+                      </button>
+
                       <button
                         onClick={() => {
                           navigate('/invoices/recurring');
@@ -1097,7 +1108,7 @@ export const InvoiceList: React.FC = () => {
                         <CalendarSync className="h-4 w-4 mr-3 text-gray-500" />
                         <span className="text-gray-700">Recurring Invoices</span>
                       </button>
-                      
+
                       <button
                         onClick={() => {
                           navigate('/credit-notes');
@@ -1108,9 +1119,9 @@ export const InvoiceList: React.FC = () => {
                         <CreditCard className="h-4 w-4 mr-3 text-gray-500" />
                         <span className="text-gray-700">Credit Notes</span>
                       </button>
-                      
+
                       <div className="border-t border-gray-100"></div>
-                      
+
                       <button
                         onClick={() => {
                           setShowSettings(true);
@@ -1121,7 +1132,7 @@ export const InvoiceList: React.FC = () => {
                         <Settings className="h-4 w-4 mr-3 text-gray-500" />
                         <span className="text-gray-700">Invoice Settings</span>
                       </button>
-                      
+
                       <button
                         onClick={() => {
                           exportToCSV();

@@ -1,6 +1,6 @@
 // src/components/Invoice/InvoiceForm.tsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Settings, Save, X, AlertCircle } from 'lucide-react';
 import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
@@ -72,14 +72,22 @@ const InvoiceFormHeader = () => {
   );
 };
 
-export const InvoiceForm: React.FC = () => {
+interface InvoiceFormProps {
+  recurringTemplateId?: string;
+  recurringTemplateData?: any;
+}
+
+export const InvoiceForm: React.FC<InvoiceFormProps> = ({ recurringTemplateId, recurringTemplateData }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+  const isRecurringTemplateMode = !!recurringTemplateId;
   const queryClient = useQueryClient();
   const { addClientToCache } = useData();
   const { addInvoiceToCache } = useData();
+  const location = useLocation();
+  const templateIdFromState = (location.state as any)?.templateId;
   const { formatCurrency, taxRates, baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol, userSettings, isUserSettingsReady } = useSettings();
   const [showRateWarning, setShowRateWarning] = useState(false);
   const [originalRate, setOriginalRate] = useState<number | null>(null);
@@ -334,6 +342,102 @@ useEffect(() => {
       loadInvoiceSettings();
     }
   }, [user, isEdit]);
+
+  // Auto-load template if coming from templates page
+  useEffect(() => {
+    if (templateIdFromState && templates.length > 0 && !isEdit) {
+      handleTemplateSelect(templateIdFromState);
+    }
+  }, [templateIdFromState, templates, isEdit]);
+
+  // Load recurring template data when in recurring template edit mode
+  useEffect(() => {
+    if (isRecurringTemplateMode && recurringTemplateData) {
+      loadRecurringTemplate();
+    }
+  }, [isRecurringTemplateMode, recurringTemplateData]);
+
+  const loadRecurringTemplate = () => {
+    if (!recurringTemplateData || !recurringTemplateData.template_data) return;
+
+    const template = recurringTemplateData.template_data;
+
+    // Update form data (without items - items are separate state)
+    setFormData({
+      ...formData,
+      client_id: recurringTemplateData.client_id || '',
+      tax_rate: String(template.tax_rate || 0),
+      notes: template.notes || '',
+      payment_terms: template.payment_terms || 30,
+      currency: template.currency || baseCurrency,
+      income_category_id: template.income_category_id || '',
+    });
+
+    // Update items separately
+    if (template.items && template.items.length > 0) {
+      setItems(template.items.map((item: any, index: number) => ({
+        id: item.id || `${Date.now()}-${index}`,
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        rate: item.rate || 0,
+        amount: item.amount || 0,
+        tax_rate: item.tax_rate || 0,
+        tax_amount: item.tax_amount || 0,
+        net_amount: item.net_amount || item.amount || 0,
+        gross_amount: item.gross_amount || item.amount || 0
+      })));
+    }
+  };
+
+  const handleSaveRecurringTemplate = async () => {
+    if (!user || !recurringTemplateId) return;
+
+    setSavingTemplate(true);
+
+    try {
+      // Prepare the template data
+      const updatedTemplateData = {
+        items: items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount,
+          tax_rate: item.tax_rate || 0,
+          tax_amount: item.tax_amount || 0,
+          net_amount: item.net_amount || item.amount,
+          gross_amount: item.gross_amount || item.amount
+        })),
+        subtotal: Number(subtotal.toFixed(2)),
+        tax_rate: Number(parseFloat(formData.tax_rate) || 0),
+        tax_amount: Number(taxAmount.toFixed(2)),
+        total: Number(total.toFixed(2)),
+        notes: formData.notes || '',
+        payment_terms: formData.payment_terms || 30,
+        currency: formData.currency || baseCurrency,
+        income_category_id: formData.income_category_id || null
+      };
+
+      // Update only the template_data field in recurring_invoices
+      const { error } = await supabase
+        .from('recurring_invoices')
+        .update({
+          template_data: updatedTemplateData,
+          client_id: formData.client_id || null
+        })
+        .eq('id', recurringTemplateId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      alert('✅ Recurring invoice template updated successfully!\n\nFuture invoices will use these updated details.');
+      navigate(`/invoices/recurring/edit/${recurringTemplateId}`);
+    } catch (err: any) {
+      console.error('Error saving recurring template:', err);
+      alert('Failed to save template: ' + err.message);
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   useEffect(() => {
   if (formData.currency && formData.currency !== baseCurrency) {
@@ -893,6 +997,12 @@ useEffect(() => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Handle recurring template mode differently
+    if (isRecurringTemplateMode && recurringTemplateId) {
+      await handleSaveRecurringTemplate();
+      return;
+    }
+
     // Check if online
   if (!isOnline) {
     alert('You must be online to create invoices. Please check your internet connection.');
@@ -1092,7 +1202,7 @@ if (!isUserSettingsReady) {
   <div className="mb-8">
   <div className="flex justify-between items-center">
     <h1 className="text-2xl font-bold text-gray-900">
-      {id ? 'Edit Invoice' : 'Create New Invoice'}
+      {isRecurringTemplateMode ? 'Edit Recurring Invoice Template' : (id ? 'Edit Invoice' : 'Create New Invoice')}
     </h1>
     {!isOnline && (
   <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -1118,10 +1228,23 @@ if (!isUserSettingsReady) {
       
       <InvoiceFormHeader />
 
+      {/* Recurring Template Mode Warning */}
+      {isRecurringTemplateMode && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-indigo-900">Editing Recurring Invoice Template</p>
+            <p className="text-sm text-indigo-700 mt-1">
+              You're editing the template for future recurring invoices. Changes will only affect invoices generated after you save.
+            </p>
+          </div>
+        </div>
+      )}
+
       <UsageLimitGate type="invoices">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Template Selection - Enhanced with recurring indicator */}
-{!isEdit && templates.length > 0 && (
+{!isEdit && !isRecurringTemplateMode && templates.length > 0 && (
   <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
     <label className="block text-sm font-medium text-gray-700 mb-2">
       Start from a template (optional)
@@ -1164,6 +1287,8 @@ if (!isUserSettingsReady) {
         <div className="bg-white rounded-lg shadow p-6">
           {/* Invoice Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Hide Invoice Number in recurring template mode */}
+            {!isRecurringTemplateMode && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Invoice Number
@@ -1182,36 +1307,58 @@ if (!isUserSettingsReady) {
                 </div>
               )}
             </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Client
+                {isRecurringTemplateMode && (
+                  <span className="ml-2 text-xs text-gray-500">(Locked)</span>
+                )}
               </label>
-              <div className="flex gap-2">
-                <select
-                  value={formData.client_id}
-                  onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select a client (optional)</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setShowClientModal(true)}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+              {isRecurringTemplateMode ? (
+                <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg flex items-center gap-2">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className="text-gray-700">
+                    {clients.find(c => c.id === formData.client_id)?.name || 'No client selected'}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <select
+                    value={formData.client_id}
+                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a client (optional)</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowClientModal(true)}
+                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              {isRecurringTemplateMode && (
+                <p className="mt-1 text-xs text-gray-500">
+                  To change the client, create a new recurring invoice
+                </p>
+              )}
             </div>
 
-            
 
+
+            {/* Hide Invoice Date in recurring template mode */}
+            {!isRecurringTemplateMode && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Invoice Date
@@ -1224,7 +1371,10 @@ if (!isUserSettingsReady) {
                 required
               />
             </div>
+            )}
 
+            {/* Hide Due Date in recurring template mode */}
+            {!isRecurringTemplateMode && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Due Date
@@ -1237,26 +1387,46 @@ if (!isUserSettingsReady) {
                 required
               />
             </div>
+            )}
           </div>
           {/* Add Currency Selection HERE */}
 <div className="mb-6">
   <label className="block text-sm font-medium text-gray-700 mb-2">
     Invoice Currency
+    {isRecurringTemplateMode && (
+      <span className="ml-2 text-xs text-gray-500">(Locked)</span>
+    )}
   </label>
-  <select
-    value={formData.currency}
-    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-  >
-    {userSettings?.enabled_currencies?.map(currency => (
-      <option key={currency} value={currency}>
-        {currency} - {getCurrencySymbol(currency)}
-      </option>
-    ))}
-  </select>
-  {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+  {isRecurringTemplateMode ? (
+    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg flex items-center gap-2">
+      <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      <span className="text-gray-700">
+        {formData.currency} - {getCurrencySymbol(formData.currency)}
+      </span>
+    </div>
+  ) : (
+    <select
+      value={formData.currency}
+      onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      {userSettings?.enabled_currencies?.map(currency => (
+        <option key={currency} value={currency}>
+          {currency} - {getCurrencySymbol(currency)}
+        </option>
+      ))}
+    </select>
+  )}
+  {!isRecurringTemplateMode && formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
     <p className="text-xs text-gray-500 mt-1">
       Rate: 1 {baseCurrency} = {exchangeRates[formData.currency].toFixed(4)} {formData.currency}
+    </p>
+  )}
+  {isRecurringTemplateMode && (
+    <p className="mt-1 text-xs text-gray-500">
+      To change currency, create a new recurring invoice
     </p>
   )}
 </div>
@@ -1330,7 +1500,8 @@ if (!isUserSettingsReady) {
             </p>
           </div>
 
-          {/* Recurring Invoice Options */}
+          {/* Recurring Invoice Options - Hide in recurring template mode */}
+          {!isRecurringTemplateMode && (
           <div className="bg-gray-50 rounded-lg p-6">
             <label className="flex items-center mb-4">
               <input
@@ -1384,6 +1555,7 @@ if (!isUserSettingsReady) {
               </div>
             )}
           </div>
+          )}
 
           {/* Invoice Items */}
           <div>
@@ -1559,14 +1731,14 @@ if (!isUserSettingsReady) {
           <div className="mt-6 flex gap-4">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || savingTemplate}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSubmitting ? 'Saving...' : (isEdit ? 'Update Invoice' : 'Create Invoice')}
+              {(isSubmitting || savingTemplate) ? 'Saving...' : (isRecurringTemplateMode ? 'Save Template Changes' : (isEdit ? 'Update Invoice' : 'Create Invoice'))}
             </button>
             
-            {/* Save as Template button - only show when creating new invoice */}
-            {!isEdit && (
+            {/* Save as Template button - only show when creating new invoice and not in recurring template mode */}
+            {!isEdit && !isRecurringTemplateMode && (
               <button
                 type="button"
                 onClick={() => setShowSaveTemplateDialog(true)}
