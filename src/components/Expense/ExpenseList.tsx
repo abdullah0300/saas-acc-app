@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import {  Users, Clock, RefreshCw, Copy, DollarSign } from 'lucide-react';
@@ -29,35 +29,55 @@ import { Expense, Category } from '../../types';
 export const ExpenseList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, baseCurrency } = useSettings();
+  const [searchParams, setSearchParams] = useSearchParams();
+
 const { businessData, businessDataLoading, refreshBusinessData } = useData();
 const { expenses } = businessData;  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
 const { categories: allCategories } = businessData;
 const categories = allCategories.expense; // Use expense categories from DataContext
 const loading = businessDataLoading;
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [error, setError] = useState('');
 
   // Expense detail modal state
 const [showDetailModal, setShowDetailModal] = useState(false);
 const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
-  
-  // Filter states
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<string>('this-month');
-  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Filter states - Initialize from URL params
+  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('category') || 'all');
+  const [dateRange, setDateRange] = useState<string>(searchParams.get('date') || 'this-month');
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>((searchParams.get('sort') as 'date' | 'amount') || 'date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('order') as 'asc' | 'desc') || 'desc');
   const [showFilters, setShowFilters] = useState(false);
 // Pagination states
-const [currentPage, setCurrentPage] = useState(1);
+const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1'));
 const [itemsPerPage] = useState(50); // 50 items per page
 
 // Bulk selection states
 const [selectedItems, setSelectedItems] = useState<string[]>([]);
 const [selectAll, setSelectAll] = useState(false);
-// Custom date range states
+// Custom date range states - Initialize from URL
 const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-const [customStartDate, setCustomStartDate] = useState('');
-const [customEndDate, setCustomEndDate] = useState('');
+const [customStartDate, setCustomStartDate] = useState(searchParams.get('start') || '');
+const [customEndDate, setCustomEndDate] = useState(searchParams.get('end') || '');
+
+  // Sync filters to URL params
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    // Only add non-default values to keep URL clean
+    if (searchTerm) params.set('q', searchTerm);
+    if (selectedCategory !== 'all') params.set('category', selectedCategory);
+    if (dateRange !== 'this-month') params.set('date', dateRange);
+    if (sortBy !== 'date') params.set('sort', sortBy);
+    if (sortOrder !== 'desc') params.set('order', sortOrder);
+    if (currentPage !== 1) params.set('page', currentPage.toString());
+    if (customStartDate) params.set('start', customStartDate);
+    if (customEndDate) params.set('end', customEndDate);
+
+    // Update URL without causing navigation
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, selectedCategory, dateRange, sortBy, sortOrder, currentPage, customStartDate, customEndDate]);
 
   useEffect(() => {
   filterAndSortExpenses();
@@ -222,6 +242,35 @@ const handleBulkExport = () => {
     return;
   }
 
+  const selectedExpenses = filteredExpenses.filter(expense =>
+    selectedItems.includes(expense.id)
+  );
+
+  const headers = ['Date', 'Description', 'Category', 'Vendor', 'Amount', 'Currency', 'Receipt'];
+  const csvData = selectedExpenses.map(expense => [
+    format(parseISO(expense.date), 'yyyy-MM-dd'),
+    expense.description,
+    expense.category?.name || 'Uncategorized',
+    expense.vendor || 'No vendor',
+    expense.reference_number || '',
+    expense.amount.toString(),
+    expense.currency || baseCurrency,
+    expense.receipt_url ? 'Yes' : 'No',
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `selected-expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+  link.click();
+
+  alert(`Exported ${selectedItems.length} expense record(s)`);
+};
 
 // Helper function to get search results count message
 const getSearchResultsMessage = () => {
@@ -274,35 +323,27 @@ const searchAllTime = () => {
   // The useEffect will automatically re-run the search with new date range
 };
 
-  const selectedExpenses = filteredExpenses.filter(expense => 
-    selectedItems.includes(expense.id)
-  );
-  
-  const headers = ['Date', 'Description', 'Category', 'Vendor', 'Amount', 'Currency', 'Receipt'];
-const csvData = selectedExpenses.map(expense => [
-  format(parseISO(expense.date), 'yyyy-MM-dd'),
-  expense.description,
-  expense.category?.name || 'Uncategorized',
-  expense.vendor || 'No vendor',
-  expense.reference_number || '',
-  expense.amount.toString(),
-  expense.currency || baseCurrency,
-  expense.receipt_url ? 'Yes' : 'No',
-  expense.reference_number || '', 
-]);
-    
-  const csvContent = [
-    headers.join(','),
-    ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n');
-  
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `selected-expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-  link.click();
-  
-  alert(`Exported ${selectedItems.length} expense record(s)`);
+// Clear all active filters
+const clearAllFilters = () => {
+  setSearchTerm('');
+  setSelectedCategory('all');
+  setDateRange('this-month');
+  setSortBy('date');
+  setSortOrder('desc');
+  setCurrentPage(1);
+  setCustomStartDate('');
+  setCustomEndDate('');
+};
+
+// Check if any filters are active
+const hasActiveFilters = () => {
+  return searchTerm !== '' ||
+         selectedCategory !== 'all' ||
+         dateRange !== 'this-month' ||
+         sortBy !== 'date' ||
+         sortOrder !== 'desc' ||
+         customStartDate !== '' ||
+         customEndDate !== '';
 };
 
 // Helper function to get user-friendly date range names
@@ -334,55 +375,6 @@ const csvData = selectedExpenses.map(expense => [
     }
   };
 
-  // Helper function to get search results count message
-  const getSearchResultsMessage = () => {
-    const totalExpenses = expenses.length;
-    const filteredCount = filteredExpenses.length;
-    const isSearching = searchTerm.length > 0;
-    const scopeName = getDateRangeDisplayName(dateRange);
-    
-    if (isSearching) {
-      return {
-        primary: `Found ${filteredCount} result${filteredCount !== 1 ? 's' : ''}`,
-        secondary: `Searching in: ${scopeName}`,
-        showExpandOption: filteredCount < 5 && dateRange !== 'all' && totalExpenses > filteredCount
-      };
-    }
-    
-    return {
-      primary: `Showing ${filteredCount} record${filteredCount !== 1 ? 's' : ''}`,
-      secondary: `From: ${scopeName}`,
-      showExpandOption: false
-    };
-  };
-
-  // Handle custom date range
-  const handleCustomDateRange = () => {
-    if (!customStartDate || !customEndDate) {
-      alert('Please select both start and end dates');
-      return;
-    }
-    
-    if (new Date(customStartDate) > new Date(customEndDate)) {
-      alert('Start date cannot be after end date');
-      return;
-    }
-    
-    setDateRange('custom');
-    setShowCustomDatePicker(false);
-  };
-
-  // Reset custom date picker
-  const resetCustomDatePicker = () => {
-    setCustomStartDate('');
-    setCustomEndDate('');
-    setShowCustomDatePicker(false);
-  };
-
-  // Function to search all time when user wants to expand
-  const searchAllTime = () => {
-    setDateRange('all');
-  };
   const handleDelete = async (id: string) => {
   if (!window.confirm('Are you sure you want to delete this expense record?')) return;
   
@@ -589,41 +581,110 @@ const handleViewDetails = (expense: Expense) => {
         </div>
       )}
 
-      {/* Filter Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* Active Filters Indicator */}
-          {(dateRange !== 'this-month' || selectedCategory !== 'all') && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Active filters:</span>
-              <div className="flex gap-1">
-                {dateRange !== 'this-month' && (
-                  <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium border border-blue-100">
-                    📅 {getDateRangeDisplayName(dateRange)}
-                  </span>
-                )}
-                {selectedCategory !== 'all' && (
-                  <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium border border-purple-100">
-                    📁 {categories.find(cat => cat.id === selectedCategory)?.name || 'Category'}
-                  </span>
-                )}
-              </div>
+      {/* Active Filter Chips */}
+      {hasActiveFilters() && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-gray-600">Active Filters:</span>
+
+          {searchTerm && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium border border-indigo-200">
+              <Search className="h-3 w-3" />
+              <span>Search: {searchTerm}</span>
+              <button
+                onClick={() => setSearchTerm('')}
+                className="ml-1 hover:bg-indigo-200 rounded-full p-0.5 transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {selectedCategory !== 'all' && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium border border-purple-200">
+              <Filter className="h-3 w-3" />
+              <span>Category: {categories.find(cat => cat.id === selectedCategory)?.name || 'Unknown'}</span>
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className="ml-1 hover:bg-purple-200 rounded-full p-0.5 transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {dateRange !== 'this-month' && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium border border-blue-200">
+              <Calendar className="h-3 w-3" />
+              <span>Date: {getDateRangeDisplayName(dateRange)}</span>
+              <button
+                onClick={() => {
+                  setDateRange('this-month');
+                  setCustomStartDate('');
+                  setCustomEndDate('');
+                }}
+                className="ml-1 hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {(sortBy !== 'date' || sortOrder !== 'desc') && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium border border-green-200">
+              <ArrowUpDown className="h-3 w-3" />
+              <span>Sort: {sortBy === 'date' ? 'Date' : 'Amount'} ({sortOrder === 'asc' ? 'Ascending' : 'Descending'})</span>
+              <button
+                onClick={() => {
+                  setSortBy('date');
+                  setSortOrder('desc');
+                }}
+                className="ml-1 hover:bg-green-200 rounded-full p-0.5 transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
           )}
         </div>
-        
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-            showFilters 
-              ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white shadow-md' 
-              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 shadow-sm hover:shadow-md'
-          }`}
-        >
-          <Filter className="h-4 w-4" />
-          Filters
-          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
-        </button>
+      )}
+
+      {/* Filter Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {/* Clear All Filters Button */}
+          {hasActiveFilters() && (
+            <button
+              onClick={clearAllFilters}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-all"
+            >
+              <X className="h-4 w-4" />
+              Clear All Filters
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+              showFilters
+                ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white shadow-md'
+                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 shadow-sm hover:shadow-md'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            {hasActiveFilters() && (
+              <span className="ml-1 px-2 py-0.5 text-xs font-bold bg-white/20 rounded-full">
+                {[
+                  searchTerm !== '',
+                  selectedCategory !== 'all',
+                  dateRange !== 'this-month',
+                  sortBy !== 'date' || sortOrder !== 'desc',
+                  customStartDate !== '' || customEndDate !== ''
+                ].filter(Boolean).length}
+              </span>
+            )}
+            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
       </div>
     </div>
     

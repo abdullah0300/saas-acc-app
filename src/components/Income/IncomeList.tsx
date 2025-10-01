@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Client } from '../../types';
 import { getClients } from '../../services/database';
 import { useData } from '../../contexts/DataContext';
@@ -37,30 +37,32 @@ import { Income, Category } from '../../types';
 export const IncomeList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, baseCurrency } = useSettings();
+  const [searchParams, setSearchParams] = useSearchParams();
+
 // Remove local incomes state - we'll use cached data instead
 const { businessData, businessDataLoading, refreshBusinessData } = useData();
 const { incomes } = businessData;  const [filteredIncomes, setFilteredIncomes] = useState<Income[]>([]);
 const { categories: allCategories } = businessData;
 const categories = allCategories.income; // Use income categories from DataContext
 const loading = businessDataLoading;
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [error, setError] = useState('');
-  
-  // Filter states
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<string>('this-month');
-  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Filter states - Initialize from URL params
+  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('category') || 'all');
+  const [dateRange, setDateRange] = useState<string>(searchParams.get('date') || 'this-month');
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>((searchParams.get('sort') as 'date' | 'amount') || 'date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('order') as 'asc' | 'desc') || 'desc');
   const [showFilters, setShowFilters] = useState(false);
-  const [clientFilter, setClientFilter] = useState('');
+  const [clientFilter, setClientFilter] = useState(searchParams.get('client') || '');
   const [clients, setClients] = useState<Client[]>([]);
 const [clientSearch, setClientSearch] = useState('');
-// Custom date range states
+// Custom date range states - Initialize from URL
 const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-const [customStartDate, setCustomStartDate] = useState('');
-const [customEndDate, setCustomEndDate] = useState('');
+const [customStartDate, setCustomStartDate] = useState(searchParams.get('start') || '');
+const [customEndDate, setCustomEndDate] = useState(searchParams.get('end') || '');
 // Pagination states
-const [currentPage, setCurrentPage] = useState(1);
+const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1'));
 const [itemsPerPage] = useState(50); // 50 items per page
 // Bulk selection states
 const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -69,6 +71,26 @@ const [showDetailModal, setShowDetailModal] = useState(false);
 const [selectedIncome, setSelectedIncome] = useState<Income | null>(null);
 const { userSettings } = useSettings();
 const userCountry = countries.find(c => c.code === userSettings?.country);
+
+  // Sync filters to URL params
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    // Only add non-default values to keep URL clean
+    if (searchTerm) params.set('q', searchTerm);
+    if (selectedCategory !== 'all') params.set('category', selectedCategory);
+    if (dateRange !== 'this-month') params.set('date', dateRange);
+    if (sortBy !== 'date') params.set('sort', sortBy);
+    if (sortOrder !== 'desc') params.set('order', sortOrder);
+    if (clientFilter) params.set('client', clientFilter);
+    if (currentPage !== 1) params.set('page', currentPage.toString());
+    if (customStartDate) params.set('start', customStartDate);
+    if (customEndDate) params.set('end', customEndDate);
+
+    // Update URL without causing navigation
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, selectedCategory, dateRange, sortBy, sortOrder, clientFilter, currentPage, customStartDate, customEndDate]);
+
   useEffect(() => {
   // Data is already loaded by DataContext, just filter when dateRange changes
   filterAndSortIncomes();
@@ -214,6 +236,29 @@ const getDateRangeDisplayName = (range: string) => {
 const searchAllTime = () => {
   setDateRange('all');
   // The useEffect will automatically re-run the search with new date range
+};
+
+// Clear all filters
+const clearAllFilters = () => {
+  setSearchTerm('');
+  setSelectedCategory('all');
+  setDateRange('this-month');
+  setSortBy('date');
+  setSortOrder('desc');
+  setClientFilter('');
+  setCurrentPage(1);
+  setCustomStartDate('');
+  setCustomEndDate('');
+};
+
+// Check if any filters are active
+const hasActiveFilters = () => {
+  return searchTerm !== '' ||
+         selectedCategory !== 'all' ||
+         dateRange !== 'this-month' ||
+         sortBy !== 'date' ||
+         sortOrder !== 'desc' ||
+         clientFilter !== '';
 };
 
 // Helper function to get search results count message
@@ -588,17 +633,107 @@ const averageIncome = regularIncomes.length > 0
     </div>
             <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-                  showFilters 
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg transform scale-105' 
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 relative ${
+                  showFilters
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg transform scale-105'
                     : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white   hover:bg-white border border-indigo-200/50 shadow-sm hover:shadow-md hover:scale-105'
                 }`}
               >
                 <Filter className="h-4 w-4" />
                 Filters
+                {hasActiveFilters() && (
+                  <span className="ml-1 px-2 py-0.5 bg-white text-indigo-600 text-xs font-bold rounded-full">
+                    {[searchTerm, selectedCategory !== 'all', dateRange !== 'this-month', sortBy !== 'date', sortOrder !== 'desc', clientFilter].filter(Boolean).length}
+                  </span>
+                )}
                 <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
               </button>
+
+              {/* Clear All Filters Button */}
+              {hasActiveFilters() && (
+                <button
+                  onClick={clearAllFilters}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all border border-red-200 font-medium"
+                >
+                  <X className="h-4 w-4" />
+                  Clear Filters
+                </button>
+              )}
           </div>
+
+          {/* Active Filter Chips */}
+          {hasActiveFilters() && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {searchTerm && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium">
+                  <Search className="h-3 w-3" />
+                  <span className="font-semibold">Search:</span>
+                  <span>{searchTerm}</span>
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {selectedCategory !== 'all' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium">
+                  <FileText className="h-3 w-3" />
+                  <span className="font-semibold">Category:</span>
+                  <span>{categories.find(c => c.id === selectedCategory)?.name}</span>
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className="ml-1 hover:bg-purple-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {dateRange !== 'this-month' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">
+                  <Calendar className="h-3 w-3" />
+                  <span className="font-semibold">Date:</span>
+                  <span>{getDateRangeDisplayName(dateRange)}</span>
+                  <button
+                    onClick={() => setDateRange('this-month')}
+                    className="ml-1 hover:bg-blue-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {clientFilter && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                  <Users className="h-3 w-3" />
+                  <span className="font-semibold">Client:</span>
+                  <span>{clients.find(c => c.id === clientFilter)?.name}</span>
+                  <button
+                    onClick={() => setClientFilter('')}
+                    className="ml-1 hover:bg-green-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {(sortBy !== 'date' || sortOrder !== 'desc') && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium">
+                  <TrendingUp className="h-3 w-3" />
+                  <span className="font-semibold">Sort:</span>
+                  <span className="capitalize">{sortBy} ({sortOrder})</span>
+                  <button
+                    onClick={() => {
+                      setSortBy('date');
+                      setSortOrder('desc');
+                    }}
+                    className="ml-1 hover:bg-orange-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Advanced Filters */}
             {showFilters && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; 
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'; 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DeleteInvoiceWarning } from './DeleteInvoiceWarning';
 import { useData } from '../../contexts/DataContext';
@@ -82,6 +82,7 @@ export const InvoiceList: React.FC = () => {
   const queryClient = useQueryClient();
   const { refreshBusinessData } = useData();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Helper function to calculate total tax from items with proper fallback
   const calculateInvoiceTaxTotal = (invoice: Invoice): number => {
@@ -109,34 +110,55 @@ export const InvoiceList: React.FC = () => {
     return baseAmount * exchangeRate;
   };
   
-  // State for filters and UI
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
-  const [currencyFilter, setCurrencyFilter] = useState<string>('all');
-  const [clientFilter, setClientFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  // State for filters and UI - Initialize from URL params
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>((searchParams.get('status') as InvoiceStatus) || 'all');
+  const [currencyFilter, setCurrencyFilter] = useState<string>(searchParams.get('currency') || 'all');
+  const [clientFilter, setClientFilter] = useState<string>(searchParams.get('client') || 'all');
+  const [categoryFilter, setCategoryFilter] = useState<string>(searchParams.get('category') || 'all');
   const [showSettings, setShowSettings] = useState(false);
   const [showActionsDropdown, setShowActionsDropdown] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<'all' | 'one-time' | 'recurring'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'one-time' | 'recurring'>((searchParams.get('type') as 'all' | 'one-time' | 'recurring') || 'all');
   const [showFilters, setShowFilters] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'dueDate'>('date');
+  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'dueDate'>((searchParams.get('sort') as 'date' | 'amount' | 'dueDate') || 'date');
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1'));
   const [itemsPerPage] = useState(50);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
-  // Date range filter states (same as IncomeList)
-  const [dateRange, setDateRange] = useState<string>('this-month');
+  // Date range filter states - Initialize from URL
+  const [dateRange, setDateRange] = useState<string>(searchParams.get('date') || 'this-month');
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [customStartDate, setCustomStartDate] = useState(searchParams.get('start') || '');
+  const [customEndDate, setCustomEndDate] = useState(searchParams.get('end') || '');
 
   // Check if UK user for VAT features - based on country, not currency
   const isUKUser = userSettings?.country === 'GB';
+
+  // Sync filters to URL params
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    // Only add non-default values to keep URL clean
+    if (searchTerm) params.set('q', searchTerm);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (currencyFilter !== 'all') params.set('currency', currencyFilter);
+    if (clientFilter !== 'all') params.set('client', clientFilter);
+    if (categoryFilter !== 'all') params.set('category', categoryFilter);
+    if (typeFilter !== 'all') params.set('type', typeFilter);
+    if (dateRange !== 'this-month') params.set('date', dateRange);
+    if (sortBy !== 'date') params.set('sort', sortBy);
+    if (currentPage !== 1) params.set('page', currentPage.toString());
+    if (customStartDate) params.set('start', customStartDate);
+    if (customEndDate) params.set('end', customEndDate);
+
+    // Update URL without causing navigation
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, statusFilter, currencyFilter, clientFilter, categoryFilter, typeFilter, dateRange, sortBy, currentPage, customStartDate, customEndDate]);
 
   // Close action menu when clicking outside
   useEffect(() => {
@@ -485,6 +507,33 @@ export const InvoiceList: React.FC = () => {
 
     setDateRange('custom');
     setShowCustomDatePicker(false);
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setCurrencyFilter('all');
+    setClientFilter('all');
+    setCategoryFilter('all');
+    setTypeFilter('all');
+    setDateRange('this-month');
+    setSortBy('date');
+    setCurrentPage(1);
+    setCustomStartDate('');
+    setCustomEndDate('');
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = () => {
+    return searchTerm !== '' ||
+           statusFilter !== 'all' ||
+           currencyFilter !== 'all' ||
+           clientFilter !== 'all' ||
+           categoryFilter !== 'all' ||
+           typeFilter !== 'all' ||
+           dateRange !== 'this-month' ||
+           sortBy !== 'date';
   };
 
   // Reset custom date picker
@@ -1317,13 +1366,137 @@ export const InvoiceList: React.FC = () => {
 
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="inline-flex items-center px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all"
+              className="inline-flex items-center px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all relative"
             >
               <Filter className="h-5 w-5 mr-2" />
               Filters
+              {hasActiveFilters() && (
+                <span className="ml-2 px-2 py-0.5 bg-indigo-600 text-white text-xs font-semibold rounded-full">
+                  {[searchTerm, statusFilter !== 'all', currencyFilter !== 'all', clientFilter !== 'all', categoryFilter !== 'all', typeFilter !== 'all', dateRange !== 'this-month', sortBy !== 'date'].filter(Boolean).length}
+                </span>
+              )}
               <ChevronDown className={`h-4 w-4 ml-2 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </button>
+
+            {/* Clear All Filters Button */}
+            {hasActiveFilters() && (
+              <button
+                onClick={clearAllFilters}
+                className="inline-flex items-center px-4 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all border border-red-200"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear Filters
+              </button>
+            )}
           </div>
+
+          {/* Active Filter Chips */}
+          {hasActiveFilters() && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {searchTerm && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <Search className="h-3 w-3" />
+                  <span className="font-medium">Search:</span>
+                  <span>{searchTerm}</span>
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {statusFilter !== 'all' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <span className="font-medium">Status:</span>
+                  <span className="capitalize">{statusFilter}</span>
+                  <button
+                    onClick={() => setStatusFilter('all')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {currencyFilter !== 'all' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <span className="font-medium">Currency:</span>
+                  <span>{currencyFilter}</span>
+                  <button
+                    onClick={() => setCurrencyFilter('all')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {clientFilter !== 'all' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <Users className="h-3 w-3" />
+                  <span className="font-medium">Client:</span>
+                  <span>{uniqueClients.find(c => c.id === clientFilter)?.name}</span>
+                  <button
+                    onClick={() => setClientFilter('all')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {categoryFilter !== 'all' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <Tag className="h-3 w-3" />
+                  <span className="font-medium">Category:</span>
+                  <span>{categories.find(c => c.id === categoryFilter)?.name}</span>
+                  <button
+                    onClick={() => setCategoryFilter('all')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {typeFilter !== 'all' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <RefreshCw className="h-3 w-3" />
+                  <span className="font-medium">Type:</span>
+                  <span className="capitalize">{typeFilter}</span>
+                  <button
+                    onClick={() => setTypeFilter('all')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {dateRange !== 'this-month' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <Calendar className="h-3 w-3" />
+                  <span className="font-medium">Date:</span>
+                  <span>{getDateRangeDisplayName(dateRange)}</span>
+                  <button
+                    onClick={() => setDateRange('this-month')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+              {sortBy !== 'date' && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
+                  <TrendingUp className="h-3 w-3" />
+                  <span className="font-medium">Sort:</span>
+                  <span className="capitalize">{sortBy === 'dueDate' ? 'Due Date' : sortBy}</span>
+                  <button
+                    onClick={() => setSortBy('date')}
+                    className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Search Results Indicator */}
           {(searchTerm || filteredInvoices.length !== invoices.length) && (
