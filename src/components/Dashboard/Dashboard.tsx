@@ -299,7 +299,7 @@ React.useEffect(() => {
   if (user && incomes && expenses && invoices) {
     // Check for monthly banner
     const today = new Date();
-    const isFirstOfMonth = true; // Change to true for testing
+    const isFirstOfMonth = today.getDate() === 1;
     const bannerKey = `monthlyBanner_${user.id}_${today.getFullYear()}_${today.getMonth()}`;
     const hasSeenBanner = localStorage.getItem(bannerKey);
 
