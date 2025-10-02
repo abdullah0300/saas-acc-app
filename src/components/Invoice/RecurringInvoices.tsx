@@ -1,19 +1,21 @@
 // src/components/Invoice/RecurringInvoices.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Plus, 
-  Calendar, 
-  RefreshCw, 
-  Play, 
-  Pause, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Calendar,
+  RefreshCw,
+  Play,
+  Pause,
+  Edit,
+  Trash2,
   Clock,
-  DollarSign,
+  Coins,
   ArrowLeft,
   CheckCircle,
-  XCircle
+  XCircle,
+  Search,
+  Filter
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -44,6 +46,9 @@ export const RecurringInvoices: React.FC = () => {
   const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'paused'>('active');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [frequencyFilter, setFrequencyFilter] = useState<string>('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
 
   useEffect(() => {
     if (user) {
@@ -133,6 +138,37 @@ export const RecurringInvoices: React.FC = () => {
     return { text: `In ${days} days`, color: 'text-gray-600' };
   };
 
+  // Filter invoices based on search and filters
+  const filteredInvoices = useMemo(() => {
+    return recurringInvoices.filter(invoice => {
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const clientName = invoice.client?.name?.toLowerCase() || '';
+        const invoiceNumber = invoice.original_invoice?.invoice_number?.toLowerCase() || '';
+        if (!clientName.includes(searchLower) && !invoiceNumber.includes(searchLower)) {
+          return false;
+        }
+      }
+
+      // Frequency filter
+      if (frequencyFilter !== 'all' && invoice.frequency !== frequencyFilter) {
+        return false;
+      }
+
+      // Date range filter
+      if (dateRangeFilter !== 'all') {
+        const days = differenceInDays(parseISO(invoice.next_date), new Date());
+        if (dateRangeFilter === 'overdue' && days >= 0) return false;
+        if (dateRangeFilter === 'thisWeek' && (days < 0 || days > 7)) return false;
+        if (dateRangeFilter === 'thisMonth' && (days < 0 || days > 30)) return false;
+        if (dateRangeFilter === 'upcoming' && days < 0) return false;
+      }
+
+      return true;
+    });
+  }, [recurringInvoices, searchTerm, frequencyFilter, dateRangeFilter]);
+
   // Calculate stats
   const stats = {
     active: recurringInvoices.filter(i => i.is_active).length,
@@ -210,7 +246,7 @@ export const RecurringInvoices: React.FC = () => {
                 {formatCurrency(stats.monthlyValue, baseCurrency)}
               </p>
             </div>
-            <DollarSign className="h-8 w-8 text-blue-500" />
+            <Coins className="h-8 w-8 text-blue-500" />
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -224,29 +260,93 @@ export const RecurringInvoices: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-lg shadow p-1 inline-flex">
-        {['all', 'active', 'paused'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFilter(status as any)}
-            className={`px-4 py-2 rounded-md capitalize transition-colors ${
-              filter === status
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow p-4 space-y-4">
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by client name or invoice number..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+
+        {/* Filter Row */}
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* Status Filter Tabs */}
+          <div className="bg-gray-100 rounded-lg p-1 inline-flex">
+            {['all', 'active', 'paused'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status as any)}
+                className={`px-4 py-1.5 rounded-md capitalize transition-colors text-sm ${
+                  filter === status
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {status}
+                <span className="ml-2 text-xs">
+                  ({status === 'all' ? stats.total : status === 'active' ? stats.active : stats.total - stats.active})
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Frequency Filter */}
+          <select
+            value={frequencyFilter}
+            onChange={(e) => setFrequencyFilter(e.target.value)}
+            className="px-4 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            {status}
-            <span className="ml-2 text-sm">
-              ({status === 'all' ? stats.total : status === 'active' ? stats.active : stats.total - stats.active})
-            </span>
-          </button>
-        ))}
+            <option value="all">All Frequencies</option>
+            <option value="weekly">Weekly</option>
+            <option value="biweekly">Bi-weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+
+          {/* Date Range Filter */}
+          <select
+            value={dateRangeFilter}
+            onChange={(e) => setDateRangeFilter(e.target.value)}
+            className="px-4 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Dates</option>
+            <option value="overdue">Overdue</option>
+            <option value="thisWeek">This Week</option>
+            <option value="thisMonth">This Month</option>
+            <option value="upcoming">Upcoming</option>
+          </select>
+
+          {/* Clear Filters */}
+          {(searchTerm || frequencyFilter !== 'all' || dateRangeFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFrequencyFilter('all');
+                setDateRangeFilter('all');
+              }}
+              className="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List View */}
-      {recurringInvoices.length > 0 ? (
+      {filteredInvoices.length > 0 ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+            <p className="text-sm text-gray-600">
+              Showing <span className="font-semibold">{filteredInvoices.length}</span> of <span className="font-semibold">{recurringInvoices.length}</span> recurring invoices
+            </p>
+          </div>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -259,7 +359,7 @@ export const RecurringInvoices: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {recurringInvoices.map((recurring) => {
+              {filteredInvoices.map((recurring) => {
                 const currency = recurring.template_data?.currency || baseCurrency;
                 const total = recurring.template_data?.total || 0;
                 const frequencyBadge = getFrequencyBadge(recurring.frequency);
@@ -351,6 +451,22 @@ export const RecurringInvoices: React.FC = () => {
               })}
             </tbody>
           </table>
+        </div>
+      ) : recurringInvoices.length > 0 ? (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No matching invoices</h3>
+          <p className="text-gray-500 mb-4">Try adjusting your search or filters</p>
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setFrequencyFilter('all');
+              setDateRangeFilter('all');
+            }}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Clear all filters
+          </button>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow p-12 text-center">
