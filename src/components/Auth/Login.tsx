@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../services/supabaseClient";
+import { supabase, supabaseRecovery } from "../../services/supabaseClient";
+
 import {
   Mail,
   Lock,
@@ -27,6 +28,7 @@ import {
   Chrome,
   Facebook,
   Linkedin,
+  AlertCircle
 } from "lucide-react";
 
 export const Login: React.FC = () => {
@@ -45,12 +47,14 @@ export const Login: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [socialLoading, setSocialLoading] = useState<string | null>(null); 
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  // Replace the entire handleForgotPassword function with:
+const handleForgotPassword = async (e: React.FormEvent) => {
   e.preventDefault();
   setResetLoading(true);
   
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+    // Use supabaseRecovery instead of supabase for password reset
+    const { error } = await supabaseRecovery.auth.resetPasswordForEmail(resetEmail, {
       redirectTo: `${process.env.REACT_APP_SITE_URL || window.location.origin}/reset-password`,
     });
     
@@ -519,130 +523,199 @@ export const Login: React.FC = () => {
       </div>
 
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-        }
-        @keyframes float-delayed {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-15px); }
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-          20%, 40%, 60%, 80% { transform: translateX(2px); }
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-float-delayed {
-          animation: float-delayed 6s ease-in-out infinite;
-          animation-delay: 3s;
-        }
-        .animate-spin-slow {
-          animation: spin-slow 20s linear infinite;
-        }
-        .animate-bounce-slow {
-          animation: bounce-slow 3s ease-in-out infinite;
-        }
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
-      `}</style>
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+  @keyframes float-delayed {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes bounce-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+  }
+  @keyframes modal-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .animate-float-delayed {
+    animation: float-delayed 6s ease-in-out infinite;
+    animation-delay: 3s;
+  }
+  .animate-spin-slow {
+    animation: spin-slow 20s linear infinite;
+  }
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+  }
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+  .animate-modal-slide-up {
+    animation: modal-slide-up 0.3s ease-out;
+  }
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+`}</style>
       {/* Forgot Password Modal */}
+{/* Forgot Password Modal */}
 {showForgotModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
-      <div className="text-center mb-6">
-        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4">
-          <Mail className="h-6 w-6 text-indigo-600" />
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all animate-modal-slide-up">
+      {/* Header with gradient */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 rounded-t-3xl">
+        <div className="text-center">
+          <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-white/20 backdrop-blur mb-4">
+            <Mail className="h-8 w-8 text-white" />
+          </div>
+          <h3 className="text-xl font-semibold text-white">Reset Your Password</h3>
+          <p className="text-indigo-100 mt-2 text-sm">
+            We'll send you a link to reset your password
+          </p>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">Reset Password</h3>
-        <p className="text-sm text-gray-600 mt-2">
-          Enter your email and we'll send you a link to reset your password
-        </p>
       </div>
 
-      <form onSubmit={handleForgotPassword}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email Address
-          </label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="email"
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="Enter your email address"
-              required
-            />
+      {/* Content */}
+      <div className="p-6">
+        {/* Spam notice */}
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-amber-800 font-medium">Check your spam folder</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Reset emails sometimes end up in spam. Make sure to check there and mark as "Not Spam" if you find it.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setShowForgotModal(false);
-              setResetEmail('');
-            }}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={resetLoading}
-            className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:shadow-lg transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          >
-            {resetLoading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                Sending...
-              </div>
-            ) : (
-              'Send Reset Link'
-            )}
-          </button>
+        <form onSubmit={handleForgotPassword}>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                placeholder="Enter your email address"
+                required
+                autoFocus
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2 ml-1">
+              Enter the email associated with your account
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForgotModal(false);
+                setResetEmail('');
+              }}
+              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={resetLoading}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:shadow-lg transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {resetLoading ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                  Sending...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <Mail className="h-5 w-5 mr-2" />
+                  Send Reset Link
+                </div>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Additional help text */}
+        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+          <p className="text-xs text-gray-500">
+            Remember your password? {' '}
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(false)}
+              className="text-indigo-600 hover:text-indigo-500 font-medium"
+            >
+              Back to login
+            </button>
+          </p>
         </div>
-      </form>
+      </div>
     </div>
   </div>
 )}
-{/* Success Message Toast */}
+
+{/* Success Message Toast - Update this too */}
 {showSuccessMessage && (
-  <div className="fixed top-4 right-4 z-50 transform transition-all duration-300 ease-in-out">
-    <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-lg max-w-sm">
+  <div className="fixed top-4 right-4 z-50 transform transition-all duration-300 ease-in-out animate-slide-in">
+    <div className="bg-white rounded-xl shadow-2xl border border-green-100 p-4 max-w-sm">
       <div className="flex items-start">
         <div className="flex-shrink-0">
-          <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+            <CheckCircle className="h-6 w-6 text-white" />
+          </div>
+        </div>
+        <div className="ml-3 flex-1">
+          <h3 className="text-sm font-medium text-gray-900">Email Sent!</h3>
+          <p className="text-sm text-gray-600 mt-1">{successMessage}</p>
+          <p className="text-xs text-gray-500 mt-2">
+            Don't forget to check your spam folder
+          </p>
+        </div>
+        <button
+          onClick={() => setShowSuccessMessage(false)}
+          className="ml-3 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
-        </div>
-        <div className="ml-3">
-          <h3 className="text-sm font-medium text-green-800">Email Sent!</h3>
-          <p className="text-sm text-green-700 mt-1">{successMessage}</p>
-        </div>
-        <div className="ml-auto pl-3">
-          <button
-            onClick={() => setShowSuccessMessage(false)}
-            className="text-green-400 hover:text-green-600 transition-colors"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
+        </button>
       </div>
     </div>
   </div>
