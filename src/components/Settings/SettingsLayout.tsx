@@ -32,22 +32,26 @@ export const SettingsLayout: React.FC = () => {
   // If we're on the main settings page, show navigation
   const showNavigation = currentPath === '/settings' || currentPath === '/settings/' || !isOnSettingsSubPage;
 
-  const settingsNav = [
-    { path: "profile", label: "Profile", icon: User },
+  // Company Settings - Only visible to owners
+  const companySettingsNav = isOwner ? [
     { path: "team", label: "Team", icon: Users },
     { path: "subscription", label: "Subscription & Billing", icon: CreditCard },
     { path: "payment-accounts", label: "Payment Accounts", icon: CreditCard },
     { path: "tax", label: "Tax Settings", icon: Percent },
     { path: "currency", label: "Currency", icon: Globe },
     { path: "import-history", label: "Import History", icon: Upload },
-    // Invoice settings removed - it's accessed from Invoice Form
+    ...(canManageTeam ? [{ path: "audit", label: "Audit Trail", icon: Activity }] : []),
+  ] : [];
+
+  // Personal Preferences - Visible to all users
+  const personalSettingsNav = [
+    { path: "profile", label: "Profile", icon: User },
     { path: "notifications", label: "Notifications", icon: Bell },
     { path: "security", label: "Security", icon: Shield },
-    // Show audit logs only for owners and admins
-    ...(isOwner || canManageTeam
-      ? [{ path: "audit", label: "Audit Trail", icon: Activity }]
-      : []),
   ];
+
+  // Combine for backward compatibility (used in mobile view)
+  const settingsNav = [...companySettingsNav, ...personalSettingsNav];
 
   // Get display name from subscription
   const currentPlan = subscription?.plan
@@ -78,43 +82,82 @@ export const SettingsLayout: React.FC = () => {
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar */}
         <aside className={`lg:w-64 flex-shrink-0 ${isOnSettingsSubPage ? 'hidden lg:block' : ''}`}>
-          {/* Current Plan Card */}
-          <div className={`bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 mb-6 text-white shadow-lg ${!showNavigation ? 'hidden lg:block' : ''}`}>
-            <div className="flex items-center mb-2">
-              <Zap className="h-5 w-5 mr-2" />
-              <span className="text-sm font-medium">Current Plan</span>
+          {/* Current Plan Card - Only show for owners */}
+          {isOwner && (
+            <div className={`bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 mb-6 text-white shadow-lg ${!showNavigation ? 'hidden lg:block' : ''}`}>
+              <div className="flex items-center mb-2">
+                <Zap className="h-5 w-5 mr-2" />
+                <span className="text-sm font-medium">Current Plan</span>
+              </div>
+              <p className="text-lg font-bold">{currentPlan}</p>
+              <NavLink
+                to="/settings/subscription"
+                className="text-sm underline hover:no-underline mt-2 inline-block opacity-90 hover:opacity-100 transition-opacity"
+              >
+                Manage subscription →
+              </NavLink>
             </div>
-            <p className="text-lg font-bold">{currentPlan}</p>
-            <NavLink
-              to="/settings/subscription"
-              className="text-sm underline hover:no-underline mt-2 inline-block opacity-90 hover:opacity-100 transition-opacity"
-            >
-              Manage subscription →
-            </NavLink>
-          </div>
+          )}
 
           {/* Navigation - Desktop */}
-          <nav className="space-y-1 hidden lg:block">
-            {settingsNav.map((item) => {
-              const Icon = item.icon;
+          <nav className="space-y-6 hidden lg:block">
+            {/* Company Settings Section - Only for owners */}
+            {isOwner && companySettingsNav.length > 0 && (
+              <div>
+                <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Company Settings
+                </h3>
+                <div className="space-y-1">
+                  {companySettingsNav.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={`/settings/${item.path}`}
+                        className={({ isActive }) =>
+                          `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                            isActive
+                              ? "bg-blue-50 text-blue-700"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          }`
+                        }
+                      >
+                        <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
+                        {item.label}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-              return (
-                <NavLink
-                  key={item.path}
-                  to={`/settings/${item.path}`}
-                  className={({ isActive }) =>
-                    `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`
-                  }
-                >
-                  <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
+            {/* Personal Preferences Section */}
+            <div>
+              <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Personal Preferences
+              </h3>
+              <div className="space-y-1">
+                {personalSettingsNav.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={`/settings/${item.path}`}
+                      className={({ isActive }) =>
+                        `flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                          isActive
+                            ? "bg-blue-50 text-blue-700"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`
+                      }
+                    >
+                      <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
+                      {item.label}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
           </nav>
 
           {/* Navigation - Mobile */}

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { registrationService } from "../../services/registrationService";
 import { supabase } from "../../services/supabaseClient";
+import { TeamJoinFlow } from "./TeamJoinFlow";
 import {
   AlertCircle,
   ArrowRight,
@@ -76,28 +77,39 @@ export const Register: React.FC = () => {
 
     setCheckingInvite(true);
     try {
+      // Query pending_invites table without joins
       const { data, error } = await supabase
-        .from("team_invitations")
-        .select(
-          `
-          *,
-          teams:team_id(name),
-          inviter:invited_by(email, full_name)
-        `
-        )
-        .eq("code", inviteCode)
-        .eq("status", "pending")
+        .from("pending_invites")
+        .select("*")
+        .eq("invite_code", inviteCode)
+        .eq("accepted", false)
+        .gte("expires_at", new Date().toISOString())
         .single();
 
       if (error || !data) {
+        console.error("Invitation check error:", error);
         setError("Invalid or expired invitation code.");
         return;
       }
 
+      // Get team owner's company name from profiles
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('company_name, full_name')
+        .eq('id', data.team_id)
+        .single();
+
+      // Get inviter's profile
+      const { data: inviterProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', data.invited_by)
+        .single();
+
       setInviteDetails({
         ...data,
-        teamName: data.teams?.name,
-        inviterName: data.inviter?.full_name || data.inviter?.email,
+        teamName: ownerProfile?.company_name || ownerProfile?.full_name || 'the team',
+        inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Team admin',
       });
 
       setFormData((prev) => ({
@@ -223,6 +235,17 @@ export const Register: React.FC = () => {
     },
   ];
 
+  // If user has valid invite, show simplified TeamJoinFlow
+  if (inviteDetails && inviteCode) {
+    return (
+      <TeamJoinFlow
+        inviteDetails={inviteDetails}
+        inviteCode={inviteCode}
+      />
+    );
+  }
+
+  // Regular registration flow
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Registration Form */}

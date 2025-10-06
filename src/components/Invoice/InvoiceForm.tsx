@@ -84,8 +84,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ recurringTemplateId, r
   const isEdit = !!id;
   const isRecurringTemplateMode = !!recurringTemplateId;
   const queryClient = useQueryClient();
-  const { addClientToCache } = useData();
-  const { addInvoiceToCache } = useData();
+  const { addClientToCache, addInvoiceToCache, effectiveUserId } = useData();
   const location = useLocation();
   const templateIdFromState = (location.state as any)?.templateId;
   const { formatCurrency, taxRates, baseCurrency, exchangeRates, convertCurrency, getCurrencySymbol, userSettings, isUserSettingsReady } = useSettings();
@@ -276,7 +275,7 @@ useEffect(() => {
     const { data } = await supabase
       .from('invoice_settings')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId || user.id)
       .single();
     
     if (data && !isEdit && !settingsLoaded) {
@@ -425,7 +424,7 @@ useEffect(() => {
           client_id: formData.client_id || null
         })
         .eq('id', recurringTemplateId)
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId || user.id);
 
       if (error) throw error;
 
@@ -596,7 +595,7 @@ const handleSaveAsTemplate = async () => {
     }
     
     await createInvoiceTemplate({
-      user_id: user.id,
+      user_id: effectiveUserId || user.id,
       name: templateName.trim(),
       template_data: templateData
     });
@@ -650,7 +649,7 @@ const handleSaveAsTemplate = async () => {
   
   try {
     const client = await createClient({
-      user_id: user.id,
+      user_id: effectiveUserId || user.id,
       name: newClientData.name.trim(),
       email: newClientData.email || undefined,
       phone: newClientData.phone || undefined,
@@ -693,7 +692,7 @@ const handleSaveAsTemplate = async () => {
       .from('invoices')
       .insert({
         ...invoiceData,
-        user_id: user.id,
+        user_id: effectiveUserId || user.id,
         status: 'draft', // Let database handle the enum type
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -721,20 +720,20 @@ const handleSaveAsTemplate = async () => {
     const { data: settings } = await supabase
       .from('invoice_settings')
       .select('next_number')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId || user.id)
       .single();
-    
+
     if (settings) {
       await supabase
         .from('invoice_settings')
         .update({ next_number: (settings.next_number || 1) + 1 })
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId || user.id);
     } else {
       // Create settings if they don't exist
       await supabase
         .from('invoice_settings')
         .insert({
-          user_id: user.id,
+          user_id: effectiveUserId || user.id,
           next_number: 2,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()

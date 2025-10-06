@@ -1,10 +1,12 @@
 // src/components/Layout/Header.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, Bell, User, Settings, LogOut, ChevronDown, Shield, Crown } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { NotificationBell } from '../Notifications/NotificationBell';
 import { getProfile } from '../../services/database';
+import { supabase } from '../../services/supabaseClient';
 
 interface ProfileData {
   id: string;
@@ -26,9 +28,11 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, signOut } = useAuth();
+  const { userRole, teamId } = useData();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [ownerCompanyName, setOwnerCompanyName] = useState<string>('');
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Load profile data
@@ -43,6 +47,19 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     try {
       const profileData = await getProfile(user.id);
       setProfile(profileData);
+
+      // Load team owner's company name if user is a team member
+      if ((userRole === 'member' || userRole === 'admin') && teamId) {
+        const { data: ownerProfile } = await supabase
+          .from('profiles')
+          .select('company_name')
+          .eq('id', teamId)
+          .single();
+
+        if (ownerProfile?.company_name) {
+          setOwnerCompanyName(ownerProfile.company_name);
+        }
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
     }
@@ -86,6 +103,17 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       return profile.company_name;
     }
     return 'Account';
+  };
+
+  // Get role badge
+  const getRoleBadge = () => {
+    if (userRole === 'owner') {
+      return { icon: Crown, label: 'Owner', color: 'bg-yellow-100 text-yellow-800' };
+    } else if (userRole === 'admin') {
+      return { icon: Shield, label: 'Admin', color: 'bg-purple-100 text-purple-800' };
+    } else {
+      return { icon: User, label: 'Member', color: 'bg-gray-100 text-gray-800' };
+    }
   };
 
   // Profile Avatar Component
@@ -189,18 +217,39 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
             {/* Profile Dropdown Menu */}
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
                 {/* User Info */}
                 <div className="px-4 py-3 border-b border-gray-200">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 mb-2">
                     <ProfileAvatar size="w-10 h-10" textSize="text-sm" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {getUserDisplayName()}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {getUserDisplayName()}
+                        </p>
+                        {/* Role Badge */}
+                        {(() => {
+                          const badge = getRoleBadge();
+                          const Icon = badge.icon;
+                          return (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badge.color}`}>
+                              <Icon className="h-3 w-3 mr-1" />
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       <p className="text-xs text-gray-500">{getSubtitle()}</p>
                     </div>
                   </div>
+                  {/* Team Context - Show for non-owners */}
+                  {userRole !== 'owner' && ownerCompanyName && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <p className="text-xs text-gray-600">
+                        Working in <span className="font-medium text-gray-900">{ownerCompanyName}</span>
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Menu Items */}

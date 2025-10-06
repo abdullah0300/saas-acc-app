@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useData } from '../../contexts/DataContext';
 import { supabase } from '../../services/supabaseClient';
 import { format, addDays, addWeeks, addMonths, parseISO, differenceInDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -43,6 +44,7 @@ export const RecurringInvoices: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { formatCurrency, getCurrencySymbol, baseCurrency } = useSettings();
+  const { effectiveUserId } = useData();
   const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'paused'>('active');
@@ -51,14 +53,14 @@ export const RecurringInvoices: React.FC = () => {
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
 
   useEffect(() => {
-    if (user) {
+    if (user && effectiveUserId) {
       loadRecurringInvoices();
     }
-  }, [user, filter]);
+  }, [user, effectiveUserId, filter]);
 
   const loadRecurringInvoices = async () => {
-    if (!user) return;
-    
+    if (!user || !effectiveUserId) return;
+
     try {
       setLoading(true);
       let query = supabase
@@ -68,7 +70,7 @@ export const RecurringInvoices: React.FC = () => {
           client:clients(name),
           original_invoice:invoices!invoice_id(invoice_number)
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('next_date', { ascending: true });
       
       if (filter === 'active') {

@@ -33,12 +33,13 @@ export class RegistrationService {
   async validateInvitation(inviteCode: string): Promise<InvitationValidation> {
     try {
       console.log('Validating invitation with code:', inviteCode);
-      
-      // Use team_invites table with token field
+
+      // Use pending_invites table with invite_code field
       const { data: invite, error: inviteError } = await supabase
-        .from('team_invites')
+        .from('pending_invites')
         .select('*')
-        .eq('token', inviteCode)
+        .eq('invite_code', inviteCode)
+        .eq('accepted', false)
         .gte('expires_at', new Date().toISOString())
         .maybeSingle();
 
@@ -109,16 +110,56 @@ export class RegistrationService {
       // 2. Handle team invitation if present
       if (data.inviteCode) {
         console.log('🎟️ Processing team invitation...');
-        
+
         const validation = await this.validateInvitation(data.inviteCode);
         if (!validation.valid || !validation.invitation) {
           console.error('❌ Invalid invitation');
           return { success: false, error: validation.error || 'Invalid invitation' };
         }
 
-        // Add user to team
-        try {
-          const { error: teamError } = await supabase
+        // Check if team_members record already exists (pre-created during invitation)
+        console.log('👥 Checking for existing team_members record...');
+        const { data: existingMember } = await supabase
+          .from('team_members')
+          .select('*')
+          .eq('email', data.email)
+          .eq('team_id', validation.invitation.team_id)
+          .maybeSingle();
+
+        console.log('🔍 Existing member:', existingMember);
+
+        let teamMemberData;
+        let teamError;
+
+        if (existingMember && !existingMember.user_id) {
+          // Record exists but user_id is null - UPDATE it
+          console.log('🔄 Updating existing team_members record...');
+          const { error, data: updatedData } = await supabase
+            .from('team_members')
+            .update({
+              user_id: authData.user.id,
+              full_name: `${data.firstName} ${data.lastName}`.trim(),
+              status: 'active',
+              accepted_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingMember.id)
+            .select();
+
+          teamError = error;
+          teamMemberData = updatedData;
+        } else if (!existingMember) {
+          // No existing record - INSERT new one
+          console.log('➕ Inserting new team_members record...');
+          console.log('📋 Team member data:', {
+            user_id: authData.user.id,
+            team_id: validation.invitation.team_id,
+            email: data.email,
+            role: validation.invitation.role,
+            invited_by: validation.invitation.invited_by
+          });
+
+          const { error, data: insertedData } = await supabase
             .from('team_members')
             .insert({
               user_id: authData.user.id,
@@ -128,34 +169,85 @@ export class RegistrationService {
               role: validation.invitation.role,
               status: 'active',
               invited_by: validation.invitation.invited_by,
-              joined_at: new Date().toISOString(),
-              created_at: new Date().toISOString()
-            });
+              accepted_at: new Date().toISOString()
+            })
+            .select();
 
-          if (teamError) {
-            console.error('❌ Team member creation error:', teamError);
-            // Don't fail the entire registration for team errors
-            console.warn('⚠️ Failed to add to team, but user creation succeeded');
-          } else {
-            console.log('✅ User added to team successfully');
-          }
-
-          // Mark invitation as used (delete it)
-          await supabase
-            .from('team_invites')
-            .delete()
-            .eq('token', data.inviteCode);
-
-          return { 
-            success: true, 
-            user: authData.user,
-            isTeamMember: true,
-            teamId: validation.invitation.team_id
+          teamError = error;
+          teamMemberData = insertedData;
+        } else {
+          // Record exists and already has a user_id - this is a duplicate
+          console.error('❌ Team member already exists with user_id');
+          return {
+            success: false,
+            error: 'This email is already associated with a team member. Please contact the team owner.'
           };
-        } catch (teamErr) {
-          console.error('❌ Team processing error:', teamErr);
-          // Continue with regular registration if team processing fails
         }
+
+        if (teamError) {
+          console.error('❌ Team member creation/update error:', teamError);
+          console.error('❌ Error details:', {
+            code: teamError.code,
+            message: teamError.message,
+            details: teamError.details,
+            hint: teamError.hint
+          });
+          return {
+            success: false,
+            error: `Failed to join team: ${teamError.message}. Please contact the team owner.`
+          };
+        }
+
+        console.log('✅ Team member created/updated:', teamMemberData);
+
+        console.log('✅ User added to team successfully');
+
+        // Mark invitation as accepted
+        const { error: inviteUpdateError } = await supabase
+          .from('pending_invites')
+          .update({ accepted: true })
+          .eq('invite_code', data.inviteCode);
+
+        if (inviteUpdateError) {
+          console.error('⚠️ Failed to mark invitation as accepted:', inviteUpdateError);
+          // Don't fail - user is already in team
+        }
+
+        // Create profile for team member with setup_completed = true (they skip setup)
+        console.log('👤 Creating team member profile...');
+        const teamMemberProfile = {
+          id: authData.user.id,
+          email: data.email,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          full_name: `${data.firstName} ${data.lastName}`.trim(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          setup_completed: true // Team members skip setup wizard
+        };
+
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert(teamMemberProfile);
+
+        if (profileError && profileError.code !== '23505') {
+          console.error('❌ Team member profile creation error:', profileError);
+          return {
+            success: false,
+            error: `Failed to create profile: ${profileError.message}`
+          };
+        }
+
+        console.log('✅ Team member profile created successfully');
+        console.log('✅ Team member setup complete - skipping subscription creation');
+
+        // Team members don't need their own subscription - they use owner's subscription
+        return {
+          success: true,
+          user: authData.user,
+          isTeamMember: true,
+          teamId: validation.invitation.team_id
+        };
       }
 
       // 3. Create basic profile (without setup_completed flag)

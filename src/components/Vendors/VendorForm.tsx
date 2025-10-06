@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { createVendor, updateVendor, getVendors } from '../../services/database';
 import { Vendor } from '../../types';
 
 export const VendorForm: React.FC = () => {
   const { user } = useAuth();
+  const { effectiveUserId } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
@@ -61,15 +63,15 @@ export const VendorForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) return;
-    
+    if (!user || !effectiveUserId) return;
+
     setLoading(true);
     setError(null);
 
     try {
       const vendorData = {
         ...formData,
-        user_id: user.id,
+        user_id: effectiveUserId,
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         address: formData.address || undefined,

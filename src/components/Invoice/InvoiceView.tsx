@@ -53,7 +53,7 @@ export const InvoiceView: React.FC = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const { formatCurrency, baseCurrency, exchangeRates } = useSettings();
-  const { refreshBusinessData } = useData();
+  const { refreshBusinessData, effectiveUserId } = useData();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const invoiceRef = useRef<HTMLDivElement>(null);
@@ -149,11 +149,11 @@ export const InvoiceView: React.FC = () => {
     const profileData = await getProfile(user.id);
     setProfile(profileData);
     
-    // Load invoice settings
+    // Load invoice settings (use effectiveUserId for team members)
     const { data: settings } = await supabase
       .from('invoice_settings')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId || user.id)
       .single();
     
     setInvoiceSettings(settings);

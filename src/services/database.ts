@@ -850,7 +850,7 @@ export const getTeamMembers = async (teamId: string): Promise<TeamMember[]> => {
       )
     `)
     .eq('team_id', teamId)
-    .order('joined_at', { ascending: false });
+    .order('accepted_at', { ascending: false });
 
   if (error) throw error;
   return data as TeamMember[];
@@ -944,7 +944,7 @@ export const getUserTeamInfo = async (userId: string) => {
       team_id,
       role,
       status,
-      joined_at,
+      accepted_at,
       team:team_id(
         email,
         full_name,

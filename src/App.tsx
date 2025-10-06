@@ -61,6 +61,7 @@ import { SetupWizard } from './components/Onboarding/SetupWizard';
 import { PrivacyPolicy } from './components/Legal/PrivacyPolicy';
 import { TermsOfService } from './components/Legal/TermsOfService';
 import { SmartRedirect } from './components/Auth/SmartRedirect';
+import { OwnerOnlyRoute } from './components/Auth/OwnerOnlyRoute';
 import { useSessionKeepAlive } from './hooks/useSessionKeepAlive';
 import { useAuth } from './contexts/AuthContext';
 import { Loader } from 'lucide-react';
@@ -254,17 +255,19 @@ function AppRoutes() {
         {/* Settings */}
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="/settings/profile" replace />} />
+          {/* Personal Settings - Accessible to all */}
           <Route path="profile" element={<ProfileSettings />} />
-          <Route path="payment-accounts" element={<PaymentSettings />} />
-          <Route path="tax" element={<TaxSettings />} />
-          <Route path="currency" element={<CurrencySettings />} />
-          <Route path="/settings/import-history" element={<ImportHistorySettings />} />
-          <Route path="invoice" element={<InvoiceSettings onClose={() => {}} />} />
           <Route path="notifications" element={<NotificationPreferences />} />
-          <Route path="team" element={<TeamManagement />} />
-          <Route path="subscription" element={<SubscriptionPlans />} />
-          <Route path="audit" element={<AuditLogs />} />
           <Route path="security" element={<SecuritySettings />} />
+          {/* Company Settings - Owner only */}
+          <Route path="team" element={<OwnerOnlyRoute><TeamManagement /></OwnerOnlyRoute>} />
+          <Route path="subscription" element={<OwnerOnlyRoute><SubscriptionPlans /></OwnerOnlyRoute>} />
+          <Route path="payment-accounts" element={<OwnerOnlyRoute><PaymentSettings /></OwnerOnlyRoute>} />
+          <Route path="tax" element={<OwnerOnlyRoute><TaxSettings /></OwnerOnlyRoute>} />
+          <Route path="currency" element={<OwnerOnlyRoute><CurrencySettings /></OwnerOnlyRoute>} />
+          <Route path="import-history" element={<OwnerOnlyRoute><ImportHistorySettings /></OwnerOnlyRoute>} />
+          <Route path="invoice" element={<OwnerOnlyRoute><InvoiceSettings onClose={() => {}} /></OwnerOnlyRoute>} />
+          <Route path="audit" element={<OwnerOnlyRoute><AuditLogs /></OwnerOnlyRoute>} />
         </Route>
         
         <Route path="/payment/success" element={<PaymentSuccess />} />

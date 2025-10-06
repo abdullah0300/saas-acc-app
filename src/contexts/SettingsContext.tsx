@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
+import { getEffectiveUserId } from '../services/database';
 import { countries } from '../data/countries';
 import { UserSettings as UserSettingsType } from '../types';
 
@@ -114,78 +115,93 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadSettings = async () => {
     if (!user) return;
-    
+
     setLoading(true);
-    
+
     try {
-      // Load tax rates
+      // Get effective user ID (team owner's ID if user is team member, otherwise own ID)
+      const effectiveUserId = await getEffectiveUserId(user.id);
+
+      // Load tax rates - shared from team owner
       const { data: taxData, error: taxError } = await supabase
         .from('tax_rates')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
-      
+
       if (taxError) {
         console.error('Error loading tax rates:', taxError);
       } else {
         setTaxRates(taxData || []);
       }
-      
-      // Load user settings
+
+      // Load user settings - from team owner if user is team member
       const { data: settingsData, error: settingsError } = await supabase
         .from('user_settings')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .maybeSingle();
       
       if (!settingsData) {
-        // No settings found - create default settings
-        console.log('No user settings found, creating defaults...');
-        
-        const defaultSettings = {
-          user_id: user.id,
-          base_currency: 'USD',
-          enabled_currencies: ['USD'],
-          date_format: 'MM/DD/YYYY',
-          fiscal_year_start: 1,
-          country: 'US'
-        };
-        
-        const { data: newSettings, error: createError } = await supabase
-          .from('user_settings')
-          .insert([defaultSettings])
-          .select()
-          .single();
-          
-        if (createError) {
-          console.error('Failed to create user settings:', createError);
-          
-          // Check if it's a unique constraint violation
-          if (createError.code === '23505') {
-            console.log('Settings already exist, trying to fetch again...');
-            // Try to fetch again
-            const { data: retryData } = await supabase
-              .from('user_settings')
-              .select('*')
-              .eq('user_id', user.id)
-              .single();
-              
-            if (retryData) {
-              setUserSettings(retryData);
-              return;
+        // No settings found
+        // Only create default settings if this is the owner/solo user, not team members
+        if (effectiveUserId === user.id) {
+          console.log('No user settings found, creating defaults...');
+
+          const defaultSettings = {
+            user_id: user.id,
+            base_currency: 'USD',
+            enabled_currencies: ['USD'],
+            date_format: 'MM/DD/YYYY',
+            fiscal_year_start: 1,
+            country: 'US'
+          };
+
+          const { data: newSettings, error: createError } = await supabase
+            .from('user_settings')
+            .insert([defaultSettings])
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Failed to create user settings:', createError);
+
+            // Check if it's a unique constraint violation
+            if (createError.code === '23505') {
+              console.log('Settings already exist, trying to fetch again...');
+              // Try to fetch again
+              const { data: retryData } = await supabase
+                .from('user_settings')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+              if (retryData) {
+                setUserSettings(retryData);
+                return;
+              }
             }
+
+            // Use defaults in memory
+            setUserSettings({
+              base_currency: 'USD',
+              enabled_currencies: ['USD'],
+              date_format: 'MM/DD/YYYY',
+              fiscal_year_start: 1
+            });
+          } else {
+            console.log('Settings created successfully:', newSettings);
+            setUserSettings(newSettings);
           }
-          
-          // Use defaults in memory
+        } else {
+          // Team member - use defaults until owner creates settings
+          console.log('Team member detected, waiting for owner settings...');
           setUserSettings({
             base_currency: 'USD',
             enabled_currencies: ['USD'],
             date_format: 'MM/DD/YYYY',
             fiscal_year_start: 1
           });
-        } else {
-          console.log('Settings created successfully:', newSettings);
-          setUserSettings(newSettings);
         }
       } else if (settingsData) {
         setUserSettings(settingsData);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, X, Percent, Globe, AlertCircle, Calculator } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { supabase } from '../../services/supabaseClient';
 import { countries } from '../../data/countries';
@@ -43,6 +44,7 @@ const UK_FLAT_RATE_CATEGORIES = [
 
 export const TaxSettings: React.FC = () => {
   const { user } = useAuth();
+  const { effectiveUserId } = useData();
   const { refreshSettings } = useSettings();
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,8 +79,8 @@ export const TaxSettings: React.FC = () => {
       const { data, error } = await supabase
         .from('tax_rates')
         .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('user_id', effectiveUserId || user.id)
+        .order('created_at', { ascending: false});
       
       if (error) throw error;
       setTaxRates(data || []);
@@ -94,7 +96,7 @@ export const TaxSettings: React.FC = () => {
       const { data, error } = await supabase
         .from('user_settings')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId || user.id)
         .single();
       
       if (error && error.code !== 'PGRST116') throw error;
@@ -170,7 +172,7 @@ export const TaxSettings: React.FC = () => {
       const { error } = await supabase
         .from('user_settings')
         .update(updateData)
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId || user.id);
       
       if (error) throw error;
       
@@ -191,7 +193,7 @@ export const TaxSettings: React.FC = () => {
       const { error } = await supabase
         .from('tax_rates')
         .insert([{
-          user_id: user.id,
+          user_id: effectiveUserId || user.id,
           name: newTax.name,
           rate: parseFloat(newTax.rate),
           is_default: taxRates.length === 0
@@ -217,7 +219,7 @@ export const TaxSettings: React.FC = () => {
       await supabase
         .from('tax_rates')
         .update({ is_default: false })
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId || user.id);
       
       await supabase
         .from('tax_rates')

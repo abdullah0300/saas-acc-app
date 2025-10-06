@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { supabase } from '../../services/supabaseClient';
 
 interface InvoiceSettingsProps {
@@ -22,6 +23,7 @@ interface InvoiceSettingsProps {
 
 export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => {
   const { user } = useAuth();
+  const { effectiveUserId } = useData();
   const [activeTab, setActiveTab] = useState<'company' | 'templates' | 'notifications' | 'payment'>('company');
   const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -72,7 +74,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
       const { data, error } = await supabase
         .from('invoice_settings')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId || user.id)
         .single();
       
       if (data) {
@@ -121,7 +123,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
       const { data: existing } = await supabase
         .from('invoice_settings')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId || user.id)
         .single();
       
       const settingsData = {
@@ -136,15 +138,15 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
         const { error } = await supabase
           .from('invoice_settings')
           .update(settingsData)
-          .eq('user_id', user.id);
-        
+          .eq('user_id', effectiveUserId || user.id);
+
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('invoice_settings')
           .insert([{
             ...settingsData,
-            user_id: user.id
+            user_id: effectiveUserId || user.id
           }]);
         
         if (error) throw error;

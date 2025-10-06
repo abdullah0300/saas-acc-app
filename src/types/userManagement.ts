@@ -7,7 +7,7 @@ export interface TeamMember {
   role: 'owner' | 'admin' | 'member';
   status: 'active' | 'invited' | 'disabled';
   invited_by: string;
-  joined_at?: string;
+  accepted_at?: string; // ✅ Fixed: was joined_at
   created_at: string;
 }
 

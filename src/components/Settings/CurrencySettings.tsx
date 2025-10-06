@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useData } from '../../contexts/DataContext';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { Check, RefreshCw, Globe, Loader2, Plus, X } from 'lucide-react';
@@ -20,22 +21,30 @@ const AVAILABLE_CURRENCIES = [
 
 export const CurrencySettings: React.FC = () => {
   const { user } = useAuth();
-  const { 
-    userSettings, 
-    baseCurrency, 
-    exchangeRates, 
+  const { effectiveUserId } = useData();
+  const {
+    userSettings,
+    baseCurrency,
+    exchangeRates,
     exchangeRatesLoading,
     exchangeRateStatus,
     refreshExchangeRates,
-    refreshSettings 
+    refreshSettings
   } = useSettings();
-  
+
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddCurrency, setShowAddCurrency] = useState(false);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(
     userSettings?.enabled_currencies || []
   );
+
+  // Update selectedCurrencies when userSettings changes
+  useEffect(() => {
+    if (userSettings?.enabled_currencies) {
+      setSelectedCurrencies(userSettings.enabled_currencies);
+    }
+  }, [userSettings?.enabled_currencies]);
 
   // Get only enabled currencies for display
   const enabledCurrencies = AVAILABLE_CURRENCIES.filter(
@@ -63,17 +72,17 @@ export const CurrencySettings: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!user) return;
-    
+    if (!user || !effectiveUserId) return;
+
     setSaving(true);
     try {
       const { error } = await supabase
         .from('user_settings')
-        .update({ 
+        .update({
           enabled_currencies: selectedCurrencies,
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       if (error) throw error;
       

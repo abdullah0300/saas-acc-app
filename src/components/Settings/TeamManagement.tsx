@@ -14,7 +14,7 @@ interface TeamMember {
   role: 'owner' | 'admin' | 'member';
   status: 'active' | 'invited' | 'disabled';
   invited_by: string;
-  joined_at: string | null;
+  accepted_at: string | null; // ✅ Fixed: was joined_at
   created_at: string;
 }
 
@@ -38,7 +38,8 @@ export const TeamManagement: React.FC = () => {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+  const [ownerName, setOwnerName] = useState<string>('');
+
   // Invite form state
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member');
@@ -58,11 +59,11 @@ export const TeamManagement: React.FC = () => {
 
   const loadTeamData = async () => {
     if (!user || !teamId) return;
-    
+
     try {
       setLoading(true);
       setError('');
-      
+
       // Load team members
       const { data: membersData, error: membersError } = await supabase
         .from('team_members')
@@ -85,6 +86,19 @@ export const TeamManagement: React.FC = () => {
 
       if (invitesError) throw invitesError;
       setInvitations(invitesData || []);
+
+      // Load owner's profile (if user is a team member)
+      if (userRole === 'member' || userRole === 'admin') {
+        const { data: ownerProfile } = await supabase
+          .from('profiles')
+          .select('full_name, company_name')
+          .eq('id', teamId)
+          .single();
+
+        if (ownerProfile) {
+          setOwnerName(ownerProfile.full_name || ownerProfile.company_name || 'Team Owner');
+        }
+      }
 
     } catch (err: any) {
       console.error('Error loading team data:', err);
@@ -308,13 +322,25 @@ export const TeamManagement: React.FC = () => {
         </div>
       )}
 
-      {/* User Limit Info */}
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-        <div className="flex items-center justify-between">
+      {/* Team Member Notice - Show for non-owners */}
+      {userRole !== 'owner' && ownerName && (
+        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
           <div className="flex items-center">
-            <Users className="h-5 w-5 text-blue-600 mr-2" />
+            <Shield className="h-5 w-5 text-purple-600 mr-2" />
+            <span className="text-sm font-medium text-purple-900">
+              Account managed by {ownerName}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription & User Limit Info */}
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center">
+            <Crown className="h-5 w-5 text-blue-600 mr-2" />
             <span className="text-sm font-medium text-blue-900">
-              Team Members: {currentCount} / {userLimit}
+              Subscription: {subscription?.plan?.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} - {currentCount}/{userLimit} seats used
             </span>
           </div>
           {canManageTeam && (
@@ -328,7 +354,7 @@ export const TeamManagement: React.FC = () => {
             </button>
           )}
         </div>
-        {currentCount >= userLimit && (
+        {currentCount >= userLimit && userRole === 'owner' && (
           <p className="mt-2 text-xs text-blue-700">
             Upgrade your plan to add more team members
           </p>
@@ -371,7 +397,7 @@ export const TeamManagement: React.FC = () => {
                   {getRoleBadge(member.role)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'Pending'}
+                  {member.accepted_at ? new Date(member.accepted_at).toLocaleDateString() : 'Pending'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   {canManageTeam && member.role !== 'owner' && (

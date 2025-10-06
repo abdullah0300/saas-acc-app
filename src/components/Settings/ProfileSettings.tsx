@@ -2,16 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { Save, User, Building, Mail, Phone, MapPin, Camera, Upload } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { getProfile, updateProfile } from '../../services/database';
 import { supabase } from '../../services/supabaseClient';
 
 export const ProfileSettings: React.FC = () => {
   const { user } = useAuth();
+  const { effectiveUserId, userRole } = useData();
   const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -24,25 +26,42 @@ export const ProfileSettings: React.FC = () => {
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && effectiveUserId) {
       loadProfile();
     }
-  }, [user]);
+  }, [user, effectiveUserId]);
 
   const loadProfile = async () => {
-    if (!user) return;
-    
+    if (!user || !effectiveUserId) return;
+
     try {
-      const profile = await getProfile(user.id);
+      // Load user's own profile for personal details
+      const userProfile = await getProfile(user.id);
+
+      // For team members, also load owner's company details
+      let companyDetails = {
+        company_name: userProfile.company_name || '',
+        company_address: userProfile.company_address || '',
+        company_logo: userProfile.company_logo || ''
+      };
+
+      if (userRole !== 'owner' && effectiveUserId !== user.id) {
+        // Team member - load owner's company details
+        const ownerProfile = await getProfile(effectiveUserId);
+        companyDetails = {
+          company_name: ownerProfile.company_name || '',
+          company_address: ownerProfile.company_address || '',
+          company_logo: ownerProfile.company_logo || ''
+        };
+      }
+
       setFormData({
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        full_name: profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
-        email: profile.email || '',
-        phone: profile.phone || '',
-        company_name: profile.company_name || '',
-        company_address: profile.company_address || '',
-        company_logo: profile.company_logo || ''
+        first_name: userProfile.first_name || '',
+        last_name: userProfile.last_name || '',
+        full_name: userProfile.full_name || `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
+        email: userProfile.email || '',
+        phone: userProfile.phone || '',
+        ...companyDetails
       });
     } catch (err: any) {
       setError(err.message);
@@ -200,8 +219,13 @@ export const ProfileSettings: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Building className="h-5 w-5 mr-2" />
             Company Information
+            {userRole !== 'owner' && (
+              <span className="ml-auto text-xs font-normal text-gray-500">
+                (Managed by account owner)
+              </span>
+            )}
           </h3>
-          
+
           <div className="space-y-6">
             {/* Company Logo */}
             <div>
@@ -220,25 +244,27 @@ export const ProfileSettings: React.FC = () => {
                     <Camera className="h-8 w-8 text-gray-400" />
                   </div>
                 )}
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                    disabled={uploadingLogo}
-                  />
-                  <span className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 inline-flex items-center">
-                    {uploadingLogo ? (
-                      <span className="text-gray-500">Uploading...</span>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Logo
-                      </>
-                    )}
-                  </span>
-                </label>
+                {userRole === 'owner' && (
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      disabled={uploadingLogo}
+                    />
+                    <span className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 inline-flex items-center">
+                      {uploadingLogo ? (
+                        <span className="text-gray-500">Uploading...</span>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Logo
+                        </>
+                      )}
+                    </span>
+                  </label>
+                )}
               </div>
             </div>
 
@@ -252,7 +278,8 @@ export const ProfileSettings: React.FC = () => {
                 value={formData.company_name}
                 onChange={handleChange}
                 placeholder="Your Company Name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={userRole !== 'owner'}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${userRole === 'owner' ? 'focus:outline-none focus:ring-2 focus:ring-blue-500' : 'bg-gray-50 text-gray-500 cursor-not-allowed'}`}
               />
             </div>
 
@@ -267,8 +294,12 @@ export const ProfileSettings: React.FC = () => {
                 value={formData.company_address}
                 onChange={handleChange}
                 placeholder="123 Main St, City, State 12345"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={userRole !== 'owner'}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${userRole === 'owner' ? 'focus:outline-none focus:ring-2 focus:ring-blue-500' : 'bg-gray-50 text-gray-500 cursor-not-allowed'}`}
               />
+              {userRole !== 'owner' && (
+                <p className="text-xs text-gray-500 mt-1">Company details are managed by the account owner</p>
+              )}
             </div>
           </div>
         </div>

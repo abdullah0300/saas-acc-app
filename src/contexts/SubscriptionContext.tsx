@@ -3,10 +3,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabaseClient';
-import { 
-  PlanType, 
-  getPlanConfig, 
-  hasFeature, 
+import { getEffectiveUserId } from '../services/database';
+import {
+  PlanType,
+  getPlanConfig,
+  hasFeature,
   getPlanLimits,
   canAddMoreUsers,
   canCreateInvoice,
@@ -132,21 +133,24 @@ const showAnticipationModal = (type: 'usage' | 'feature' | 'trial', context?: an
     if (!user) return;
 
     try {
+      // Get effective user ID (owner's ID for team members, own ID for owners/solo users)
+      const effectiveUserId = await getEffectiveUserId(user.id);
+
       const { data, error: subError } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
 
       if (subError && subError.code !== 'PGRST116') {
         throw subError;
       }
 
-      // If no subscription exists, create a trial
-      if (!data) {
+      // If no subscription exists, create a trial (only for owners, not team members)
+      if (!data && effectiveUserId === user.id) {
         const trialEnd = new Date();
         trialEnd.setDate(trialEnd.getDate() + 30);
-        
+
         const { data: newSub, error: createError } = await supabase
           .from('subscriptions')
           .insert([{
@@ -177,24 +181,27 @@ const showAnticipationModal = (type: 'usage' | 'feature' | 'trial', context?: an
     if (!user) return;
 
     try {
+      // Get effective user ID (owner's ID for team members, own ID for owners/solo users)
+      const effectiveUserId = await getEffectiveUserId(user.id);
+
       // Get team members count
       const { count: teamCount } = await supabase
         .from('team_members')
         .select('*', { count: 'exact', head: true })
-        .eq('team_id', user.id)
+        .eq('team_id', effectiveUserId)
         .eq('status', 'active');
 
       // Get clients count
       const { count: clientCount } = await supabase
         .from('clients')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       // Get total invoices
       const { count: totalInvoiceCount } = await supabase
         .from('invoices')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
 
       // Get monthly invoices (current month)
       const startOfMonth = new Date();
@@ -204,7 +211,7 @@ const showAnticipationModal = (type: 'usage' | 'feature' | 'trial', context?: an
       const { count: monthlyInvoiceCount } = await supabase
         .from('invoices')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .gte('created_at', startOfMonth.toISOString());
 
       setUsage({
@@ -238,24 +245,35 @@ const showAnticipationModal = (type: 'usage' | 'feature' | 'trial', context?: an
   useEffect(() => {
     if (!user) return;
 
-    const subscription = supabase
-      .channel('subscription_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${user.id}`
-        },
-        () => {
-          loadSubscription();
-        }
-      )
-      .subscribe();
+    const setupSubscription = async () => {
+      // Get effective user ID to listen for the right subscription changes
+      const effectiveUserId = await getEffectiveUserId(user.id);
+
+      const subscription = supabase
+        .channel('subscription_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'subscriptions',
+            filter: `user_id=eq.${effectiveUserId}`
+          },
+          () => {
+            loadSubscription();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+
+    const cleanup = setupSubscription();
 
     return () => {
-      subscription.unsubscribe();
+      cleanup.then(cleanupFn => cleanupFn?.());
     };
   }, [user, loadSubscription]);
 

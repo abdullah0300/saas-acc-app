@@ -80,7 +80,7 @@ export const InvoiceList: React.FC = () => {
   const { user } = useAuth();
   const { formatCurrency, baseCurrency, userSettings } = useSettings();
   const queryClient = useQueryClient();
-  const { refreshBusinessData } = useData();
+  const { refreshBusinessData, effectiveUserId } = useData();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -176,29 +176,29 @@ export const InvoiceList: React.FC = () => {
 
   // Fetch invoices with React Query
   const { data: invoices = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['invoices', user?.id],
+    queryKey: ['invoices', effectiveUserId],
     queryFn: async () => {
-      if (!user) return [];
-      const data = await getInvoices(user.id);
-      
+      if (!user || !effectiveUserId) return [];
+      const data = await getInvoices(effectiveUserId);
+
       // Check for overdue invoices
       const now = new Date();
       const overdueUpdates = data
-        .filter(invoice => 
-          invoice.status === 'sent' && 
+        .filter(invoice =>
+          invoice.status === 'sent' &&
           new Date(invoice.due_date) < now
         )
         .map(invoice => updateInvoice(invoice.id, { status: 'overdue' }));
-      
+
       if (overdueUpdates.length > 0) {
         await Promise.all(overdueUpdates);
         // Refetch to get updated statuses
-        return await getInvoices(user.id);
+        return await getInvoices(effectiveUserId);
       }
-      
+
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && !!effectiveUserId,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -214,18 +214,18 @@ export const InvoiceList: React.FC = () => {
 
   // Fetch recurring invoices data
   const { data: recurringData = [] } = useQuery({
-    queryKey: ['recurring-invoices', user?.id],
+    queryKey: ['recurring-invoices', effectiveUserId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user || !effectiveUserId) return [];
       const { data, error } = await supabase
         .from('recurring_invoices')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', effectiveUserId);
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user,
+    enabled: !!user && !!effectiveUserId,
   });
 
   // Process recurring invoices into a Map with null checks

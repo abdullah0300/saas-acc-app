@@ -62,7 +62,8 @@ import { Income, Expense, Invoice, Client } from '../../types';
 
 const UsageSummaryCard = () => {
   const { usage, limits, plan } = useSubscription();
-  
+  const { userRole } = useData();
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Plan Usage</h3>
@@ -92,12 +93,15 @@ const UsageSummaryCard = () => {
           </div>
         </div>
       </div>
-      <Link 
-        to="/settings/subscription"
-        className="mt-4 block text-center text-sm text-blue-600 hover:text-blue-800"
-      >
-        View Plan Details →
-      </Link>
+      {/* Only show plan details link for owners */}
+      {userRole === 'owner' && (
+        <Link
+          to="/settings/subscription"
+          className="mt-4 block text-center text-sm text-blue-600 hover:text-blue-800"
+        >
+          View Plan Details →
+        </Link>
+      )}
     </div>
   );
 };
@@ -109,7 +113,7 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const [error, setError] = useState('');
-  const { businessData, businessDataLoading } = useData();
+  const { businessData, businessDataLoading, userRole } = useData();
   // Initialize with session storage, default to hidden
   const [showPrivateNumbers, setShowPrivateNumbers] = useState(() => {
     const saved = sessionStorage.getItem('dashboardPrivacyMode');
@@ -665,16 +669,19 @@ const handleBannerClose = () => {
       </div>
       <h3 className="text-xl font-bold text-gray-900 mb-2">AI CFO Insights</h3>
       <p className="text-gray-600 mb-6 max-w-md mx-auto">
-        Get personalized financial insights and recommendations powered by AI. 
+        Get personalized financial insights and recommendations powered by AI.
         Understand your cash flow, spot trends, and make smarter business decisions.
       </p>
-      <button
-        onClick={() => navigate('/settings/subscription')}
-        className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg"
-      >
-        <Crown className="w-5 h-5 mr-2" />
-        Upgrade to Plus
-      </button>
+      {/* Only show upgrade button for owners */}
+      {userRole === 'owner' && (
+        <button
+          onClick={() => navigate('/settings/subscription')}
+          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg"
+        >
+          <Crown className="w-5 h-5 mr-2" />
+          Upgrade to Plus
+        </button>
+      )}
     </div>
   ) : (
     <>

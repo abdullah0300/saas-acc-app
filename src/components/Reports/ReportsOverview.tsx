@@ -119,7 +119,7 @@ export const ReportsOverview: React.FC = () => {
   const { hasFeature, showAnticipationModal } = useSubscription();
 const navigate = useNavigate();
   const { formatCurrency, baseCurrency } = useSettings();
-  const { getProcessedReport, setProcessedReport } = useData();
+  const { getProcessedReport, setProcessedReport, effectiveUserId } = useData();
   const [period, setPeriod] = useState('6months');
   const [compareMode, setCompareMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -175,8 +175,10 @@ const { userSettings } = useSettings();
 
  useEffect(() => {
   clearOldDismissedInsights();
-  loadReportData();
-}, [user, period, customStartDate, customEndDate]);
+  if (effectiveUserId) {
+    loadReportData();
+  }
+}, [user, effectiveUserId, period, customStartDate, customEndDate]);
 
 // Set the currency formatter for insights
 useEffect(() => {
@@ -187,7 +189,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
 
 
   const loadReportData = async () => {
-  if (!user) return;
+  if (!user || !effectiveUserId) return;
 
   // Generate cache key once at the top
   const cacheKey = period === 'custom' ? `${period}-${customStartDate}-${customEndDate}` : period;
@@ -256,7 +258,7 @@ const [topVendors, setTopVendors] = useState<VendorSpending[]>([]);
     // Call edge function instead of multiple queries
     const { data: reportData, error } = await supabase.functions.invoke('generate-report-data', {
       body: {
-        userId: user.id,
+        userId: effectiveUserId || user.id,
         period,
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
@@ -334,9 +336,9 @@ const clearOldDismissedInsights = () => {
   };
 
   const exportReport = async () => {
-  if (!user) return;
+  if (!user || !effectiveUserId) return;
   const dateRange = getDateRangeForPeriod();
-  await ExportService.exportData('summary', user.id, { dateRange, baseCurrency });
+  await ExportService.exportData('summary', effectiveUserId, { dateRange, baseCurrency });
 };
 
 const getDateRangeForPeriod = () => {
@@ -485,9 +487,9 @@ const getDateRangeForPeriod = () => {
               </button>
               
               {/* Simple Advanced Export Button */}
-              {user && (
-                <ExportDropdown 
-                  userId={user.id}
+              {user && effectiveUserId && (
+                <ExportDropdown
+                  userId={effectiveUserId}
                   clients={clientMetrics}
                   currentPeriod={period}
                 />
