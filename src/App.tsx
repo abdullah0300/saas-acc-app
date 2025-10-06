@@ -47,6 +47,9 @@ import { TaxReport } from './components/Reports/TaxReport';
 import { SubscriptionEnforcer } from './components/Subscription/SubscriptionEnforcer';
 import { PlanProtectedRoute } from './components/Auth/PlanProtectedRoute';
 import { VendorList, VendorForm } from './components/Vendors';
+import { LoanList } from './components/Loans/LoanList';
+import { LoanForm } from './components/Loans/LoanForm';
+import { LoanView } from './components/Loans/LoanView';
 import { ClientProfitability } from './components/Reports/ClientProfitability';
 import { SecuritySettings } from './components/Settings/SecuritySettings';
 import { ImportHistorySettings } from './components/Settings/ImportHistorySettings';
@@ -206,7 +209,13 @@ function AppRoutes() {
         <Route path="/vendors" element={<VendorList />} />
         <Route path="/vendors/new" element={<VendorForm />} />
         <Route path="/vendors/:id/edit" element={<VendorForm />} />
-        
+
+        {/* Loans */}
+        <Route path="/loans" element={<LoanList />} />
+        <Route path="/loans/new" element={<LoanForm />} />
+        <Route path="/loans/:id" element={<LoanView />} />
+        <Route path="/loans/:id/edit" element={<LoanForm />} />
+
         {/* Reports */}
         <Route path="/reports" element={<ReportsOverview />} />
         <Route path="/reports/profit-loss" element={

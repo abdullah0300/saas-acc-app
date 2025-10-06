@@ -7,6 +7,7 @@ import { Brain, RefreshCw } from 'lucide-react';
 import { ContextCollectionModal } from '../AI/ContextCollectionModal';
 import { Link, useNavigate } from 'react-router-dom';
 import MonthlyGreetingBanner from './MonthlyGreetingBanner';
+import { LoanDashboardCard } from './LoanDashboardCard';
 
 import { 
   Building ,
@@ -814,6 +815,9 @@ const handleBannerClose = () => {
     </>
   )}
 </div>
+
+        {/* Loans Widget - Full Width */}
+        <LoanDashboardCard />
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

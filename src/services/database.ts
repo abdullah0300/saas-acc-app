@@ -1425,3 +1425,370 @@ export const getOrCreateCreditNotesCategory = async (userId: string): Promise<st
   return newCategory?.id || null;
 };
 
+// ============================================================
+// LOAN MANAGEMENT FUNCTIONS - Team Aware
+// ============================================================
+
+// Get all loans for user (team-aware)
+export const getLoans = async (userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('loans')
+    .select(`
+      *,
+      vendor:vendors(*)
+    `)
+    .eq('user_id', effectiveUserId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// Get single loan by ID
+export const getLoan = async (loanId: string, userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('loans')
+    .select(`
+      *,
+      vendor:vendors(*),
+      payments:loan_payments(*),
+      schedule:loan_schedules(*)
+    `)
+    .eq('id', loanId)
+    .eq('user_id', effectiveUserId)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Create new loan
+export const createLoan = async (
+  loan: Omit<any, 'id' | 'created_at' | 'updated_at'>,
+  userId: string
+) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('loans')
+    .insert([{
+      ...loan,
+      user_id: effectiveUserId,
+      created_by: userId
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Update loan
+export const updateLoan = async (
+  loanId: string,
+  updates: Partial<any>,
+  userId: string
+) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('loans')
+    .update({
+      ...updates,
+      updated_by: userId,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', loanId)
+    .eq('user_id', effectiveUserId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Soft delete loan
+export const deleteLoan = async (loanId: string, userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { error } = await supabase
+    .from('loans')
+    .update({
+      deleted_at: new Date().toISOString(),
+      updated_by: userId
+    })
+    .eq('id', loanId)
+    .eq('user_id', effectiveUserId);
+
+  if (error) throw error;
+};
+
+// Get loan payments
+export const getLoanPayments = async (loanId: string, userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('loan_payments')
+    .select(`
+      *,
+      loan:loans!inner(*),
+      expense:expenses(*)
+    `)
+    .eq('loan_id', loanId)
+    .eq('user_id', effectiveUserId)
+    .order('payment_number', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// Create loan payment
+export const createLoanPayment = async (
+  payment: Omit<any, 'id' | 'created_at' | 'updated_at'>,
+  userId: string
+) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  // Create the loan payment record
+  const { data, error } = await supabase
+    .from('loan_payments')
+    .insert([{
+      ...payment,
+      user_id: effectiveUserId,
+      created_by: userId
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Auto-create expense entry for interest portion (if interest > 0)
+  if (data && payment.interest_amount > 0) {
+    try {
+      // Get or create the "Loan Interest" category
+      const categoryId = await getOrCreateLoanInterestCategory(userId);
+
+      if (categoryId) {
+        // Get loan details for description
+        const { data: loan } = await supabase
+          .from('loans')
+          .select('loan_number, lender_name, currency')
+          .eq('id', payment.loan_id)
+          .single();
+
+        // Create expense entry for interest
+        const expenseData = {
+          user_id: effectiveUserId,
+          category_id: categoryId,
+          amount: payment.interest_amount,
+          currency: loan?.currency || 'USD',
+          description: `Loan interest payment #${payment.payment_number} - ${loan?.lender_name || 'Loan'} (${loan?.loan_number || ''})`,
+          date: payment.payment_date,
+          vendor: loan?.lender_name || null,
+        };
+
+        const { data: expense } = await supabase
+          .from('expenses')
+          .insert([expenseData])
+          .select()
+          .single();
+
+        // Link expense to payment
+        if (expense) {
+          await supabase
+            .from('loan_payments')
+            .update({ expense_id: expense.id })
+            .eq('id', data.id);
+        }
+      }
+    } catch (expenseError) {
+      console.error('Failed to create interest expense:', expenseError);
+      // Don't fail the whole payment if expense creation fails
+    }
+  }
+
+  return data;
+};
+
+// Update loan payment
+export const updateLoanPayment = async (
+  paymentId: string,
+  updates: Partial<any>,
+  userId: string
+) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('loan_payments')
+    .update({
+      ...updates,
+      updated_by: userId,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', paymentId)
+    .eq('user_id', effectiveUserId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Save loan schedule (amortization)
+export const saveLoanSchedule = async (
+  loanId: string,
+  scheduleData: any[],
+  userId: string
+) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  // Check if schedule exists
+  const { data: existing } = await supabase
+    .from('loan_schedules')
+    .select('id')
+    .eq('loan_id', loanId)
+    .maybeSingle();
+
+  if (existing) {
+    // Update existing
+    const { data, error } = await supabase
+      .from('loan_schedules')
+      .update({
+        schedule_data: scheduleData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('loan_id', loanId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } else {
+    // Create new
+    const { data, error } = await supabase
+      .from('loan_schedules')
+      .insert([{
+        loan_id: loanId,
+        schedule_data: scheduleData
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+};
+
+// Get loan schedule
+export const getLoanSchedule = async (loanId: string, userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('loan_schedules')
+    .select('*')
+    .eq('loan_id', loanId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+};
+
+// Delete loan payment
+export const deleteLoanPayment = async (paymentId: string, userId: string) => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  // Get payment details before deleting
+  const { data: payment } = await supabase
+    .from('loan_payments')
+    .select('*, loan:loans(*)')
+    .eq('id', paymentId)
+    .single();
+
+  if (!payment) throw new Error('Payment not found');
+
+  // Delete associated expense if exists
+  if (payment.expense_id) {
+    await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', payment.expense_id);
+  }
+
+  // Delete the payment
+  const { error } = await supabase
+    .from('loan_payments')
+    .delete()
+    .eq('id', paymentId);
+
+  if (error) throw error;
+
+  // Recalculate loan totals
+  const { data: allPayments } = await supabase
+    .from('loan_payments')
+    .select('*')
+    .eq('loan_id', payment.loan_id)
+    .eq('status', 'paid');
+
+  const totalPaid = allPayments?.reduce((sum, p) => sum + p.total_payment, 0) || 0;
+  const totalPrincipalPaid = allPayments?.reduce((sum, p) => sum + p.principal_amount, 0) || 0;
+  const totalInterestPaid = allPayments?.reduce((sum, p) => sum + p.interest_amount, 0) || 0;
+  const currentBalance = payment.loan.principal_amount - totalPrincipalPaid;
+
+  // Update loan
+  await supabase
+    .from('loans')
+    .update({
+      current_balance: currentBalance,
+      total_paid: totalPaid,
+      total_principal_paid: totalPrincipalPaid,
+      total_interest_paid: totalInterestPaid,
+      status: currentBalance <= 0 ? 'paid_off' : 'active',
+      updated_by: userId,
+    })
+    .eq('id', payment.loan_id);
+
+  return true;
+};
+
+// Get or create 'Loan Interest' expense category
+export const getOrCreateLoanInterestCategory = async (userId: string): Promise<string | null> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  // Try to find existing category
+  const { data: existing } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('user_id', effectiveUserId)
+    .eq('name', 'Loan Interest')
+    .eq('type', 'expense')
+    .single();
+
+  if (existing) return existing.id;
+
+  // Create it if it doesn't exist
+  const { data: newCategory, error } = await supabase
+    .from('categories')
+    .insert({
+      user_id: effectiveUserId,
+      name: 'Loan Interest',
+      type: 'expense',
+      color: '#DC2626',
+      description: 'Interest payments on business loans'
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating loan interest category:', error);
+    return null;
+  }
+
+  return newCategory?.id || null;
+};
+

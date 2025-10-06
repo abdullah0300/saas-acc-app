@@ -353,4 +353,149 @@ export interface CreditNoteItem {
   created_at?: string;
 }
 
+// ============================================================
+// LOAN MANAGEMENT TYPES
+// ============================================================
+
+export type LoanStatus = 'active' | 'paid_off' | 'defaulted' | 'closed';
+export type LoanType = 'business' | 'equipment' | 'line_of_credit' | 'mortgage' | 'personal' | 'other';
+export type PaymentFrequency = 'monthly' | 'quarterly' | 'yearly';
+export type LoanPaymentStatus = 'scheduled' | 'paid' | 'late' | 'missed' | 'partial';
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'credit_card' | 'check' | 'other';
+
+export interface Loan {
+  id: string;
+  user_id: string;
+
+  // Loan identification
+  loan_number: string;
+  lender_name: string;
+  vendor_id?: string;
+  vendor?: Vendor; // Populated vendor details
+
+  // Loan amounts
+  principal_amount: number;
+  interest_rate: number;
+  term_months: number;
+
+  // Dates
+  start_date: string;
+  end_date: string;
+  first_payment_date: string;
+
+  // Payment details
+  payment_frequency: PaymentFrequency;
+  monthly_payment: number;
+
+  // Current status
+  current_balance: number;
+  total_paid: number;
+  total_interest_paid: number;
+  total_principal_paid: number;
+  status: LoanStatus;
+
+  // Multi-currency support
+  currency?: string;
+  exchange_rate?: number;
+  base_amount?: number;
+
+  // Metadata
+  loan_type?: LoanType;
+  collateral?: string;
+  notes?: string;
+
+  // Audit fields
+  created_by?: string;
+  updated_by?: string;
+  deleted_at?: string;
+  version?: number;
+
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+
+  // Computed fields (not in database)
+  payments?: LoanPayment[];
+  schedule?: LoanSchedule;
+  next_payment?: LoanPayment;
+  progress_percentage?: number; // (total_paid / principal_amount) * 100
+}
+
+export interface LoanPayment {
+  id: string;
+  loan_id: string;
+  loan?: Loan; // Populated loan details
+  user_id: string;
+
+  // Payment identification
+  payment_number: number;
+  payment_date: string;
+  due_date: string;
+
+  // Payment breakdown
+  principal_amount: number;
+  interest_amount: number;
+  total_payment: number;
+
+  // Balance tracking
+  remaining_balance: number;
+
+  // Status
+  status: LoanPaymentStatus;
+  paid_date?: string;
+
+  // Link to expense
+  expense_id?: string;
+  expense?: Expense;
+
+  // Payment method tracking
+  payment_method?: PaymentMethod;
+  reference_number?: string;
+  notes?: string;
+  payment_proof_url?: string;
+
+  // Audit fields
+  created_by?: string;
+  updated_by?: string;
+
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AmortizationEntry {
+  payment_number: number;
+  payment_date: string;
+  beginning_balance: number;
+  total_payment: number;
+  principal_payment: number;
+  interest_payment: number;
+  ending_balance: number;
+  cumulative_interest: number;
+  cumulative_principal: number;
+}
+
+export interface LoanSchedule {
+  id: string;
+  loan_id: string;
+  schedule_data: AmortizationEntry[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoanSummary {
+  total_loans: number;
+  active_loans: number;
+  total_principal: number;
+  total_balance: number;
+  total_paid: number;
+  total_interest_paid: number;
+  monthly_payment_total: number;
+  next_payment_due?: {
+    date: string;
+    amount: number;
+    loan_name: string;
+  };
+}
+
 

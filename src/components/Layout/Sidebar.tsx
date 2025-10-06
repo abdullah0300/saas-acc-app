@@ -19,6 +19,7 @@ import {
   MoreHorizontal,
   ChevronUp,
   Sparkles,
+  Landmark,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { getProfile } from "../../services/database";
@@ -44,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { path: "/expenses", icon: TrendingDown, label: "Expenses" },
     { path: "/clients", icon: Users, label: "Clients" },
     { path: "/invoices", icon: FileText, label: "Invoices" },
+    { path: "/loans", icon: Landmark, label: "Loans" },
     {
       path: "/budget",
       icon: PiggyBank,
@@ -63,6 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
   const moreItems = [
     { path: "/clients", icon: Users, label: "Clients" },
+    { path: "/loans", icon: Landmark, label: "Loans" },
     {
       path: "/budget",
       icon: PiggyBank,
