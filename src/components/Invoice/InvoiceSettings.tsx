@@ -41,7 +41,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
     // Invoice Template
     invoice_prefix: 'INV-',
     invoice_color: '#3B82F6',
-    payment_terms: '30',
+    payment_terms: '3',
     default_tax_rate: '0',
     fill_number_gaps: true,
     invoice_notes: '',
