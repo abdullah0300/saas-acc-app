@@ -1,7 +1,7 @@
 // src/components/Invoice/InvoiceTemplatesPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Trash2, Plus, Edit, Eye, ArrowLeft, Calendar, DollarSign, Loader, Copy } from 'lucide-react';
+import { FileText,Clock, Trash2, Plus, Edit, Eye, ArrowLeft, Calendar, DollarSign, Loader, Copy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { getInvoiceTemplates, deleteInvoiceTemplate } from '../../services/database';
@@ -92,35 +92,55 @@ export const InvoiceTemplatesPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="mb-8">
+          {/* Breadcrumb & Back Button */}
+          <div className="flex items-center gap-3 mb-6">
             <button
               onClick={() => navigate('/invoices')}
-              className="text-gray-600 hover:text-gray-900"
+              className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Invoice Templates</h1>
-              <p className="text-gray-600 mt-1">
-                Manage your reusable invoice templates
-              </p>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span className="hover:text-indigo-600 cursor-pointer" onClick={() => navigate('/invoices')}>
+                Invoices
+              </span>
+              <span>/</span>
+              <span className="text-gray-900 font-medium">Templates</span>
             </div>
           </div>
 
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <FileText className="h-4 w-4" />
-              <span>{templates.length} template{templates.length !== 1 ? 's' : ''}</span>
+          {/* Title & Description */}
+          <div className="mb-6">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              Invoice Templates
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Create reusable templates to streamline your invoicing workflow
+            </p>
+          </div>
+
+          {/* Stats & Actions Bar */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl">
+                  <FileText className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{templates.length}</p>
+                  <p className="text-sm text-gray-600">Template{templates.length !== 1 ? 's' : ''} Available</p>
+                </div>
+              </div>
             </div>
             <button
               onClick={() => navigate('/invoices/new')}
-              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-5 w-5 mr-2" />
               Create New Invoice
             </button>
           </div>
@@ -128,19 +148,23 @@ export const InvoiceTemplatesPage: React.FC = () => {
 
         {/* Templates Grid */}
         {templates.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No templates yet</h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Create an invoice and save it as a template to reuse line items, tax rates, and other settings for future invoices.
-            </p>
-            <button
-              onClick={() => navigate('/invoices/new')}
-              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Invoice
-            </button>
+          <div className="bg-gradient-to-br from-white to-indigo-50 rounded-2xl shadow-xl border border-indigo-100 p-16 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <FileText className="h-10 w-10 text-indigo-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">No templates yet</h3>
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                Create your first invoice template to streamline your workflow. Templates let you reuse line items, tax rates, payment terms, and other settings for future invoices.
+              </p>
+              <button
+                onClick={() => navigate('/invoices/new')}
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-105 shadow-lg shadow-indigo-200"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Create Your First Invoice
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -151,75 +175,79 @@ export const InvoiceTemplatesPage: React.FC = () => {
               return (
                 <div
                   key={template.id}
-                  className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 overflow-hidden"
+                  className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden transform hover:-translate-y-1"
                 >
                   {/* Card Header */}
-                  <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {template.name}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          Created {format(new Date(template.created_at), 'MMM dd, yyyy')}
-                        </p>
+                  <div className="p-6 border-b border-gray-100 bg-gradient-to-br from-indigo-50 via-purple-50 to-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-200/20 to-purple-200/20 rounded-full -mr-16 -mt-16"></div>
+                    <div className="relative">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">
+                            {template.name}
+                          </h3>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <Calendar className="h-3 w-3" />
+                            <span>Created {format(new Date(template.created_at), 'MMM dd, yyyy')}</span>
+                          </div>
+                        </div>
+                        {template.template_data.is_recurring && (
+                          <span className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-full shadow-md">
+                            Recurring
+                          </span>
+                        )}
                       </div>
-                      {template.template_data.is_recurring && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                          Recurring
-                        </span>
-                      )}
                     </div>
                   </div>
 
                   {/* Card Body */}
                   <div className="p-6">
-                    <div className="space-y-3 mb-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          Items
-                        </span>
-                        <span className="font-medium text-gray-900">{itemCount}</span>
-                      </div>
+                    {/* Total Amount - Prominent */}
+                    <div className="mb-6 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                      <p className="text-xs font-medium text-gray-600 mb-1">Estimated Total</p>
+                      <p className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        {formatCurrency(total, template.template_data.currency || baseCurrency)}
+                      </p>
+                    </div>
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 flex items-center gap-2">
-                          <DollarSign className="h-4 w-4" />
-                          Estimated Total
-                        </span>
-                        <span className="font-medium text-gray-900">
-                          {formatCurrency(total, template.template_data.currency || baseCurrency)}
-                        </span>
-                      </div>
-
-                      {template.template_data.tax_rate > 0 && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Tax Rate</span>
-                          <span className="font-medium text-gray-900">
-                            {template.template_data.tax_rate}%
-                          </span>
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 mb-1">Line Items</span>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-indigo-600" />
+                          <span className="font-semibold text-gray-900">{itemCount}</span>
                         </div>
-                      )}
+                      </div>
 
                       {template.template_data.payment_terms && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Payment Terms
-                          </span>
-                          <span className="font-medium text-gray-900">
-                            {template.template_data.payment_terms} days
-                          </span>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-500 mb-1">Payment Terms</span>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-indigo-600" />
+                            <span className="font-semibold text-gray-900">{template.template_data.payment_terms} days</span>
+                          </div>
                         </div>
                       )}
+
+                      {template.template_data.tax_rate > 0 && (
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-500 mb-1">Tax Rate</span>
+                          <span className="font-semibold text-gray-900">{template.template_data.tax_rate}%</span>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 mb-1">Currency</span>
+                        <span className="font-semibold text-gray-900">{template.template_data.currency || baseCurrency}</span>
+                      </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 pt-4 border-t border-gray-100">
                       <button
                         onClick={() => handleUseTemplate(template)}
-                        className="flex-1 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105"
                       >
                         <Copy className="h-4 w-4" />
                         Use Template
@@ -230,7 +258,7 @@ export const InvoiceTemplatesPage: React.FC = () => {
                           setSelectedTemplate(template);
                           setShowPreview(true);
                         }}
-                        className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all shadow-sm hover:shadow-md"
                         title="Preview"
                       >
                         <Eye className="h-4 w-4" />
@@ -239,7 +267,7 @@ export const InvoiceTemplatesPage: React.FC = () => {
                       <button
                         onClick={() => handleDelete(template.id, template.name)}
                         disabled={deleting === template.id}
-                        className="px-3 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                        className="px-4 py-2.5 border border-red-300 text-red-600 rounded-xl hover:bg-red-50 transition-all disabled:opacity-50 shadow-sm hover:shadow-md"
                         title="Delete"
                       >
                         {deleting === template.id ? (
@@ -258,43 +286,42 @@ export const InvoiceTemplatesPage: React.FC = () => {
 
         {/* Preview Modal */}
         {showPreview && selectedTemplate && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Template Preview: {selectedTemplate.name}
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowPreview(false);
-                    setSelectedTemplate(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <Plus className="h-6 w-6 rotate-45" />
-                </button>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl text-gray-900 mb-1">
+                      {selectedTemplate.name}
+                    </h3>
+                    <p className="text-sm text-gray-600">Template Preview</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowPreview(false);
+                      setSelectedTemplate(null);
+                    }}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-all"
+                  >
+                    <Plus className="h-6 w-6 rotate-45" />
+                  </button>
+                </div>
               </div>
+
+              <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
 
               <div className="p-6 space-y-6">
                 {/* Template Info */}
-                <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-600">Currency</p>
-                    <p className="font-medium">{selectedTemplate.template_data.currency || baseCurrency}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-600 mb-1">Payment Terms</p>
+                    <p className="text-base text-gray-900">{selectedTemplate.template_data.payment_terms || 30} days</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Tax Rate</p>
-                    <p className="font-medium">{selectedTemplate.template_data.tax_rate || 0}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Payment Terms</p>
-                    <p className="font-medium">{selectedTemplate.template_data.payment_terms || 30} days</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Type</p>
-                    <p className="font-medium">
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-600 mb-1">Type</p>
+                    <p className="text-base text-gray-900">
                       {selectedTemplate.template_data.is_recurring
-                        ? `Recurring (${selectedTemplate.template_data.frequency})`
+                        ? `Recurring`
                         : 'One-time'
                       }
                     </p>
@@ -303,18 +330,18 @@ export const InvoiceTemplatesPage: React.FC = () => {
 
                 {/* Items */}
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Line Items</h4>
+                  <h4 className="text-sm text-gray-900 mb-3">Line Items</h4>
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Description</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase">Qty</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase">Rate</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs text-gray-600 uppercase">Description</th>
+                          <th className="px-4 py-3 text-center text-xs text-gray-600 uppercase">Qty</th>
+                          <th className="px-4 py-3 text-right text-xs text-gray-600 uppercase">Rate</th>
+                          <th className="px-4 py-3 text-right text-xs text-gray-600 uppercase">Amount</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-white divide-y divide-gray-100">
                         {selectedTemplate.template_data.items?.map((item, index) => (
                           <tr key={index}>
                             <td className="px-4 py-3 text-sm text-gray-900">{item.description}</td>
@@ -322,7 +349,7 @@ export const InvoiceTemplatesPage: React.FC = () => {
                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
                               {formatCurrency(item.rate, selectedTemplate.template_data.currency || baseCurrency)}
                             </td>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">
+                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
                               {formatCurrency(item.amount || item.quantity * item.rate, selectedTemplate.template_data.currency || baseCurrency)}
                             </td>
                           </tr>
@@ -336,7 +363,7 @@ export const InvoiceTemplatesPage: React.FC = () => {
                     <div className="w-64 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Subtotal</span>
-                        <span className="font-medium">
+                        <span className="text-gray-900">
                           {formatCurrency(
                             selectedTemplate.template_data.items?.reduce((sum, item) =>
                               sum + (item.amount || item.quantity * item.rate || 0), 0
@@ -348,7 +375,7 @@ export const InvoiceTemplatesPage: React.FC = () => {
                       {selectedTemplate.template_data.tax_rate > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Tax ({selectedTemplate.template_data.tax_rate}%)</span>
-                          <span className="font-medium">
+                          <span className="text-gray-900">
                             {formatCurrency(
                               (selectedTemplate.template_data.items?.reduce((sum, item) =>
                                 sum + (item.amount || item.quantity * item.rate || 0), 0
@@ -358,9 +385,11 @@ export const InvoiceTemplatesPage: React.FC = () => {
                           </span>
                         </div>
                       )}
-                      <div className="flex justify-between text-base font-semibold pt-2 border-t">
-                        <span>Total</span>
-                        <span>{formatCurrency(calculateTemplateTotal(selectedTemplate), selectedTemplate.template_data.currency || baseCurrency)}</span>
+                      <div className="flex justify-between text-base pt-2 border-t border-gray-200">
+                        <span className="text-gray-900">Total</span>
+                        <span className="text-indigo-600">
+                          {formatCurrency(calculateTemplateTotal(selectedTemplate), selectedTemplate.template_data.currency || baseCurrency)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -369,21 +398,27 @@ export const InvoiceTemplatesPage: React.FC = () => {
                 {/* Notes */}
                 {selectedTemplate.template_data.notes && (
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Notes</h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-line bg-gray-50 p-4 rounded-lg">
-                      {selectedTemplate.template_data.notes}
-                    </p>
+                    <h4 className="text-sm text-gray-900 mb-2">Notes</h4>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-sm text-gray-600 whitespace-pre-line">
+                        {selectedTemplate.template_data.notes}
+                      </p>
+                    </div>
                   </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t">
+              </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 mt-6 border-t border-gray-200">
+                <div className="flex gap-3">
                   <button
                     onClick={() => {
                       setShowPreview(false);
                       handleUseTemplate(selectedTemplate);
                     }}
-                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                    className="flex-1 px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                   >
                     Use This Template
                   </button>
@@ -392,7 +427,7 @@ export const InvoiceTemplatesPage: React.FC = () => {
                       setShowPreview(false);
                       setSelectedTemplate(null);
                     }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Close
                   </button>

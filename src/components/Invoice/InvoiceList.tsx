@@ -1115,7 +1115,40 @@ export const InvoiceList: React.FC = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Create Invoice
               </Link>
-              
+
+              {/* Quick Action Icons */}
+              <button
+                onClick={() => navigate('/invoices/templates')}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
+                title="Invoice Templates"
+              >
+                <FileText className="h-5 w-5 text-gray-600" />
+              </button>
+
+              <button
+                onClick={() => navigate('/invoices/recurring')}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
+                title="Recurring Invoices"
+              >
+                <CalendarSync className="h-5 w-5 text-gray-600" />
+              </button>
+
+              <button
+                onClick={() => navigate('/credit-notes')}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
+                title="Credit Notes"
+              >
+                <CreditCard className="h-5 w-5 text-gray-600" />
+              </button>
+
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
+                title="Invoice Settings"
+              >
+                <Settings className="h-5 w-5 text-gray-600" />
+              </button>
+
               {/* More Actions Dropdown */}
               <div className="relative">
                 <button
