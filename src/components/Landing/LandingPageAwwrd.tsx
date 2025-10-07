@@ -410,7 +410,7 @@ export const LandingPageAwwrd: React.FC = () => {
           </div>
         )}
 
-        <div className="container mx-auto px-6 relative z-10 pt-32 pb-20">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10 pt-24 sm:pt-32 pb-12 sm:pb-20">
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -420,17 +420,17 @@ export const LandingPageAwwrd: React.FC = () => {
             {/* Badge */}
             <motion.div
               variants={fadeInUp}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-md border border-purple-100 mb-8"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white shadow-md border border-purple-100 mb-6 sm:mb-8"
             >
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <span className="text-sm text-gray-700">Powered by Advanced AI</span>
-              <span className="text-xs px-2 py-0.5 bg-purple-100 rounded-full text-purple-700 font-medium">NEW</span>
+              <Sparkles className="w-3 sm:w-4 h-3 sm:h-4 text-purple-600" />
+              <span className="text-xs sm:text-sm text-gray-700">Powered by Advanced AI</span>
+              <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-purple-100 rounded-full text-purple-700 font-medium">NEW</span>
             </motion.div>
 
             {/* Main Headline */}
             <motion.h1
               variants={fadeInUp}
-              className="text-5xl sm:text-6xl md:text-7xl lg:text-7xl font-bold mb-6 leading-tight"
+              className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight px-2"
             >
               <span className="text-gray-900">{displayText}</span>
               {isComplete && <span className="animate-pulse">|</span>}
@@ -443,7 +443,7 @@ export const LandingPageAwwrd: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.5 }}
-                    className="gradient-text text-4xl sm:text-5xl md:text-6xl lg:text-7xl"
+                    className="gradient-text text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl"
                   >
                     {taglines[currentTagline]}
                   </motion.span>
@@ -454,7 +454,7 @@ export const LandingPageAwwrd: React.FC = () => {
             {/* Subheadline */}
             <motion.p
               variants={fadeInUp}
-              className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed"
+              className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-8 sm:mb-12 max-w-3xl mx-auto leading-relaxed px-4"
             >
               SmartCFO isn't just software—it's your personal financial genius that learns,
               adapts, and makes decisions <span className="text-gray-900 font-semibold">before you even ask</span>.
@@ -463,7 +463,7 @@ export const LandingPageAwwrd: React.FC = () => {
             {/* Feature Pills */}
             <motion.div
               variants={fadeInUp}
-              className="flex flex-wrap justify-center gap-3 mb-12"
+              className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8 sm:mb-12 px-4"
             >
               {[
                 { icon: Brain, text: "Self-Learning AI", color: "purple" },
@@ -474,10 +474,10 @@ export const LandingPageAwwrd: React.FC = () => {
                 <motion.div
                   key={index}
                   whileHover={!isMobileDevice ? { scale: 1.05, y: -2 } : {}}
-                  className="px-4 py-2 rounded-full bg-white shadow-md border border-gray-200 flex items-center gap-2 cursor-pointer hover:shadow-lg transition-all"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white shadow-md border border-gray-200 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:shadow-lg transition-all"
                 >
-                  <item.icon className={`w-4 h-4 text-${item.color}-600`} />
-                  <span className="text-sm text-gray-700 font-medium">{item.text}</span>
+                  <item.icon className={`w-3 sm:w-4 h-3 sm:h-4 text-${item.color}-600`} />
+                  <span className="text-xs sm:text-sm text-gray-700 font-medium">{item.text}</span>
                 </motion.div>
               ))}
             </motion.div>
@@ -485,28 +485,28 @@ export const LandingPageAwwrd: React.FC = () => {
             {/* CTA Buttons */}
             <motion.div
               variants={fadeInUp}
-              className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-12 sm:mb-16 px-4"
             >
               <motion.button
                 whileHover={!isMobileDevice ? { scale: 1.05 } : {}}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate('/register')}
-                className="group px-8 py-4 gradient-bg text-white rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300"
+                className="group px-6 sm:px-8 py-3 sm:py-4 gradient-bg text-white rounded-full font-bold text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all duration-300"
               >
                 <span className="flex items-center justify-center gap-2">
-                  Start 30-Day Free Trial
-                  <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+                  <span className="text-sm sm:text-base">Start 30-Day Free Trial</span>
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
                 </span>
-                <span className="block text-xs font-normal mt-1 opacity-90">No credit card required</span>
+                <span className="block text-[10px] sm:text-xs font-normal mt-1 opacity-90">No credit card required</span>
               </motion.button>
               <motion.button
                 whileHover={!isMobileDevice ? { scale: 1.05 } : {}}
                 whileTap={{ scale: 0.95 }}
-                className="group px-8 py-4 bg-white text-purple-600 rounded-full font-bold text-lg shadow-lg border-2 border-purple-200 hover:border-purple-300 hover:shadow-xl transition-all"
+                className="group px-6 sm:px-8 py-3 sm:py-4 bg-white text-purple-600 rounded-full font-bold text-base sm:text-lg shadow-lg border-2 border-purple-200 hover:border-purple-300 hover:shadow-xl transition-all"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <PlayCircle className="w-5 h-5" />
-                  Watch 2-Min Demo
+                  <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm sm:text-base">Watch 2-Min Demo</span>
                 </span>
               </motion.button>
             </motion.div>
@@ -679,46 +679,46 @@ export const LandingPageAwwrd: React.FC = () => {
       <StackedCardsSection />
 
       {/* Pricing Section - Modern */}
-      <section id="pricing" className="relative py-32 bg-gradient-to-br from-purple-50 via-white to-pink-50">
-        <div className="container mx-auto px-6">
+      <section id="pricing" className="relative py-16 sm:py-24 md:py-32 bg-gradient-to-br from-purple-50 via-white to-pink-50">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-center mb-20"
+            className="text-center mb-12 sm:mb-16 md:mb-20"
           >
-            <h2 className="text-5xl md:text-7xl font-bold mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 sm:mb-6 px-4">
               <span className="text-gray-900">Simple, </span>
               <span className="gradient-text">Transparent Pricing</span>
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 px-4">
               Start free. Scale when you're ready. Cancel anytime.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 sm:gap-8 max-w-5xl mx-auto">
             {/* Basic Plan */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               whileHover={{ y: -10, scale: 1.02 }}
-              className="relative bg-white rounded-3xl p-8 border border-gray-200 shadow-xl"
+              className="relative bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl"
             >
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-3xl font-bold text-gray-900 mb-2">Simple Start</h3>
-                  <p className="text-gray-600">Perfect for freelancers</p>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Simple Start</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Perfect for freelancers</p>
                 </div>
-                <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs rounded-full font-semibold border border-green-500/30">POPULAR</span>
+                <span className="px-2 sm:px-3 py-1 bg-green-500/10 text-green-600 text-[10px] sm:text-xs rounded-full font-semibold border border-green-500/30">POPULAR</span>
               </div>
 
-              <div className="mb-8">
-                <span className="text-6xl font-black text-gray-900">$5</span>
-                <span className="text-gray-600 ml-2">/month</span>
+              <div className="mb-6 sm:mb-8">
+                <span className="text-4xl sm:text-5xl md:text-6xl font-black text-gray-900">$5</span>
+                <span className="text-gray-600 ml-2 text-sm sm:text-base">/month</span>
               </div>
 
-              <ul className="space-y-4 mb-8">
+              <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                 {[
                   "AI-Powered categorization",
                   "20 monthly invoices",
@@ -727,8 +727,8 @@ export const LandingPageAwwrd: React.FC = () => {
                   "Client management",
                   "Email support"
                 ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-gray-700">
-                    <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <li key={i} className="flex items-center gap-2 sm:gap-3 text-sm sm:text-base text-gray-700">
+                    <Check className="w-4 sm:w-5 h-4 sm:h-5 text-green-500 flex-shrink-0" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -736,7 +736,7 @@ export const LandingPageAwwrd: React.FC = () => {
 
               <button
                 onClick={() => navigate('/register')}
-                className="w-full py-4 gradient-bg text-white rounded-full font-bold text-lg hover:shadow-lg transition-all"
+                className="w-full py-3 sm:py-4 gradient-bg text-white rounded-full font-bold text-base sm:text-lg hover:shadow-lg transition-all"
               >
                 Start Free Trial
               </button>
@@ -749,36 +749,36 @@ export const LandingPageAwwrd: React.FC = () => {
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
               whileHover={{ y: -10, scale: 1.02 }}
-              className="relative bg-white rounded-3xl p-8 border-2 border-purple-500 shadow-2xl"
+              className="relative bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-purple-500 shadow-2xl"
             >
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="px-6 py-2 gradient-bg text-white text-sm rounded-full font-bold shadow-xl">
+              <div className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2">
+                <span className="px-4 sm:px-6 py-1.5 sm:py-2 gradient-bg text-white text-xs sm:text-sm rounded-full font-bold shadow-xl">
                   🚀 BEST VALUE
                 </span>
               </div>
 
-              <div className="flex justify-between items-start mb-6 mt-4">
+              <div className="flex justify-between items-start mb-6 mt-2 sm:mt-4">
                 <div>
-                  <h3 className="text-3xl font-bold text-gray-900 mb-2">Plus</h3>
-                  <p className="text-gray-600">For growing businesses</p>
+                  <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Plus</h3>
+                  <p className="text-sm sm:text-base text-gray-600">For growing businesses</p>
                 </div>
-                <Rocket className="w-8 h-8 text-purple-400" />
+                <Rocket className="w-6 sm:w-8 h-6 sm:h-8 text-purple-400" />
               </div>
 
               <div className="mb-2">
-                <div className="text-2xl text-gray-400 line-through mb-1">
+                <div className="text-lg sm:text-xl md:text-2xl text-gray-400 line-through mb-1">
                   $25/month
                 </div>
                 <div>
-                  <span className="text-6xl font-black text-gray-900">$12</span>
-                  <span className="text-gray-600 ml-2">/month</span>
+                  <span className="text-4xl sm:text-5xl md:text-6xl font-black text-gray-900">$12</span>
+                  <span className="text-gray-600 ml-2 text-sm sm:text-base">/month</span>
                 </div>
-                <div className="mt-3 inline-block px-4 py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-full text-sm font-bold border border-green-500/30">
+                <div className="mt-3 inline-block px-3 sm:px-4 py-1 sm:py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-full text-xs sm:text-sm font-bold border border-green-500/30">
                   Special Launch - Save 52%
                 </div>
               </div>
 
-              <ul className="space-y-4 mb-8 mt-8">
+              <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 mt-6 sm:mt-8">
                 {[
                   { text: "Everything in Simple Start", highlight: false },
                   { text: "Unlimited invoices", highlight: true },
@@ -790,8 +790,8 @@ export const LandingPageAwwrd: React.FC = () => {
                   { text: "Stripe payment integration", highlight: true },
                   { text: "API access", highlight: false }
                 ].map((item, i) => (
-                  <li key={i} className={`flex items-center gap-3 ${item.highlight ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}>
-                    <Check className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                  <li key={i} className={`flex items-center gap-2 sm:gap-3 text-sm sm:text-base ${item.highlight ? 'text-gray-900 font-semibold' : 'text-gray-700'}`}>
+                    <Check className="w-4 sm:w-5 h-4 sm:h-5 text-purple-500 flex-shrink-0" />
                     <span>{item.text}</span>
                   </li>
                 ))}
@@ -799,24 +799,24 @@ export const LandingPageAwwrd: React.FC = () => {
 
               <button
                 onClick={() => navigate('/register')}
-                className="w-full py-4 gradient-bg text-white rounded-full font-bold text-lg shadow-xl shadow-purple-500/50 hover:shadow-2xl transition-all"
+                className="w-full py-3 sm:py-4 gradient-bg text-white rounded-full font-bold text-base sm:text-lg shadow-xl shadow-purple-500/50 hover:shadow-2xl transition-all"
               >
                 Start Free Trial
               </button>
             </motion.div>
           </div>
 
-          <div className="text-center mt-12">
-            <div className="inline-flex items-center gap-2 text-gray-400">
-              <Shield className="w-5 h-5 text-green-400" />
-              <span>30-day free trial • No credit card required • Cancel anytime</span>
+          <div className="text-center mt-8 sm:mt-12 px-4">
+            <div className="inline-flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+              <Shield className="w-4 sm:w-5 h-4 sm:h-5 text-green-400" />
+              <span className="text-center">30-day free trial • No credit card required • Cancel anytime</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* Final CTA */}
-      <section className="relative py-32 bg-gradient-to-br from-purple-600 via-pink-600 to-purple-700 overflow-hidden">
+      <section className="relative py-16 sm:py-24 md:py-32 bg-gradient-to-br from-purple-600 via-pink-600 to-purple-700 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
             backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 1px)`,
@@ -824,46 +824,46 @@ export const LandingPageAwwrd: React.FC = () => {
           }}></div>
         </div>
 
-        <div className="container mx-auto px-6 text-center relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             className="max-w-4xl mx-auto"
           >
-            <h2 className="text-5xl md:text-7xl font-black mb-8 text-white">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black mb-6 sm:mb-8 text-white px-4">
               Ready to Transform Your Finances?
             </h2>
-            <p className="text-xl md:text-2xl text-white mb-12 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-white mb-8 sm:mb-12 max-w-3xl mx-auto px-4">
               Start your journey with AI-powered financial management today
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate('/register')}
-                className="group px-10 py-5 bg-white text-purple-600 rounded-full font-black text-lg shadow-2xl hover:shadow-3xl transition-all"
+                className="group px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 bg-white text-purple-600 rounded-full font-black text-base sm:text-lg shadow-2xl hover:shadow-3xl transition-all"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <Rocket className="w-6 h-6" />
-                  Start Your Free Trial
-                  <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+                  <Rocket className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span className="text-sm sm:text-base md:text-lg">Start Your Free Trial</span>
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
                 </span>
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="px-10 py-5 bg-white/10 border-2 border-white text-white rounded-full font-bold text-lg hover:bg-white/20 transition-all backdrop-blur-sm"
+                className="px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 bg-white/10 border-2 border-white text-white rounded-full font-bold text-base sm:text-lg hover:bg-white/20 transition-all backdrop-blur-sm"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Schedule a Demo
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm sm:text-base md:text-lg">Schedule a Demo</span>
                 </span>
               </motion.button>
             </div>
 
-            <p className="mt-8 text-sm text-white/90">
+            <p className="mt-6 sm:mt-8 text-xs sm:text-sm text-white/90 px-4">
               No credit card • 5-minute setup • 30-day money-back guarantee
             </p>
           </motion.div>
@@ -1042,13 +1042,13 @@ const StickyFeatureSection: React.FC<StickyFeatureSectionProps> = ({
       <motion.div
         ref={ref}
         style={{ scale, opacity, y }}
-        className="container mx-auto px-6"
+        className="container mx-auto px-4 sm:px-6"
       >
         <motion.div
           initial={{ opacity: 0 }}
           animate={isInView ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.8 }}
-          className={`relative bg-gradient-to-br ${gradient} rounded-[3rem] p-12 md:p-16 overflow-hidden`}
+          className={`relative bg-gradient-to-br ${gradient} rounded-2xl sm:rounded-3xl md:rounded-[3rem] p-6 sm:p-8 md:p-12 lg:p-16 overflow-hidden`}
         >
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
@@ -1058,7 +1058,7 @@ const StickyFeatureSection: React.FC<StickyFeatureSectionProps> = ({
             }}></div>
           </div>
 
-          <div className="relative z-10 grid lg:grid-cols-2 gap-12 items-center">
+          <div className="relative z-10 grid lg:grid-cols-2 gap-8 sm:gap-10 md:gap-12 items-center">
             {/* Content */}
             <motion.div
               initial={{ opacity: 0, x: -50 }}
@@ -1069,33 +1069,33 @@ const StickyFeatureSection: React.FC<StickyFeatureSectionProps> = ({
                 initial={{ scale: 0 }}
                 animate={isInView ? { scale: 1 } : { scale: 0 }}
                 transition={{ delay: 0.3, type: "spring" }}
-                className="w-20 h-20 bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center mb-8 border border-white/30"
+                className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-xl rounded-2xl sm:rounded-3xl flex items-center justify-center mb-6 sm:mb-8 border border-white/30"
               >
-                <Icon className="w-10 h-10 text-white" />
+                <Icon className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-white" />
               </motion.div>
 
-              <h3 className="text-5xl md:text-6xl font-black text-white mb-4">{title}</h3>
-              <p className="text-2xl text-white/80 mb-6 font-semibold">{subtitle}</p>
-              <p className="text-lg text-white/70 mb-12 leading-relaxed">{description}</p>
+              <h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-3 sm:mb-4">{title}</h3>
+              <p className="text-lg sm:text-xl md:text-2xl text-white/80 mb-4 sm:mb-6 font-semibold">{subtitle}</p>
+              <p className="text-sm sm:text-base md:text-lg text-white/70 mb-8 sm:mb-10 md:mb-12 leading-relaxed">{description}</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-8 sm:mb-10 md:mb-12">
                 {features.map((feature, idx) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                     transition={{ delay: 0.4 + idx * 0.1 }}
-                    className="flex items-center gap-3"
+                    className="flex items-center gap-2 sm:gap-3"
                   >
-                    <div className="w-10 h-10 bg-white/10 backdrop-blur-xl rounded-xl flex items-center justify-center flex-shrink-0 border border-white/20">
-                      <feature.icon className={`w-5 h-5 ${feature.color}`} />
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-white/10 backdrop-blur-xl rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 border border-white/20">
+                      <feature.icon className={`w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5 ${feature.color}`} />
                     </div>
-                    <span className="text-white/90 text-sm">{feature.text}</span>
+                    <span className="text-white/90 text-xs sm:text-sm">{feature.text}</span>
                   </motion.div>
                 ))}
               </div>
 
-              <div className="flex gap-12">
+              <div className="flex gap-6 sm:gap-8 md:gap-12">
                 {stats.map((stat, idx) => (
                   <motion.div
                     key={idx}
@@ -1103,8 +1103,8 @@ const StickyFeatureSection: React.FC<StickyFeatureSectionProps> = ({
                     animate={isInView ? { scale: 1 } : { scale: 0 }}
                     transition={{ delay: 0.8 + idx * 0.1, type: "spring" }}
                   >
-                    <div className="text-5xl font-black text-white mb-2">{stat.value}</div>
-                    <div className="text-sm text-white/60">{stat.label}</div>
+                    <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-1 sm:mb-2">{stat.value}</div>
+                    <div className="text-xs sm:text-sm text-white/60">{stat.label}</div>
                   </motion.div>
                 ))}
               </div>
@@ -1115,9 +1115,9 @@ const StickyFeatureSection: React.FC<StickyFeatureSectionProps> = ({
               initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
               animate={isInView ? { opacity: 1, scale: 1, rotate: 0 } : { opacity: 0, scale: 0.8, rotate: -5 }}
               transition={{ delay: 0.5, duration: 0.8 }}
-              className="relative"
+              className="relative mt-8 lg:mt-0"
             >
-              <div className="aspect-square bg-white/10 backdrop-blur-xl rounded-[2rem] border border-white/20 flex items-center justify-center overflow-hidden">
+              <div className="aspect-square bg-white/10 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-[2rem] border border-white/20 flex items-center justify-center overflow-hidden">
                 {image ? (
                   <motion.img
                     src={image}
@@ -1130,7 +1130,7 @@ const StickyFeatureSection: React.FC<StickyFeatureSectionProps> = ({
                   />
                 ) : (
                   <motion.div
-                    className="p-12"
+                    className="p-8 sm:p-10 md:p-12"
                     animate={isInView ? {
                       scale: [1, 1.1, 1],
                       rotate: [0, 5, 0]
@@ -1142,16 +1142,16 @@ const StickyFeatureSection: React.FC<StickyFeatureSectionProps> = ({
                 )}
               </div>
 
-              {/* Floating Elements */}
+              {/* Floating Elements - Hidden on mobile */}
               <motion.div
                 animate={isInView ? { y: [-10, 10, -10] } : {}}
                 transition={{ duration: 3, repeat: Infinity }}
-                className="absolute -top-6 -right-6 w-24 h-24 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30"
+                className="hidden sm:block absolute -top-4 sm:-top-6 -right-4 sm:-right-6 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/20 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-white/30"
               ></motion.div>
               <motion.div
                 animate={isInView ? { y: [10, -10, 10] } : {}}
                 transition={{ duration: 4, repeat: Infinity }}
-                className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/20 backdrop-blur-xl rounded-3xl border border-white/30"
+                className="hidden sm:block absolute -bottom-4 sm:-bottom-6 -left-4 sm:-left-6 w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-white/20 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-white/30"
               ></motion.div>
             </motion.div>
           </div>
@@ -1315,19 +1315,19 @@ const FeatureCard: React.FC<{ feature: FeatureCardData; index: number }> = ({ fe
 // Original Everything You Need Section - Stacked Cards
 const StackedCardsSection: React.FC = () => {
   return (
-    <section className="py-20 sm:py-32 bg-white">
-      <div className="container mx-auto px-6">
+    <section className="py-16 sm:py-24 md:py-32 bg-white">
+      <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="text-center mb-16 sm:mb-20"
+          className="text-center mb-12 sm:mb-16 md:mb-20"
         >
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 px-4">
             <span className="text-gray-900">Everything You Need </span>
             <span className="gradient-text">Nothing You Don't</span>
           </h2>
-          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto px-4">
             Clean interface. Powerful features. Zero learning curve.
           </p>
         </motion.div>
