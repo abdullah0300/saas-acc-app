@@ -3,7 +3,10 @@
     "allow": [
       "Bash(cat:*)",
       "WebSearch",
-      "WebFetch(domain:stripe.com)"
+      "WebFetch(domain:stripe.com)",
+      "WebFetch(domain:tympanus.net)",
+      "WebFetch(domain:www.awwwards.com)",
+      "WebFetch(domain:medium.com)"
     ],
     "deny": [],
     "ask": []

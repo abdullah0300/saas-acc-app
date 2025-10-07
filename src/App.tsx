@@ -1,6 +1,7 @@
 // src/App.tsx
 import React from 'react';
 import { LandingPage } from './components/Landing/LandingPage';
+import { LandingPageAwwrd } from './components/Landing/LandingPageAwwrd';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -135,7 +136,7 @@ function AppRoutes() {
     <Routes>
       {/* Public routes */}
       {/* Landing Page with smart redirect logic */}
-      <Route path="/" element={<SmartRedirect fallback={<LandingPage />} />} />
+      <Route path="/" element={<SmartRedirect fallback={<LandingPageAwwrd />} />} />
       <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
