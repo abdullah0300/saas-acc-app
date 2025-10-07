@@ -332,6 +332,11 @@ export const SubscriptionPlans: React.FC = () => {
                   <p className="text-gray-600 mt-2">{plan.description}</p>
 
                   <div className="mt-6">
+                    {plan.originalMonthlyPrice && (
+                      <div className="text-xl text-gray-400 line-through text-center mb-2">
+                        ${billingInterval === "yearly" ? plan.originalYearlyPrice : plan.originalMonthlyPrice}
+                      </div>
+                    )}
                     <div className="flex items-baseline justify-center">
                       <span className="text-5xl font-extrabold text-gray-900">
                         ${price}
@@ -340,7 +345,12 @@ export const SubscriptionPlans: React.FC = () => {
                         /{billingInterval === "yearly" ? "year" : "month"}
                       </span>
                     </div>
-                    {billingInterval === "yearly" && (
+                    {plan.originalMonthlyPrice && (
+                      <div className="mt-2 inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                        Special Offer - Save {Math.round((1 - price / (billingInterval === "yearly" ? (plan.originalYearlyPrice || price) : (plan.originalMonthlyPrice || price))) * 100)}%
+                      </div>
+                    )}
+                    {billingInterval === "yearly" && !plan.originalMonthlyPrice && (
                       <p className="text-sm text-green-600 mt-2">
                         Save ${plan.monthlyPrice * 12 - plan.yearlyPrice} per
                         year

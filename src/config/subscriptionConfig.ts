@@ -48,6 +48,8 @@ export interface PlanConfig {
   description: string;
   monthlyPrice: number;
   yearlyPrice: number;
+  originalMonthlyPrice?: number;
+  originalYearlyPrice?: number;
   trialDays: number;
   limits: PlanLimits;
   features: PlanFeatures;
@@ -106,8 +108,10 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
     name: 'plus',
     displayName: 'Plus',
     description: 'Complete business solution with all features',
-    monthlyPrice: 25, // CHANGED FROM 45 TO 25
-    yearlyPrice: 240, // 20% discount (25 * 12 * 0.8)
+    monthlyPrice: 12, // PROMOTIONAL PRICE
+    yearlyPrice: 120, // PROMOTIONAL PRICE
+    originalMonthlyPrice: 25,
+    originalYearlyPrice: 240,
     trialDays: 30,
     limits: {
       users: 5, // unlimited users

@@ -34,6 +34,8 @@ interface Plan {
   name: string;
   monthlyPrice: number;
   yearlyPrice: number;
+  originalMonthlyPrice?: number;
+  originalYearlyPrice?: number;
   icon: React.ComponentType;
   features: string[];
   highlighted?: string[];
@@ -61,8 +63,10 @@ const PLANS: Plan[] = [
   {
     id: 'plus',
     name: 'Plus',
-    monthlyPrice: 25,
-    yearlyPrice: 250,
+    monthlyPrice: 12,
+    yearlyPrice: 120,
+    originalMonthlyPrice: 25,
+    originalYearlyPrice: 250,
     icon: Star,
     features: [
       'Everything in Simple Start',
@@ -553,8 +557,10 @@ export const SetupWizard: React.FC = () => {
               {PLANS.map((plan) => {
                 const IconComponent = plan.icon;
                 const price = formData.interval === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+                const originalPrice = formData.interval === 'yearly' ? plan.originalYearlyPrice : plan.originalMonthlyPrice;
                 const monthlyEquivalent = formData.interval === 'yearly' ? plan.yearlyPrice / 12 : plan.monthlyPrice;
-                
+                const hasDiscount = !!originalPrice;
+
                 return (
                   <div
                     key={plan.id}
@@ -572,20 +578,30 @@ export const SetupWizard: React.FC = () => {
                         </span>
                       </div>
                     )}
-                    
+
                     <div className="text-center mb-4">
 <div className="h-8 w-8 mx-auto mb-2 text-indigo-600 flex items-center justify-center">
                         <IconComponent  />
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
                       <div className="mt-2">
+                        {hasDiscount && (
+                          <div className="text-lg text-gray-400 line-through mb-1">
+                            ${originalPrice}
+                          </div>
+                        )}
                         <span className="text-3xl font-bold text-gray-900">
                           ${price}
                         </span>
                         <span className="text-gray-500">
                           /{formData.interval === 'yearly' ? 'year' : 'month'}
                         </span>
-                        {formData.interval === 'yearly' && (
+                        {hasDiscount && (
+                          <div className="text-sm text-green-600 font-semibold mt-1">
+                            Special Offer - Limited Time!
+                          </div>
+                        )}
+                        {formData.interval === 'yearly' && !hasDiscount && (
                           <div className="text-sm text-gray-500">
                             ${monthlyEquivalent.toFixed(2)}/month billed annually
                           </div>

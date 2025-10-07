@@ -755,8 +755,16 @@ export const LandingPage: React.FC = () => {
               </div>
               
               <div className="mb-8">
-                <span className="text-5xl font-bold text-gray-900">$25</span>
-                <span className="text-gray-600 ml-2">/month</span>
+                <div className="text-2xl text-gray-400 line-through mb-1">
+                  $25/month
+                </div>
+                <div>
+                  <span className="text-5xl font-bold text-gray-900">$12</span>
+                  <span className="text-gray-600 ml-2">/month</span>
+                </div>
+                <div className="mt-2 inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                  Special Offer - Save 52%
+                </div>
               </div>
               
               <ul className="space-y-4 mb-8">
