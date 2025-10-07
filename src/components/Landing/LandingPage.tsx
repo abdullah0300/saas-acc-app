@@ -776,6 +776,7 @@ export const LandingPage: React.FC = () => {
                   "Priority Phone Support",
                   "Custom Invoice Branding",
                   "Budget Tracking",
+                  "✨ Stripe Payment Integration",
                   "API Access"
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">

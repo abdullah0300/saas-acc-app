@@ -466,6 +466,7 @@ function getHighlightedFeatures(plan: PlanType): string[] {
         "Custom invoice branding",
         "Budget tracking",
         "Cash flow analysis",
+        "Stripe payment integration",
         "Phone & email support",
       ];
     default:

@@ -19,7 +19,7 @@ export interface PlanFeatures {
   category_management: boolean;
   export_pdf: boolean;
   email_support: boolean;
-  
+
   // Advanced features (Plus only)
   multi_currency: boolean;
   recurring_invoices: boolean;
@@ -39,6 +39,7 @@ export interface PlanFeatures {
   audit_trail: boolean;
   team_permissions: boolean;
   dedicated_support: boolean;
+  stripe_payment_integration: boolean;
 }
 
 export interface PlanConfig {
@@ -99,7 +100,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       api_access: false,
       audit_trail: false,
       team_permissions: false,
-      dedicated_support: false
+      dedicated_support: false,
+      stripe_payment_integration: false
     }
   },
   
@@ -145,7 +147,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
       api_access: true,
       audit_trail: true,
       team_permissions: true,
-      dedicated_support: true
+      dedicated_support: true,
+      stripe_payment_integration: true
     }
   }
 };

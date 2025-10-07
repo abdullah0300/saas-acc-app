@@ -76,9 +76,10 @@ const PLANS: Plan[] = [
       'Priority Phone Support',
       'Custom Invoice Branding',
       'Budget Tracking',
+      'Stripe Payment Integration',
       'API Access'
     ],
-    highlighted: ['Unlimited Invoices', 'Advanced AI Insights', 'Priority Phone Support']
+    highlighted: ['Unlimited Invoices', 'Stripe Payment Integration', 'Priority Phone Support']
   }
 ];
 

@@ -46,7 +46,7 @@ export const FeatureGuard: React.FC<FeatureGuardProps> = ({
       advanced_reports: 'Advanced Reports',
       tax_management: 'Tax Management',
       priority_support: 'Priority Support',
-          advanced_exports: 'Advanced Export Options', // Add this line
+      advanced_exports: 'Advanced Export Options',
       unlimited_invoices: 'Unlimited Invoices',
       custom_invoice_branding: 'Custom Invoice Branding',
       advanced_tax_reports: 'Advanced Tax Reports',
@@ -57,8 +57,8 @@ export const FeatureGuard: React.FC<FeatureGuardProps> = ({
       api_access: 'API Access',
       audit_trail: 'Audit Trail',
       team_permissions: 'Team Permissions',
-      dedicated_support: 'Dedicated Support'
-      
+      dedicated_support: 'Dedicated Support',
+      stripe_payment_integration: 'Stripe Payment Integration'
     };
     return featureNames[feature] || feature;
   };
