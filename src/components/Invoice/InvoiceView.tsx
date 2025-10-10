@@ -48,6 +48,8 @@ import { supabase } from '../../services/supabaseClient';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
+import { getPaymentMethods, PaymentMethod } from '../../services/paymentMethodsService';
+import { PAYMENT_METHOD_TEMPLATES } from '../../config/paymentMethodTemplates';
 
 export const InvoiceView: React.FC = () => {
   const { id } = useParams();
@@ -78,6 +80,7 @@ export const InvoiceView: React.FC = () => {
   const taxFeatures = userCountry?.taxFeatures;
   const taxLabel = userCountry?.taxName || 'Tax';
   const [taxRegistrationNumber, setTaxRegistrationNumber] = useState<string>('');
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
   useEffect(() => {
     if (user && id) {
@@ -172,6 +175,14 @@ export const InvoiceView: React.FC = () => {
     // Set default phone number for WhatsApp
     if (invoiceData.client?.phone) {
       setPhoneNumber(invoiceData.client.phone);
+    }
+
+    // Load new payment methods
+    try {
+      const methods = await getPaymentMethods(effectiveUserId || user.id);
+      setPaymentMethods(methods);
+    } catch (err) {
+      console.error('Error loading payment methods:', err);
     }
   } catch (err: any) {
     setError(err.message);
@@ -625,75 +636,7 @@ const isUK = invoice.currency === 'GBP' &&
         </div>
       </div>
 
- {/* Credit Notes Section */}
-{invoice && (() => {
-  const hasCredits = (invoice.credit_tracking?.[0]?.credit_note_count || 0) > 0;
-  const totalCredited = invoice.credit_tracking?.[0]?.total_credited || 0;
-  const creditCount = invoice.credit_tracking?.[0]?.credit_note_count || 0;
-  const canCreateCredit = invoice.status === 'sent' && invoice.total > totalCredited;
-
-  if (!hasCredits && !canCreateCredit) return null;
-
-  return (
-    <div className="mt-6">
-      {hasCredits ? (
-        // Show full credit note info box if credits exist
-        <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="flex items-start">
-            <CreditCard className="h-5 w-5 text-orange-600 mt-0.5 mr-3" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-orange-900">
-                    Credit Notes Applied
-                  </p>
-                  <p className="text-sm text-orange-700 mt-1">
-                    Total Credited: {formatCurrency(totalCredited, invoice.currency || baseCurrency)}
-                    {totalCredited < invoice.total && (
-                      <span className="ml-2 text-orange-600">
-                        ({formatCurrency(invoice.total - totalCredited, invoice.currency || baseCurrency)} remaining)
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-orange-600 mt-1">
-                    {creditCount} credit note{creditCount > 1 ? 's' : ''} issued
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {canCreateCredit && (
-                    <Link 
-                      to={`/credit-notes/new/${invoice.id}`}
-                      className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
-                    >
-                      Add Another
-                    </Link>
-                  )}
-                  <Link 
-                    to={`/credit-notes?invoice=${invoice.id}`}
-                    className="px-3 py-1 text-xs border border-orange-600 text-orange-600 rounded hover:bg-orange-100"
-                  >
-                    View All
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Only show create button if no credits exist but invoice can have credits
-        canCreateCredit && (
-          <Link 
-            to={`/credit-notes/new/${invoice.id}`}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <CreditCard className="h-4 w-4 mr-2" />
-            Create Credit Note
-          </Link>
-        )
-      )}
-    </div>
-  );
-})()} 
+ 
 
       {/* Invoice Document */}
       <div ref={invoiceRef} className="bg-white rounded-lg shadow-xl print:shadow-none print:rounded-none">
@@ -1026,66 +969,199 @@ const isUK = invoice.currency === 'GBP' &&
   </div>
 </div>
 
-        {/* Payment Info Section */}
-        {(invoiceSettings?.bank_name || invoiceSettings?.paypal_email) && (
+        {/* Payment Info Section - NEW SYSTEM with backward compatibility */}
+        {(paymentMethods.length > 0 || invoiceSettings?.bank_name || invoiceSettings?.paypal_email) && (
           <div className="px-8 pb-8">
             <button
               onClick={() => setShowPaymentInfo(!showPaymentInfo)}
-              className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4 flex items-center gap-2 hover:text-gray-900"
+              className="text-sm font-semibold uppercase tracking-wider mb-4 flex items-center gap-2 transition-colors hover:opacity-80"
+              style={{ color: primaryColor }}
             >
-              <CreditCard className="h-4 w-4" />
               Payment Information
               {showPaymentInfo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
-            
+
             {showPaymentInfo && (
-              <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                {invoiceSettings.bank_name && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <Building className="h-5 w-5 text-gray-600" />
-                      Bank Transfer
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">Bank Name:</p>
-                        <p className="font-medium">{invoiceSettings.bank_name}</p>
+              <div className="space-y-3">
+                {/* NEW PAYMENT METHODS SYSTEM */}
+                {paymentMethods.length > 0 ? (
+                  <div className="space-y-3">
+                    {paymentMethods.map((method, index) => (
+                      <div
+                        key={method.id}
+                        className="relative overflow-hidden rounded-xl shadow-sm transition-all hover:shadow-md"
+                        style={{
+                          background: method.is_primary
+                            ? `linear-gradient(135deg, ${primaryColor}15 0%, ${primaryColor}08 100%)`
+                            : '#ffffff',
+                          border: method.is_primary
+                            ? `2px solid ${primaryColor}`
+                            : '1px solid #e5e7eb'
+                        }}
+                      >
+                        {/* Decorative gradient accent */}
+                        {method.is_primary && (
+                          <div
+                            className="absolute top-0 right-0 w-32 h-32 opacity-10"
+                            style={{
+                              background: `radial-gradient(circle at top right, ${primaryColor} 0%, transparent 70%)`,
+                            }}
+                          />
+                        )}
+
+                        <div className="relative p-6">
+                          {/* Header */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl shadow-sm"
+                                style={{
+                                  background: method.is_primary
+                                    ? `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`
+                                    : '#f3f4f6',
+                                }}
+                              >
+                                <span className={method.is_primary ? 'filter brightness-0 invert' : ''}>
+                                  {PAYMENT_METHOD_TEMPLATES[method.type]?.icon || '💳'}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                                  {method.display_name}
+                                </h4>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {PAYMENT_METHOD_TEMPLATES[method.type]?.description}
+                                </p>
+                              </div>
+                            </div>
+                            {method.is_primary && (
+                              <span
+                                className="px-3 py-1 text-xs font-bold rounded-full shadow-sm"
+                                style={{
+                                  backgroundColor: primaryColor,
+                                  color: '#ffffff'
+                                }}
+                              >
+                                RECOMMENDED
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Payment Details */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.entries(method.fields).map(([key, value]) => (
+                              <div key={key} className="space-y-1">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                  {key.replace(/_/g, ' ')}
+                                </p>
+                                <p className="font-mono text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
+                                  {value}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Instructions */}
+                          {method.instructions && (
+                            <div
+                              className="mt-4 p-3 rounded-lg"
+                              style={{
+                                backgroundColor: `${primaryColor}10`,
+                                borderLeft: `3px solid ${primaryColor}`
+                              }}
+                            >
+                              <p className="text-sm font-medium" style={{ color: primaryColor }}>
+                                💡 {method.instructions}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {invoiceSettings.account_number && (
+                    ))}
+                  </div>
+                ) : (
+                  /* OLD SYSTEM - FALLBACK for backward compatibility */
+                  <div
+                    className="rounded-xl shadow-sm overflow-hidden"
+                    style={{ border: `1px solid ${primaryColor}30` }}
+                  >
+                    <div
+                      className="px-6 py-3"
+                      style={{
+                        background: `linear-gradient(135deg, ${primaryColor}20 0%, ${primaryColor}10 100%)`
+                      }}
+                    >
+                      <h3
+                        className="text-sm font-bold uppercase tracking-wide"
+                        style={{ color: primaryColor }}
+                      >
+                        Payment Options
+                      </h3>
+                    </div>
+
+                    <div className="bg-white p-6 space-y-6">
+                      {invoiceSettings?.bank_name && (
                         <div>
-                          <p className="text-gray-600">Account Number:</p>
-                          <p className="font-medium">{invoiceSettings.account_number}</p>
+                          <h4 className="font-bold text-gray-900 mb-3 text-base">
+                            🏦 Bank Transfer
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Bank Name</p>
+                              <p className="font-mono text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
+                                {invoiceSettings.bank_name}
+                              </p>
+                            </div>
+                            {invoiceSettings.account_number && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Account Number</p>
+                                <p className="font-mono text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
+                                  {invoiceSettings.account_number}
+                                </p>
+                              </div>
+                            )}
+                            {invoiceSettings.routing_number && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Routing / Sort Code</p>
+                                <p className="font-mono text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
+                                  {invoiceSettings.routing_number}
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
-                      {invoiceSettings.routing_number && (
+
+                      {invoiceSettings?.paypal_email && (
                         <div>
-                          <p className="text-gray-600">Routing Number:</p>
-                          <p className="font-medium">{invoiceSettings.routing_number}</p>
+                          <h4 className="font-bold text-gray-900 mb-3 text-base">
+                            💳 PayPal
+                          </h4>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">PayPal Email</p>
+                            <p className="font-mono text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-md border border-gray-200">
+                              {invoiceSettings.paypal_email}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {invoiceSettings?.payment_instructions && (
+                        <div
+                          className="p-4 rounded-lg"
+                          style={{
+                            backgroundColor: `${primaryColor}10`,
+                            borderLeft: `3px solid ${primaryColor}`
+                          }}
+                        >
+                          <p className="text-sm font-medium" style={{ color: primaryColor }}>
+                            💡 {invoiceSettings.payment_instructions}
+                          </p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
-                
-                {invoiceSettings.paypal_email && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-gray-600" />
-                      PayPal
-                    </h4>
-                    <div className="text-sm">
-                      <p><span className="text-gray-600">Email:</span> <span className="font-medium">{invoiceSettings.paypal_email}</span></p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {invoiceSettings?.payment_instructions && showPaymentInfo && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800">
-                  <strong>Payment Instructions:</strong> {invoiceSettings.payment_instructions}
-                </p>
               </div>
             )}
           </div>

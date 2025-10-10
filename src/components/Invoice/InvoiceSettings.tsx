@@ -1,21 +1,23 @@
 // src/components/Invoice/InvoiceSettings.tsx
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Save, 
-  Upload, 
-  Globe, 
-  Mail, 
+import {
+  X,
+  Save,
+  Upload,
+  Globe,
+  Mail,
   MessageCircle,
   Bell,
   FileText,
   Palette,
   DollarSign,
   RefreshCw,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { supabase } from '../../services/supabaseClient';
+import { PaymentMethodsManager } from '../Settings/PaymentMethodsManager';
 
 interface InvoiceSettingsProps {
   onClose: () => void;
@@ -24,7 +26,7 @@ interface InvoiceSettingsProps {
 export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => {
   const { user } = useAuth();
   const { effectiveUserId } = useData();
-  const [activeTab, setActiveTab] = useState<'company' | 'templates' | 'notifications' | 'payment'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'templates' | 'notifications' | 'payment' | 'payment_methods'>('company');
   const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   
@@ -165,12 +167,13 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
     { id: 'company', label: 'Company Details', icon: FileText },
     { id: 'templates', label: 'Invoice Template', icon: Palette },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'payment', label: 'Payment Info', icon: DollarSign }
+    { id: 'payment', label: 'Payment Info (old)', icon: DollarSign },
+    { id: 'payment_methods', label: 'Payment Methods', icon: CreditCard }
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Invoice Settings</h2>
           <button
@@ -466,8 +469,28 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
 
             {activeTab === 'payment' && (
               <div className="space-y-6">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <Bell className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-yellow-900">
+                        Legacy Payment Information
+                      </p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        This is the old payment system. We recommend switching to the new <strong>Payment Methods</strong> tab for more flexibility and support for international payments.
+                      </p>
+                      <button
+                        onClick={() => setActiveTab('payment_methods')}
+                        className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
+                      >
+                        Switch to New System
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Information</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -480,7 +503,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Account Number
@@ -492,10 +515,10 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Routing Number
+                      Routing Number / Sort Code
                     </label>
                     <input
                       type="text"
@@ -504,10 +527,10 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email
+                      PayPal Email
                     </label>
                     <input
                       type="email"
@@ -517,7 +540,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Payment Instructions
@@ -530,6 +553,12 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                     placeholder="Please include invoice number with your payment..."
                   />
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'payment_methods' && (
+              <div>
+                <PaymentMethodsManager />
               </div>
             )}
           </div>
