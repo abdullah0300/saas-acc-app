@@ -306,7 +306,7 @@ export const DataRetention: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="border-b border-gray-200 pb-5">
         <h2 className="text-xl font-semibold text-gray-900">Data Retention Policy</h2>
