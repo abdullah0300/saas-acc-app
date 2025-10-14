@@ -11,12 +11,15 @@ interface Complaint {
   id: string;
   user_id: string;
   complaint_type: string;
+  subject: string;
   description: string;
   status: 'open' | 'investigating' | 'resolved' | 'closed' | 'escalated_to_ico';
   reference_number: string;
   created_at: string;
+  submitted_at?: string;
   resolved_at?: string;
   resolution?: string;
+  resolution_notes?: string;
 }
 
 export const ComplaintsForm: React.FC = () => {
@@ -78,6 +81,7 @@ export const ComplaintsForm: React.FC = () => {
         .insert({
           user_id: user?.id,
           complaint_type: formData.complaint_type,
+          subject: formData.subject,
           description: formData.description,
           status: 'open',
           reference_number: referenceNumber,
@@ -308,7 +312,7 @@ export const ComplaintsForm: React.FC = () => {
                     <div className="flex flex-wrap gap-4 text-xs text-gray-500">
                       <span>Reference: {complaint.reference_number}</span>
                       <span>Type: {complaint.complaint_type.replace(/_/g, ' ')}</span>
-                      <span>Submitted: {new Date(complaint.submitted_at).toLocaleDateString()}</span>
+                      <span>Submitted: {new Date(complaint.submitted_at || complaint.created_at).toLocaleDateString()}</span>
                     </div>
                     {complaint.resolution_notes && (
                       <div className="mt-3 p-3 bg-green-50 rounded-md border border-green-200">
