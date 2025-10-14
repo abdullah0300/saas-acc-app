@@ -221,7 +221,7 @@ const handleBulkDelete = async () => {
   try {
     // Delete each selected item
     await Promise.all(
-      selectedItems.map(id => deleteExpense(id))
+      selectedItems.map(id => deleteExpense(id, user!.id))
     );
     
     // Refresh data and clear selections
@@ -377,9 +377,9 @@ const hasActiveFilters = () => {
 
   const handleDelete = async (id: string) => {
   if (!window.confirm('Are you sure you want to delete this expense record?')) return;
-  
+
   try {
-    await deleteExpense(id);
+    await deleteExpense(id, user!.id);
     await refreshBusinessData(); // ✅ Refresh cache instead
   } catch (err: any) {
     alert('Error deleting expense: ' + err.message);

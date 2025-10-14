@@ -139,6 +139,7 @@ export interface Invoice {
   created_at: string;
   updated_at: string;
   vat_locked_at?: string | null;
+  payment_locked_at?: string | null; // Payment compliance locking
   income_category_id?: string; // Add this line
   has_credit_notes?: boolean;
   total_credited?: number;
@@ -151,6 +152,10 @@ export interface Invoice {
     created_at: string;
     updated_at: string;
   }[];
+  // Payment tracking fields
+  payments?: InvoicePayment[];
+  total_paid?: number;
+  balance_due?: number;
 }
 
 export interface InvoiceItem {
@@ -252,9 +257,22 @@ export interface NotificationStats {
   byType: Record<NotificationType, number>;
 }
 
+// Invoice payment tracking types
+export interface InvoicePayment {
+  id: string;
+  invoice_id: string;
+  user_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: 'cash' | 'bank_transfer' | 'credit_card' | 'check' | 'other';
+  reference_number?: string;
+  notes?: string;
+  created_at: string;
+}
+
 // Existing type exports
 export type TransactionType = 'income' | 'expense';
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled';
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled' | 'partially_paid';
 
 // Country configuration type
 export interface CountryConfig {

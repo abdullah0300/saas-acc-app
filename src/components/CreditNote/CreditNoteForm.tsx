@@ -165,7 +165,7 @@ export const CreditNoteForm: React.FC = () => {
 
  const loadInvoiceForCredit = async () => {
   if (!invoiceId || !user) return;
-  
+
   // Get fresh invoice data with credit tracking
   const { data: invoiceData } = await supabase
     .from('invoices')
@@ -183,7 +183,7 @@ export const CreditNoteForm: React.FC = () => {
   if (invoiceData) {
     // First try the invoice field
     alreadyCredited = invoiceData.total_credited || 0;
-    
+
     // Then try the tracking table if needed
     if (alreadyCredited === 0) {
       try {
@@ -192,7 +192,7 @@ export const CreditNoteForm: React.FC = () => {
           .select('total_credited')
           .eq('invoice_id', invoiceId)
           .maybeSingle();
-        
+
         if (tracking) {
           alreadyCredited = tracking.total_credited;
         }
@@ -203,8 +203,33 @@ export const CreditNoteForm: React.FC = () => {
   }
 
   if (!invoiceData) throw new Error('Invoice not found');
+
+  // 🔴 CRITICAL: Check if invoice is paid or canceled - cannot credit these
+  if (invoiceData.status === 'paid' || invoiceData.status === 'canceled') {
+    throw new Error('Cannot create credit notes for paid or canceled invoices. Please use the refund workflow instead.');
+  }
+
+  // 🔴 CRITICAL: Check VAT lock (UK HMRC compliance)
+  if (invoiceData.vat_locked_at || invoiceData.vat_return_id) {
+    throw new Error('This invoice is locked for VAT compliance (HMRC) and cannot be credited. Contact your accountant.');
+  }
+
+  // 🟠 WARNING: Check payment lock - show warning but allow with confirmation
+  if (invoiceData.payment_locked_at) {
+    const confirmed = window.confirm(
+      '⚠️ WARNING: This invoice has received payments.\n\n' +
+      'Creating a credit note will create a negative income entry that reduces your reported income.\n\n' +
+      'This may require reconciliation with your bank records.\n\n' +
+      'Continue?'
+    );
+    if (!confirmed) {
+      navigate('/credit-notes');
+      return;
+    }
+  }
+
   setInvoice({ ...invoiceData, total_credited: alreadyCredited });
-  
+
   if (alreadyCredited >= invoiceData.total) {
     throw new Error('This invoice has been fully credited');
   }

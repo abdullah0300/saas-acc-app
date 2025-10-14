@@ -125,7 +125,7 @@ const handleBulkDelete = async () => {
   try {
     // Delete each selected item
     await Promise.all(
-      selectedItems.map(id => deleteIncome(id))
+      selectedItems.map(id => deleteIncome(id, user!.id))
     );
     
     // Refresh data and clear selections
@@ -423,9 +423,9 @@ const paginatedIncomes = getPaginatedIncomes();
 
   const handleDelete = async (id: string) => {
   if (!window.confirm('Are you sure you want to delete this income record?')) return;
-  
+
   try {
-    await deleteIncome(id);
+    await deleteIncome(id, user!.id);
     await refreshBusinessData(); // ✅ Refresh cache instead
   } catch (err: any) {
     alert('Error deleting income: ' + err.message);

@@ -7,13 +7,18 @@ import {
   CreditCard,
   Bell,
   Shield,
+  ShieldCheck,
   Globe,
   ChevronLeft,
   Zap,
   Percent,
   Activity,
   ChevronRight,
-  Upload
+  Upload,
+  Database,
+  AlertTriangle,
+  BarChart3,
+  FileText
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -23,7 +28,7 @@ export const SettingsLayout: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subscription } = useData();
-  const { isOwner, canManageTeam } = useTeamPermissions();
+  const { isOwner, isPlatformAdmin } = useTeamPermissions();
   
   // Check if we're on a specific settings page (mobile)
   const currentPath = window.location.pathname;
@@ -40,7 +45,13 @@ export const SettingsLayout: React.FC = () => {
     { path: "tax", label: "Tax Settings", icon: Percent },
     { path: "currency", label: "Currency", icon: Globe },
     { path: "import-history", label: "Import History", icon: Upload },
-    ...(canManageTeam ? [{ path: "audit", label: "Audit Trail", icon: Activity }] : []),
+    ...(isPlatformAdmin ? [
+      { path: "audit", label: "Audit Trail", icon: Activity },
+      { path: "audit-analytics", label: "Audit Analytics", icon: BarChart3 },
+      { path: "retention", label: "Data Retention", icon: Database },
+      { path: "breach-management", label: "Breach Management", icon: AlertTriangle },
+      { path: "ropa", label: "RoPA Register", icon: FileText }
+    ] : []),
   ] : [];
 
   // Personal Preferences - Visible to all users
@@ -48,6 +59,7 @@ export const SettingsLayout: React.FC = () => {
     { path: "profile", label: "Profile", icon: User },
     { path: "notifications", label: "Notifications", icon: Bell },
     { path: "security", label: "Security", icon: Shield },
+    { path: "data-protection", label: "Data Protection", icon: ShieldCheck },
   ];
 
   // Combine for backward compatibility (used in mobile view)

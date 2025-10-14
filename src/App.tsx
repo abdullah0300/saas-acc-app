@@ -43,6 +43,10 @@ import { BudgetPlanning } from './components/Budget/BudgetPlanning';
 import { NotificationCenter } from './components/Notifications/NotificationCenter';
 import { NotificationPreferences } from './components/Settings/NotificationPreferences';
 import { AuditLogs } from './components/Settings/AuditLogs';
+import { RetentionDashboard } from './components/Admin/RetentionDashboard';
+import { BreachDashboard } from './components/Admin/BreachManagement/BreachDashboard';
+import { AuditAnalytics } from './components/Admin/AuditAnalytics';
+import { RoPAManager } from './components/Admin/RoPA/RoPAManager';
 import { CashFlowInsights } from './components/Reports/CashFlowInsights';
 import { TaxReport } from './components/Reports/TaxReport';
 import { SubscriptionEnforcer } from './components/Subscription/SubscriptionEnforcer';
@@ -53,6 +57,7 @@ import { LoanForm } from './components/Loans/LoanForm';
 import { LoanView } from './components/Loans/LoanView';
 import { ClientProfitability } from './components/Reports/ClientProfitability';
 import { SecuritySettings } from './components/Settings/SecuritySettings';
+import { DataProtectionSettings } from './components/Settings/DataProtectionSettings';
 import { ImportHistorySettings } from './components/Settings/ImportHistorySettings';
 import { CreditNoteList } from './components/CreditNote/CreditNoteList';
 import { CreditNoteForm } from './components/CreditNote/CreditNoteForm';
@@ -66,9 +71,11 @@ import { PrivacyPolicy } from './components/Legal/PrivacyPolicy';
 import { TermsOfService } from './components/Legal/TermsOfService';
 import { SmartRedirect } from './components/Auth/SmartRedirect';
 import { OwnerOnlyRoute } from './components/Auth/OwnerOnlyRoute';
+import { PlatformAdminRoute } from './components/Auth/PlatformAdminRoute';
 import { useSessionKeepAlive } from './hooks/useSessionKeepAlive';
 import { useAuth } from './contexts/AuthContext';
 import { Loader } from 'lucide-react';
+import { CookieConsent } from './components/Common/CookieConsent';
 
 // Debug: Log environment variables
 console.log('🔧 App.tsx Environment Debug:');
@@ -133,10 +140,12 @@ function AppRoutes() {
   }
   
   return (
-    <Routes>
-      {/* Public routes */}
-      {/* Landing Page with smart redirect logic */}
-      <Route path="/" element={<SmartRedirect fallback={<LandingPageAwwrd />} />} />
+    <>
+      <CookieConsent />
+      <Routes>
+        {/* Public routes */}
+        {/* Landing Page with smart redirect logic */}
+        <Route path="/" element={<SmartRedirect fallback={<LandingPageAwwrd />} />} />
       <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -269,6 +278,7 @@ function AppRoutes() {
           <Route path="profile" element={<ProfileSettings />} />
           <Route path="notifications" element={<NotificationPreferences />} />
           <Route path="security" element={<SecuritySettings />} />
+          <Route path="data-protection" element={<DataProtectionSettings />} />
           {/* Company Settings - Owner only */}
           <Route path="team" element={<OwnerOnlyRoute><TeamManagement /></OwnerOnlyRoute>} />
           <Route path="subscription" element={<OwnerOnlyRoute><SubscriptionPlans /></OwnerOnlyRoute>} />
@@ -278,11 +288,16 @@ function AppRoutes() {
           <Route path="import-history" element={<OwnerOnlyRoute><ImportHistorySettings /></OwnerOnlyRoute>} />
           <Route path="invoice" element={<OwnerOnlyRoute><InvoiceSettings onClose={() => {}} /></OwnerOnlyRoute>} />
           <Route path="audit" element={<OwnerOnlyRoute><AuditLogs /></OwnerOnlyRoute>} />
+          <Route path="audit-analytics" element={<PlatformAdminRoute><AuditAnalytics /></PlatformAdminRoute>} />
+          <Route path="retention" element={<PlatformAdminRoute><RetentionDashboard /></PlatformAdminRoute>} />
+          <Route path="breach-management" element={<PlatformAdminRoute><BreachDashboard /></PlatformAdminRoute>} />
+          <Route path="ropa" element={<PlatformAdminRoute><RoPAManager /></PlatformAdminRoute>} />
         </Route>
         
         <Route path="/payment/success" element={<PaymentSuccess />} />
       </Route>
     </Routes>
+    </>
   );
 }
 

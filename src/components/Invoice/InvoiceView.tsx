@@ -40,10 +40,10 @@ import {
   Building2,
   FileX 
 } from 'lucide-react';
-import { getInvoice, updateInvoice, getProfile } from '../../services/database';
+import { getInvoice, updateInvoice, getProfile, recordInvoicePayment, getInvoicePayments, calculateInvoiceBalance } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
-import { Invoice, User } from '../../types';  // Now User type won't conflict
+import { Invoice, User, InvoicePayment } from '../../types';  // Now User type won't conflict
 import { supabase } from '../../services/supabaseClient';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -81,6 +81,17 @@ export const InvoiceView: React.FC = () => {
   const taxLabel = userCountry?.taxName || 'Tax';
   const [taxRegistrationNumber, setTaxRegistrationNumber] = useState<string>('');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [invoicePayments, setInvoicePayments] = useState<InvoicePayment[]>([]);
+  const [paymentBalance, setPaymentBalance] = useState<{ total_paid: number; balance_due: number } | null>(null);
+  const [showPartialPayment, setShowPartialPayment] = useState(false);
+  const [partialPaymentData, setPartialPaymentData] = useState({
+    amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_method: 'bank_transfer' as 'cash' | 'bank_transfer' | 'credit_card' | 'check' | 'other',
+    reference_number: '',
+    notes: ''
+  });
+  const [paymentError, setPaymentError] = useState('');
 
   useEffect(() => {
     if (user && id) {
@@ -184,6 +195,19 @@ export const InvoiceView: React.FC = () => {
     } catch (err) {
       console.error('Error loading payment methods:', err);
     }
+
+    // Load payment history if invoice is paid or partially_paid
+    if (invoiceData.status === 'paid' || invoiceData.status === 'partially_paid') {
+      try {
+        const payments = await getInvoicePayments(id);
+        setInvoicePayments(payments);
+
+        const balance = await calculateInvoiceBalance(id);
+        setPaymentBalance(balance);
+      } catch (err) {
+        console.error('Error loading payment history:', err);
+      }
+    }
   } catch (err: any) {
     setError(err.message);
   } finally {
@@ -200,8 +224,8 @@ const handleStatusChange = async (newStatus: Invoice['status']) => {
   try {
     // Update the invoice status
     await updateInvoice(invoice.id, { status: newStatus });
-    
-    // If marking as paid, create income entry
+
+    // If marking as paid, create income entry AND payment record
     if (newStatus === 'paid' && invoice.status !== 'paid') {
       // Check if income already exists
       const { data: existingIncome } = await supabase
@@ -210,7 +234,7 @@ const handleStatusChange = async (newStatus: Invoice['status']) => {
         .eq('reference_number', invoice.invoice_number)
         .eq('user_id', user.id)
         .maybeSingle();
-      
+
       if (!existingIncome) {
         // Get invoice items for tax breakdown  
         const { data: items } = await supabase
@@ -266,22 +290,27 @@ const isUK = invoice.currency === 'GBP' &&
           }
         }
         
-        // Create income entry with CORRECT data
+        // 🔴 FIX: Convert to base currency for consistent income reporting
+        // Calculate base amounts (convert from invoice currency to base currency)
+        const baseNetAmount = totalNetAmount / (invoice.exchange_rate || 1);
+        const baseTaxAmount = totalTaxAmount / (invoice.exchange_rate || 1);
+
+        // Create income entry with CORRECT data - always in BASE CURRENCY
         const { error: incomeError } = await supabase
           .from('income')
           .insert([{
             user_id: user.id,
-            amount: totalNetAmount, // NET amount (without tax)
-            description: `Payment for Invoice #${invoice.invoice_number}`,
+            amount: baseNetAmount, // 🔴 FIX: Store in BASE currency (e.g., 30000 PKR, not 220 USD)
+            description: `Payment for Invoice #${invoice.invoice_number}${invoice.currency !== baseCurrency ? ` (${formatCurrency(totalNetAmount, invoice.currency)})` : ''}`,
             date: new Date().toISOString().split('T')[0],
             client_id: invoice.client_id || null,
             category_id: invoice.income_category_id || null,
             reference_number: invoice.invoice_number,
-            currency: invoice.currency || 'USD',
-            exchange_rate: invoice.exchange_rate || 1,
-            base_amount: (totalNetAmount / (invoice.exchange_rate || 1)),
+            currency: baseCurrency, // 🔴 FIX: Always use BASE currency for income entries
+            exchange_rate: 1, // 🔴 FIX: Rate is 1 since we're already in base currency
+            base_amount: baseNetAmount, // Same as amount since it's already in base currency
             tax_rate: invoice.tax_rate || 0,
-            tax_amount: totalTaxAmount, // Correct tax amount
+            tax_amount: baseTaxAmount, // 🔴 FIX: Tax amount also in base currency
             // Don't include total_with_tax - it's a generated column
             tax_metadata: {
               tax_breakdown: taxBreakdown,
@@ -290,7 +319,10 @@ const isUK = invoice.currency === 'GBP' &&
               created_from_invoice: true,
               is_uk_vat: isUK,
               invoice_date: invoice.date,
-              invoice_total: invoice.total
+              invoice_total: invoice.total,
+              original_currency: invoice.currency, // Track original currency
+              original_amount: totalNetAmount, // Track original amount before conversion
+              original_exchange_rate: invoice.exchange_rate // Track exchange rate used
             }
           }]);
           
@@ -298,15 +330,41 @@ const isUK = invoice.currency === 'GBP' &&
           console.error('Error creating income:', incomeError);
           throw incomeError;
         }
+
+        // Record payment in invoice_payments table
+        try {
+          await recordInvoicePayment(
+            invoice.id,
+            {
+              amount: invoice.total,
+              payment_date: new Date().toISOString().split('T')[0],
+              payment_method: 'bank_transfer', // Default payment method
+              reference_number: invoice.invoice_number,
+              notes: 'Payment recorded when invoice marked as paid'
+            },
+            user.id
+          );
+
+          // Set payment_locked_at for compliance
+          if (!invoice.payment_locked_at) {
+            await supabase
+              .from('invoices')
+              .update({ payment_locked_at: new Date().toISOString() })
+              .eq('id', invoice.id);
+          }
+        } catch (paymentError: any) {
+          console.error('Error recording payment:', paymentError);
+          // Don't throw - income was created successfully, payment record is supplementary
+        }
       }
     }
-    
+
     // Update local state and refresh
     setInvoice({ ...invoice, status: newStatus });
     await queryClient.invalidateQueries({ queryKey: ['invoices', user.id] });
     await queryClient.invalidateQueries({ queryKey: ['income'] });
     await refreshBusinessData();
-    
+
   } catch (err: any) {
     console.error('Full error:', err);
     alert('Error updating status: ' + err.message);
@@ -325,6 +383,112 @@ const isUK = invoice.currency === 'GBP' &&
       alert('Error generating PDF. Please try again.');
     } finally {
       setGeneratingPdf(false);
+    }
+  };
+
+  const handlePartialPayment = async () => {
+    if (!invoice || !user) return;
+
+    setPaymentError('');
+
+    // Validate payment amount
+    const paymentAmount = parseFloat(partialPaymentData.amount);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      setPaymentError('Payment amount must be greater than 0');
+      return;
+    }
+
+    // Calculate remaining balance
+    const currentBalance = paymentBalance?.balance_due ?? invoice.total;
+    if (paymentAmount > currentBalance) {
+      setPaymentError(`Payment amount cannot exceed remaining balance of ${formatCurrency(currentBalance, invoice.currency || baseCurrency)}`);
+      return;
+    }
+
+    try {
+      // Record payment in invoice_payments table
+      await recordInvoicePayment(
+        invoice.id,
+        {
+          amount: paymentAmount,
+          payment_date: partialPaymentData.payment_date,
+          payment_method: partialPaymentData.payment_method,
+          reference_number: partialPaymentData.reference_number || undefined,
+          notes: partialPaymentData.notes || undefined
+        },
+        user.id
+      );
+
+      // 🔴 FIX: Convert partial payment to base currency
+      const basePaymentAmount = paymentAmount / (invoice.exchange_rate || 1);
+
+      // Create proportional income entry
+      const { error: incomeError } = await supabase
+        .from('income')
+        .insert([{
+          user_id: user.id,
+          amount: basePaymentAmount, // 🔴 FIX: Store in BASE currency (e.g., PKR, not USD)
+          description: `Partial payment for Invoice #${invoice.invoice_number}${invoice.currency !== baseCurrency ? ` (${formatCurrency(paymentAmount, invoice.currency)})` : ''}`,
+          date: partialPaymentData.payment_date,
+          client_id: invoice.client_id || null,
+          category_id: invoice.income_category_id || null,
+          reference_number: invoice.invoice_number,
+          currency: baseCurrency, // 🔴 FIX: Always use BASE currency for income entries
+          exchange_rate: 1, // 🔴 FIX: Rate is 1 since we're already in base currency
+          base_amount: basePaymentAmount, // Same as amount since it's already in base currency
+          tax_rate: invoice.tax_rate || 0,
+          tax_amount: 0, // Partial payments don't split tax
+          tax_metadata: {
+            invoice_id: invoice.id,
+            invoice_number: invoice.invoice_number,
+            payment_type: 'partial',
+            original_currency: invoice.currency,
+            original_amount: paymentAmount,
+            original_exchange_rate: invoice.exchange_rate
+          }
+        }]);
+
+      if (incomeError) throw incomeError;
+
+      // Recalculate balance
+      const newBalance = await calculateInvoiceBalance(invoice.id);
+      setPaymentBalance(newBalance);
+
+      // Update invoice status based on balance
+      let newStatus: Invoice['status'] = 'partially_paid';
+      if (newBalance.balance_due <= 0) {
+        newStatus = 'paid';
+      }
+
+      // Set payment_locked_at if this is the first payment
+      const updates: any = { status: newStatus };
+      if (!invoice.payment_locked_at) {
+        updates.payment_locked_at = new Date().toISOString();
+      }
+
+      await updateInvoice(invoice.id, updates);
+
+      // Reload invoice data
+      await loadInvoice();
+
+      // Reset form and close modal
+      setPartialPaymentData({
+        amount: '',
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'bank_transfer',
+        reference_number: '',
+        notes: ''
+      });
+      setShowPartialPayment(false);
+
+      // Refresh queries
+      await queryClient.invalidateQueries({ queryKey: ['invoices', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['income'] });
+      await refreshBusinessData();
+
+    } catch (err: any) {
+      console.error('Error recording partial payment:', err);
+      setPaymentError(err.message || 'Failed to record payment');
     }
   };
 
@@ -442,6 +606,8 @@ const isUK = invoice.currency === 'GBP' &&
         return 'bg-green-100 text-green-800';
       case 'sent':
         return 'bg-blue-100 text-blue-800';
+      case 'partially_paid':
+        return 'bg-yellow-100 text-yellow-800';
       case 'overdue':
         return 'bg-red-100 text-red-800';
       case 'canceled':
@@ -475,25 +641,25 @@ const isUK = invoice.currency === 'GBP' &&
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Credit Note Button */}
-            {(invoice.status === 'paid' || invoice.status === 'sent') && (
+            {/* Credit Note Button - Show prominently for fully locked invoices */}
+            {invoice.status === 'paid' && (
               <div className="">
                 <Link
                   to={`/credit-notes/new/${invoice.id}`}
-                  className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="w-full flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                 >
                   <FileX className="h-5 w-5 mr-2" />
-                  Issue Credit Note
+                  Create Credit Note
                 </Link>
-                
+
             {invoice.has_credit_notes && invoice.total_credited && invoice.total_credited > 0 && (
-              <div className="mt-3 p-3 bg-red-50 rounded-lg">
-                <p className="text-sm text-red-800">
+              <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+                <p className="text-sm text-purple-800">
                   <strong>Credit Notes Issued:</strong> {formatCurrency(invoice.total_credited || 0, invoice.currency || baseCurrency)}
                 </p>
                 <Link
                   to={`/credit-notes?invoice=${invoice.id}`}
-                  className="text-sm text-red-600 hover:text-red-800 underline mt-1 inline-block"
+                  className="text-sm text-purple-600 hover:text-purple-800 underline mt-1 inline-block"
                 >
                   View Related Credit Notes
                 </Link>
@@ -501,6 +667,28 @@ const isUK = invoice.currency === 'GBP' &&
             )}
               </div>
             )}
+
+            {/* Credit Note Button for partially paid or sent invoices */}
+            {(invoice.status === 'sent' || invoice.status === 'partially_paid') && (
+              <Link
+                to={`/credit-notes/new/${invoice.id}`}
+                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <FileX className="h-4 w-4" />
+                Issue Credit Note
+              </Link>
+            )}
+            {/* Record Partial Payment Button */}
+            {(invoice.status === 'sent' || invoice.status === 'partially_paid' || invoice.status === 'overdue') && (
+              <button
+                onClick={() => setShowPartialPayment(true)}
+                className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <Banknote className="h-4 w-4" />
+                Record Payment
+              </button>
+            )}
+
             {/* Status Dropdown */}
             <select
               value={invoice.status}
@@ -510,6 +698,7 @@ const isUK = invoice.currency === 'GBP' &&
               <option value="draft">Draft</option>
               <option value="sent">Sent</option>
               <option value="paid">Paid</option>
+              <option value="partially_paid">Partially Paid</option>
               <option value="overdue">Overdue</option>
               <option value="canceled">Canceled</option>
             </select>
@@ -614,23 +803,50 @@ const isUK = invoice.currency === 'GBP' &&
               </button>
 
               {/* Edit */}
-              {invoice && invoice.status !== 'paid' && invoice.status !== 'canceled' ? (
-                <button
-                  onClick={() => navigate(`/invoices/${id}/edit`)}
-                  className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors"
-                  title="Edit"
-                >
-                  <Edit className="h-5 w-5" />
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="p-1.5 text-gray-400 cursor-not-allowed"
-                  title="Locked for compliance"
-                >
-                  <Shield className="h-4 w-4" />
-                </button>
-              )}
+              {(() => {
+                const isFullyPaid = invoice.status === 'paid';
+                const isCanceled = invoice.status === 'canceled';
+                const hasPayments = invoice.payment_locked_at !== null;
+                const balanceDue = paymentBalance?.balance_due || 0;
+                const isPartiallyPaid = hasPayments && balanceDue > 0;
+
+                // Fully locked - no editing allowed
+                if (isFullyPaid || isCanceled) {
+                  return (
+                    <button
+                      disabled
+                      className="p-1.5 text-gray-400 cursor-not-allowed"
+                      title="Locked for compliance - Use Credit Note for adjustments"
+                    >
+                      <Shield className="h-4 w-4" />
+                    </button>
+                  );
+                }
+
+                // Partially locked - limited editing allowed
+                if (isPartiallyPaid) {
+                  return (
+                    <button
+                      onClick={() => navigate(`/invoices/${id}/edit`)}
+                      className="p-1.5 text-yellow-600 hover:text-yellow-700 transition-colors"
+                      title="Limited editing - Invoice has received payments"
+                    >
+                      <Edit className="h-5 w-5" />
+                    </button>
+                  );
+                }
+
+                // No lock - full editing allowed
+                return (
+                  <button
+                    onClick={() => navigate(`/invoices/${id}/edit`)}
+                    className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors"
+                    title="Edit"
+                  >
+                    <Edit className="h-5 w-5" />
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -932,6 +1148,82 @@ const isUK = invoice.currency === 'GBP' &&
           ));
         })()}
       </div>
+    </div>
+  )}
+
+  {/* Payment History Section */}
+  {(invoice.status === 'paid' || invoice.status === 'partially_paid') && invoicePayments.length > 0 && (
+    <div className="mt-6">
+      <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <Banknote className="h-4 w-4" />
+        Payment History
+      </h3>
+      <div className="overflow-hidden bg-white rounded-lg shadow-sm ring-1 ring-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Date
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Amount
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Method
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Reference
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Notes
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {invoicePayments.map((payment, index) => (
+              <tr key={payment.id || index} className="hover:bg-gray-50">
+                <td className="px-6 py-4 text-sm text-gray-900">
+                  {format(parseISO(payment.payment_date), 'MMM dd, yyyy')}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 text-right font-medium">
+                  {formatCurrency(payment.amount, invoice.currency || baseCurrency)}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 text-center">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {payment.payment_method.replace('_', ' ')}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  {payment.reference_number || '-'}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  {payment.notes || '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Payment Summary */}
+      {paymentBalance && (
+        <div className="mt-4 bg-gray-50 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-600">Total Paid</span>
+            <span className="text-sm font-medium text-green-600">
+              {formatCurrency(paymentBalance.total_paid, invoice.currency || baseCurrency)}
+            </span>
+          </div>
+          {paymentBalance.balance_due > 0 && (
+            <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+              <span className="text-sm font-semibold text-gray-700">Balance Due</span>
+              <span className="text-sm font-bold text-red-600">
+                {formatCurrency(paymentBalance.balance_due, invoice.currency || baseCurrency)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )}
 
@@ -1246,6 +1538,146 @@ const isUK = invoice.currency === 'GBP' &&
                   Send
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Partial Payment Modal */}
+      {showPartialPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Banknote className="h-5 w-5" />
+              Record Partial Payment
+            </h3>
+
+            {paymentError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {paymentError}
+              </div>
+            )}
+
+            {/* Display remaining balance */}
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-900 font-medium">Invoice Total:</span>
+                <span className="text-sm font-bold text-blue-900">
+                  {formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}
+                </span>
+              </div>
+              {paymentBalance && paymentBalance.total_paid > 0 && (
+                <>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-sm text-blue-700">Total Paid:</span>
+                    <span className="text-sm text-blue-700">
+                      {formatCurrency(paymentBalance.total_paid, invoice?.currency || baseCurrency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-blue-200">
+                    <span className="text-sm font-semibold text-blue-900">Balance Due:</span>
+                    <span className="text-sm font-bold text-blue-900">
+                      {formatCurrency(paymentBalance.balance_due, invoice?.currency || baseCurrency)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {/* Amount */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Amount *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={partialPaymentData.amount}
+                  onChange={(e) => setPartialPaymentData({ ...partialPaymentData, amount: e.target.value })}
+                  placeholder={`Max: ${formatCurrency(paymentBalance?.balance_due ?? invoice?.total ?? 0, invoice?.currency || baseCurrency)}`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Payment Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Date *
+                </label>
+                <input
+                  type="date"
+                  value={partialPaymentData.payment_date}
+                  onChange={(e) => setPartialPaymentData({ ...partialPaymentData, payment_date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Payment Method *
+                </label>
+                <select
+                  value={partialPaymentData.payment_method}
+                  onChange={(e) => setPartialPaymentData({ ...partialPaymentData, payment_method: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="check">Check</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Reference Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reference Number
+                </label>
+                <input
+                  type="text"
+                  value={partialPaymentData.reference_number}
+                  onChange={(e) => setPartialPaymentData({ ...partialPaymentData, reference_number: e.target.value })}
+                  placeholder="Optional"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={partialPaymentData.notes}
+                  onChange={(e) => setPartialPaymentData({ ...partialPaymentData, notes: e.target.value })}
+                  placeholder="Optional payment notes"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => {
+                  setShowPartialPayment(false);
+                  setPaymentError('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePartialPayment}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Record Payment
+              </button>
             </div>
           </div>
         </div>

@@ -239,6 +239,41 @@ export const InvoiceList: React.FC = () => {
     return map;
   }, [recurringData]);
 
+  // Fetch payment totals for all invoices
+  const { data: paymentTotals = {} } = useQuery({
+    queryKey: ['invoice-payments-totals', effectiveUserId],
+    queryFn: async () => {
+      if (!user || !effectiveUserId) return {};
+
+      // Fetch all payments with invoice IDs
+      const { data: payments, error } = await supabase
+        .from('invoice_payments')
+        .select('invoice_id, amount, payment_date')
+        .eq('user_id', effectiveUserId);
+
+      if (error) throw error;
+
+      // Aggregate payments by invoice_id
+      const totals: Record<string, { total_paid: number; last_payment_date?: string }> = {};
+      payments?.forEach(payment => {
+        if (!totals[payment.invoice_id]) {
+          totals[payment.invoice_id] = { total_paid: 0 };
+        }
+        totals[payment.invoice_id].total_paid += payment.amount;
+
+        // Track most recent payment date
+        if (!totals[payment.invoice_id].last_payment_date ||
+            payment.payment_date > totals[payment.invoice_id].last_payment_date!) {
+          totals[payment.invoice_id].last_payment_date = payment.payment_date;
+        }
+      });
+
+      return totals;
+    },
+    enabled: !!user && !!effectiveUserId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Get unique clients from invoices with proper null handling
   const uniqueClients = React.useMemo(() => {
     const clientsMap = new Map<string, Client>();
@@ -580,9 +615,10 @@ export const InvoiceList: React.FC = () => {
     );
     
     const lockedInvoices = selectedInvoiceData.filter(
-      invoice => invoice.status === 'paid' || 
+      invoice => invoice.status === 'paid' ||
                  invoice.status === 'canceled' ||
-                 invoice.vat_locked_at
+                 invoice.vat_locked_at ||
+                 invoice.payment_locked_at
     );
     
     if (lockedInvoices.length > 0) {
@@ -1041,6 +1077,7 @@ export const InvoiceList: React.FC = () => {
       case 'draft': return 'bg-gray-100 text-gray-700 border-gray-200';
       case 'sent': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'paid': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'partially_paid': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       case 'overdue': return 'bg-red-100 text-red-700 border-red-200';
       case 'canceled': return 'bg-gray-100 text-gray-700 border-gray-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
@@ -1052,6 +1089,7 @@ export const InvoiceList: React.FC = () => {
       case 'draft': return <Edit className="h-3.5 w-3.5" />;
       case 'sent': return <Send className="h-3.5 w-3.5" />;
       case 'paid': return <Check className="h-3.5 w-3.5" />;
+      case 'partially_paid': return <Coins className="h-3.5 w-3.5" />;
       case 'overdue': return <AlertCircle className="h-3.5 w-3.5" />;
       case 'canceled': return <Clock className="h-3.5 w-3.5" />;
       default: return null;
@@ -1905,6 +1943,23 @@ export const InvoiceList: React.FC = () => {
     {formatCurrency(invoice.total_credited || 0, invoice.currency || baseCurrency)} credited
   </div>
 )}
+                            {/* Payment Status Display */}
+                            {paymentTotals[invoice.id] && (
+                              <div className="mt-0.5">
+                                {invoice.status === 'partially_paid' && (
+                                  <div className="flex items-center text-xs text-yellow-600">
+                                    <Coins className="h-3 w-3 mr-1" />
+                                    Partial: {formatCurrency(paymentTotals[invoice.id].total_paid, invoice.currency || baseCurrency)} of {formatCurrency(invoice.total, invoice.currency || baseCurrency)} paid
+                                  </div>
+                                )}
+                                {invoice.status === 'paid' && paymentTotals[invoice.id].last_payment_date && (
+                                  <div className="flex items-center text-xs text-green-600">
+                                    <Check className="h-3 w-3 mr-1" />
+                                    Paid {format(parseISO(paymentTotals[invoice.id].last_payment_date!), 'MMM dd, yyyy')}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -2062,9 +2117,9 @@ export const InvoiceList: React.FC = () => {
                                       handleDelete(invoice.id);
                                       setShowActionMenu(null);
                                     }}
-                                    disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at}
+                                    disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at || !!invoice.payment_locked_at}
                                     className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at
+                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at || invoice.payment_locked_at
                                         ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                                         : 'text-red-600 hover:bg-red-50'
                                     }`}

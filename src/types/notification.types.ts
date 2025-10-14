@@ -1,26 +1,40 @@
 // src/types/notification.types.ts
 
-export type NotificationType = 
+export type NotificationType =
   | 'welcome'
-  | 'invoice_sent' 
-  | 'invoice_viewed' 
-  | 'invoice_paid' 
+  | 'invoice_sent'
+  | 'invoice_viewed'
+  | 'invoice_paid'
   | 'invoice_overdue'
   | 'invoice_generated'
-  | 'payment_received' 
-  | 'expense_added' 
+  | 'payment_received'
+  | 'expense_added'
   | 'budget_exceeded'
-  | 'team_invited' 
-  | 'team_joined' 
+  | 'team_invited'
+  | 'team_joined'
   | 'team_removed'
-  | 'subscription_upgraded' 
-  | 'subscription_downgraded' 
+  | 'subscription_upgraded'
+  | 'subscription_downgraded'
   | 'subscription_expiring'
-  | 'system_update' 
+  | 'system_update'
   | 'feature_announcement'
   | 'credit_note_created'
   | 'credit_note_issued'
-  | 'credit_note_applied';
+  | 'credit_note_applied'
+  // GDPR Phase 2 - Platform Admin Notifications
+  | 'breach_reported'
+  | 'breach_deadline_warning'
+  | 'breach_deadline_passed'
+  | 'retention_cleanup_completed'
+  | 'retention_cleanup_failed'
+  | 'suspicious_activity_detected'
+  | 'ropa_entry_added'
+  | 'customer_data_export_requested'
+  | 'customer_account_deletion_requested'
+  // GDPR Phase 2 - Customer Notifications
+  | 'data_export_ready'
+  | 'account_deletion_scheduled'
+  | 'breach_notification_customer';
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
 
@@ -73,5 +87,21 @@ export const notificationConfig: Record<NotificationType, {
   // Credit Note notifications
   credit_note_created: { icon: 'FileText', color: 'text-orange-600', bgColor: 'bg-orange-100' },
   credit_note_issued: { icon: 'Send', color: 'text-purple-600', bgColor: 'bg-purple-100' },
-  credit_note_applied: { icon: 'CheckCircle', color: 'text-green-600', bgColor: 'bg-green-100' }
+  credit_note_applied: { icon: 'CheckCircle', color: 'text-green-600', bgColor: 'bg-green-100' },
+
+  // GDPR Phase 2 - Platform Admin Notifications
+  breach_reported: { icon: 'AlertTriangle', color: 'text-red-600', bgColor: 'bg-red-100' },
+  breach_deadline_warning: { icon: 'Clock', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+  breach_deadline_passed: { icon: 'XCircle', color: 'text-red-600', bgColor: 'bg-red-100' },
+  retention_cleanup_completed: { icon: 'CheckCircle', color: 'text-green-600', bgColor: 'bg-green-100' },
+  retention_cleanup_failed: { icon: 'AlertCircle', color: 'text-red-600', bgColor: 'bg-red-100' },
+  suspicious_activity_detected: { icon: 'Shield', color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
+  ropa_entry_added: { icon: 'FileText', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  customer_data_export_requested: { icon: 'Download', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  customer_account_deletion_requested: { icon: 'UserX', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+
+  // GDPR Phase 2 - Customer Notifications
+  data_export_ready: { icon: 'Download', color: 'text-green-600', bgColor: 'bg-green-100' },
+  account_deletion_scheduled: { icon: 'Calendar', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+  breach_notification_customer: { icon: 'Shield', color: 'text-red-600', bgColor: 'bg-red-100' }
 };

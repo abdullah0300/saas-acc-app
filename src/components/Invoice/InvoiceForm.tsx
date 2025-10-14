@@ -15,19 +15,21 @@ import { COUNTRY_CODES } from '../../utils/phoneUtils';
 import { checkInvoiceNumberExists } from '../../services/database';
 import { countries } from '../../data/countries';
 import { calculateVATFromNet, aggregateVATByRate } from '../../utils/vatCalculations';
-import { 
-  createInvoice, 
-  updateInvoice, 
-  getClients, 
-  createClient, 
+import {
+  createInvoice,
+  updateInvoice,
+  getClients,
+  createClient,
   getInvoice,
   getNextInvoiceNumber,
   getInvoiceTemplates,
   createInvoiceTemplate,
   deleteInvoiceTemplate,
-  getCategories
+  getCategories,
+  getInvoicePayments,
+  calculateInvoiceBalance
 } from '../../services/database';
-import { Invoice, InvoiceItem, Client } from '../../types';
+import { Invoice, InvoiceItem, Client, InvoicePayment } from '../../types';
 import { format, addDays, parseISO, addWeeks, addMonths } from 'date-fns';
 import { supabase } from '../../services/supabaseClient';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -159,6 +161,11 @@ useEffect(() => {
   const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Payment tracking state for locked invoices
+  const [invoicePayments, setInvoicePayments] = useState<InvoicePayment[]>([]);
+  const [paymentBalance, setPaymentBalance] = useState<{ total_paid: number; balance_due: number; invoice_total: number } | null>(null);
+  const [originalInvoiceTotal, setOriginalInvoiceTotal] = useState<number>(0);
 
   const calculateTotals = () => {
   if (requiresLineItemVAT) {
@@ -940,13 +947,31 @@ const updateInvoiceMutation = useMutation({
 useEffect(() => {
   if (invoiceData?.invoice) {
     const { invoice, recurringData } = invoiceData;
-    
+
     if (invoice.status === 'paid' || invoice.status === 'canceled') {
       alert('This invoice is locked for compliance and cannot be edited.');
       navigate('/invoices');
       return;
     }
-    
+
+    // Load payment data if invoice has payments
+    const loadPaymentData = async () => {
+      if (invoice.payment_locked_at) {
+        try {
+          const payments = await getInvoicePayments(invoice.id);
+          setInvoicePayments(payments);
+
+          const balance = await calculateInvoiceBalance(invoice.id);
+          setPaymentBalance(balance);
+          setOriginalInvoiceTotal(invoice.total);
+        } catch (err) {
+          console.error('Error loading payment data:', err);
+        }
+      }
+    };
+
+    loadPaymentData();
+
     setFormData({
       invoice_number: invoice.invoice_number,
       client_id: invoice.client_id || '',
@@ -961,23 +986,23 @@ useEffect(() => {
       payment_terms: 30,
       income_category_id: invoice.income_category_id || ''
     });
-    
+
     // Store original exchange rate
     if (invoice.exchange_rate && invoice.currency !== baseCurrency) {
       setOriginalRate(invoice.exchange_rate);
     }
-    
+
     // FIX: Properly convert InvoiceItem[] to FormInvoiceItem[] with all required fields
     setItems(invoice.items?.map((item: InvoiceItem) => {
       const quantity = item.quantity || 1;
       const rate = item.rate || 0;
       const taxRate = item.tax_rate || 0;
-      
+
       // Calculate values based on what we have
       const netAmount = item.net_amount || (quantity * rate);
       const taxAmount = item.tax_amount || ((netAmount * taxRate) / 100);
       const grossAmount = item.gross_amount || (netAmount + taxAmount);
-      
+
       return {
         id: item.id,
         description: item.description,
@@ -1000,6 +1025,22 @@ useEffect(() => {
     if (isRecurringTemplateMode && recurringTemplateId) {
       await handleSaveRecurringTemplate();
       return;
+    }
+
+    // Validate partially locked invoices (has payments but not fully paid)
+    if (isEdit && invoiceData?.invoice.payment_locked_at && paymentBalance) {
+      const newTotal = total;
+
+      if (newTotal < paymentBalance.total_paid) {
+        alert(`Invoice total cannot be less than amount already paid (${formatCurrency(paymentBalance.total_paid, formData.currency || baseCurrency)})`);
+        return;
+      }
+
+      // Check if trying to change client on partially locked invoice
+      if (formData.client_id !== invoiceData.invoice.client_id) {
+        alert('Cannot change client on invoice with payments');
+        return;
+      }
     }
 
     // Check if online
@@ -1229,12 +1270,29 @@ if (!isUserSettingsReady) {
 
       {/* Recurring Template Mode Warning */}
       {isRecurringTemplateMode && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-start gap-3 mb-4">
           <AlertCircle className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-indigo-900">Editing Recurring Invoice Template</p>
             <p className="text-sm text-indigo-700 mt-1">
               You're editing the template for future recurring invoices. Changes will only affect invoices generated after you save.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Partially Locked Invoice Warning */}
+      {isEdit && invoiceData?.invoice.payment_locked_at && paymentBalance && paymentBalance.balance_due > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3 mb-4">
+          <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-yellow-900">This invoice has received payments - Limited editing allowed</p>
+            <p className="text-sm text-yellow-700 mt-1">
+              <strong>Total Paid:</strong> {formatCurrency(paymentBalance.total_paid, formData.currency || baseCurrency)} | <strong>Balance Due:</strong> {formatCurrency(paymentBalance.balance_due, formData.currency || baseCurrency)}
+            </p>
+            <p className="text-sm text-yellow-700 mt-2">
+              <strong>Allowed:</strong> Adding items, increasing quantities, extending due date, adding notes<br/>
+              <strong>Not Allowed:</strong> Changing client, invoice date, reducing total below paid amount, deleting existing items
             </p>
           </div>
         </div>
@@ -1329,7 +1387,8 @@ if (!isUserSettingsReady) {
                   <select
                     value={formData.client_id}
                     onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    disabled={isEdit && !!invoiceData?.invoice.payment_locked_at}
                   >
                     <option value="">Select a client (optional)</option>
                     {clients.map((client) => (
@@ -1366,7 +1425,8 @@ if (!isUserSettingsReady) {
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={isEdit && !!invoiceData?.invoice.payment_locked_at}
                 required
               />
             </div>
@@ -1640,7 +1700,9 @@ if (!isUserSettingsReady) {
     <button
       type="button"
       onClick={() => removeItem(item.id)}
-      className="p-2 text-red-600 hover:text-red-700"
+      className="p-2 text-red-600 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+      disabled={isEdit && !!invoiceData?.invoice.payment_locked_at}
+      title={isEdit && !!invoiceData?.invoice.payment_locked_at ? "Cannot delete items from invoices with payments" : "Delete item"}
     >
       <Trash2 className="h-4 w-4" />
             </button>

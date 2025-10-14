@@ -1,16 +1,17 @@
 import { supabase } from './supabaseClient';
-import { 
-  Income, 
-  Expense, 
-  Invoice, 
-  InvoiceItem, 
-  Client, 
+import {
+  Income,
+  Expense,
+  Invoice,
+  InvoiceItem,
+  Client,
   Category,
   User,
   Subscription,
   TransactionType,
   InvoiceStatus,
-  Vendor  
+  Vendor,
+  InvoicePayment
 } from '../types';
 import { TeamMember, TeamInvite } from '../types/userManagement';
 import { subscriptionService } from './subscriptionService';
@@ -215,13 +216,54 @@ if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount || null;
   return data;
 };
 
-export const deleteIncome = async (id: string) => {
+export const deleteIncome = async (id: string, userId: string, reason?: string) => {
+  // 🔴 GDPR CRITICAL FIX: Fetch data BEFORE deleting for audit trail
+  const { data: income, error: fetchError } = await supabase
+    .from('income')
+    .select(`
+      *,
+      client:clients(name, email),
+      category:categories(name)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !income) {
+    throw new Error('Income entry not found');
+  }
+
+  // Delete the record
   const { error } = await supabase
     .from('income')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
+
+  // ✅ GDPR Article 30 & 32: Log deletion for audit trail (WHO, WHAT, WHEN, WHY)
+  await supabase.from('audit_logs').insert({
+    user_id: userId,
+    action: 'delete',
+    entity_type: 'income',
+    entity_id: id,
+    entity_name: income.description,
+    metadata: {
+      deleted_at: new Date().toISOString(),
+      amount: income.amount,
+      currency: income.currency,
+      date: income.date,
+      // GDPR: Track personal data involved
+      client_data: income.client ? {
+        name: income.client.name,
+        email: income.client.email
+      } : null,
+      category: income.category?.name,
+      deletion_reason: reason || 'user_request',
+      // Additional compliance fields
+      tax_amount: income.tax_amount,
+      reference_number: income.reference_number
+    }
+  });
 };
 
 // Expense functions - Team aware
@@ -317,13 +359,56 @@ export const updateExpense = async (id: string, updates: Partial<Expense>) => {
   return data;
 };
 
-export const deleteExpense = async (id: string) => {
+export const deleteExpense = async (id: string, userId: string, reason?: string) => {
+  // 🔴 GDPR CRITICAL FIX: Fetch data BEFORE deleting for audit trail
+  const { data: expense, error: fetchError } = await supabase
+    .from('expenses')
+    .select(`
+      *,
+      vendor_detail:vendors(name, email),
+      category:categories(name)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !expense) {
+    throw new Error('Expense not found');
+  }
+
+  // Delete the record
   const { error } = await supabase
     .from('expenses')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
+
+  // ✅ GDPR Article 30 & 32: Log deletion for audit trail (WHO, WHAT, WHEN, WHY)
+  await supabase.from('audit_logs').insert({
+    user_id: userId,
+    action: 'delete',
+    entity_type: 'expense',
+    entity_id: id,
+    entity_name: expense.description,
+    metadata: {
+      deleted_at: new Date().toISOString(),
+      amount: expense.amount,
+      currency: expense.currency,
+      date: expense.date,
+      // GDPR: Track personal data involved
+      vendor_data: expense.vendor_detail ? {
+        name: expense.vendor_detail.name,
+        email: expense.vendor_detail.email
+      } : null,
+      vendor_name: expense.vendor,
+      category: expense.category?.name,
+      deletion_reason: reason || 'user_request',
+      // Additional compliance fields
+      tax_amount: expense.tax_amount,
+      reference_number: expense.reference_number,
+      receipt_url: expense.receipt_url
+    }
+  });
 };
 
 // Client functions - Team aware
@@ -641,17 +726,22 @@ export const deleteInvoice = async (id: string): Promise<{ success: boolean; had
     // 2. Check if invoice exists and user has permission
     const { data: invoice, error: checkError } = await supabase
       .from('invoices')
-      .select('id, invoice_number, status, user_id')
+      .select('id, invoice_number, status, user_id, payment_locked_at')
       .eq('id', id)
       .single();
-    
+
     if (checkError || !invoice) {
       throw new Error('Invoice not found or you do not have permission to delete it');
     }
-    
-    // 3. Check if invoice is locked (paid or has credit notes)
+
+    // 3. Check if invoice is locked (paid or has payments)
     if (invoice.status === 'paid') {
       throw new Error('Cannot delete paid invoices for compliance reasons');
+    }
+
+    // Check if invoice has any payments recorded
+    if (invoice.payment_locked_at) {
+      throw new Error('This invoice has payments and cannot be deleted for compliance reasons');
     }
     
     // 4. Check for credit notes
@@ -1270,6 +1360,9 @@ export const applyCreditNote = async (
   userId: string,
   action: 'refund' | 'credit' | 'apply' = 'refund'
 ): Promise<void> => {
+  // 🔴 CRITICAL FIX: Use effectiveUserId for team support
+  const effectiveUserId = await getEffectiveUserId(userId);
+
   // Get complete credit note data with invoice
   const { data: creditNote, error: fetchError } = await supabase
     .from('credit_notes')
@@ -1287,25 +1380,25 @@ export const applyCreditNote = async (
     throw new Error('Credit note already applied');
   }
 
-  // Get user's base currency
+  // Get user's base currency using effectiveUserId
   const { data: userSettings } = await supabase
     .from('user_settings')
     .select('base_currency')
-    .eq('user_id', userId)
+    .eq('user_id', effectiveUserId)
     .single();
 
   const baseCurrency = userSettings?.base_currency || 'USD';
 
   switch(action) {
     case 'refund':
-      // Get or create the credit notes category
-      const categoryId = await getOrCreateCreditNotesCategory(userId);
+      // Get or create the credit notes category using effectiveUserId
+      const categoryId = await getOrCreateCreditNotesCategory(effectiveUserId);
 
       // Create negative income entry with proper currency fields AND category
       const { error: incomeError } = await supabase
         .from('income')
         .insert([{
-          user_id: userId,
+          user_id: effectiveUserId,  // 🔴 FIX: Use effectiveUserId for team support
           amount: -Math.abs(creditNote.total),
           description: `Credit Note ${creditNote.credit_note_number} for Invoice ${creditNote.invoice?.invoice_number || ''}`,
           date: creditNote.date,
@@ -1318,9 +1411,10 @@ export const applyCreditNote = async (
           exchange_rate: creditNote.exchange_rate || 1,
           base_amount: -Math.abs(creditNote.base_amount || (creditNote.subtotal / (creditNote.exchange_rate || 1))),
           tax_rate: creditNote.tax_rate || 0,
-          tax_amount: creditNote.tax_amount ? -Math.abs(creditNote.tax_amount) : 0
+          tax_amount: creditNote.tax_amount ? -Math.abs(creditNote.tax_amount) : 0,
+          tax_metadata: creditNote.tax_metadata || null  // 🔴 CRITICAL FIX: Include VAT breakdown for HMRC compliance
         }]);
-      
+
       if (incomeError) throw incomeError;
       break;
       
@@ -1336,30 +1430,50 @@ export const applyCreditNote = async (
       // Apply to unpaid invoice
       const { data: unpaidInvoice } = await supabase
         .from('invoices')
-        .select('id, total')
+        .select('id, total, currency, exchange_rate')  // 🔴 FIX: Get currency info
         .eq('client_id', creditNote.client_id)
         .eq('status', 'sent')
         .order('due_date')
         .limit(1)
         .single();
-        
+
       if (unpaidInvoice) {
         if (creditNote.total >= unpaidInvoice.total) {
           await updateInvoice(unpaidInvoice.id, { status: 'paid' });
         }
-        
+
+        // 🔴 FIX: Proper currency conversion for cross-currency applications
+        const applyAmount = Math.min(creditNote.total, unpaidInvoice.total);
+        const creditNoteCurrency = creditNote.currency || baseCurrency;
+        const invoiceCurrency = unpaidInvoice.currency || baseCurrency;
+
+        let baseAmount: number;
+
+        if (creditNoteCurrency === invoiceCurrency) {
+          // Same currency - simple conversion
+          baseAmount = applyAmount / (creditNote.exchange_rate || 1);
+        } else {
+          // Different currencies - convert credit note amount to base, then to invoice currency
+          // Credit note in base currency
+          const creditNoteInBase = creditNote.total / (creditNote.exchange_rate || 1);
+          // Invoice amount in base currency
+          const invoiceInBase = unpaidInvoice.total / (unpaidInvoice.exchange_rate || 1);
+          // Use the smaller amount in base currency
+          baseAmount = Math.min(creditNoteInBase, invoiceInBase);
+        }
+
         await supabase.from('income').insert([{
-          user_id: userId,
-          amount: Math.min(creditNote.total, unpaidInvoice.total),
+          user_id: effectiveUserId,  // 🔴 FIX: Use effectiveUserId for team support
+          amount: applyAmount,
           description: `Credit Note ${creditNote.credit_note_number} applied to Invoice`,
           date: creditNote.date,
           credit_note_id: creditNoteId,
           client_id: creditNote.client_id,
-          category_id: await getOrCreateCreditNotesCategory(userId), // ADD category here too
-          // Add currency fields
-          currency: creditNote.currency || baseCurrency,
+          category_id: await getOrCreateCreditNotesCategory(effectiveUserId), // 🔴 FIX: Use effectiveUserId
+          // Add currency fields with proper conversion
+          currency: creditNoteCurrency,
           exchange_rate: creditNote.exchange_rate || 1,
-          base_amount: Math.min(creditNote.total, unpaidInvoice.total) / (creditNote.exchange_rate || 1)
+          base_amount: baseAmount
         }]);
       }
       break;
@@ -1368,11 +1482,30 @@ export const applyCreditNote = async (
   // Mark credit note as applied
   await supabase
     .from('credit_notes')
-    .update({ 
-      applied_to_income: true, 
-      status: 'applied' 
+    .update({
+      applied_to_income: true,
+      status: 'applied'
     })
     .eq('id', creditNoteId);
+
+  // 🟡 HIGH PRIORITY FIX: Add audit trail for compliance
+  await supabase
+    .from('audit_logs')
+    .insert({
+      user_id: effectiveUserId,  // Use effectiveUserId for team ownership
+      action: 'apply',
+      entity_type: 'credit_note',
+      entity_id: creditNoteId,
+      entity_name: creditNote.credit_note_number,
+      metadata: {
+        action_type: action,
+        applied_at: new Date().toISOString(),
+        invoice_id: creditNote.invoice_id,
+        amount: creditNote.total,
+        currency: creditNote.currency,
+        performed_by: userId  // Track who actually performed the action
+      }
+    });
 };
 
 export const getCreditNotesByInvoice = async (invoiceId: string): Promise<CreditNote[]> => {
@@ -1790,5 +1923,98 @@ export const getOrCreateLoanInterestCategory = async (userId: string): Promise<s
   }
 
   return newCategory?.id || null;
+};
+
+// ============================================================
+// INVOICE PAYMENT TRACKING FUNCTIONS
+// ============================================================
+
+// Record a payment for an invoice
+export const recordInvoicePayment = async (
+  invoiceId: string,
+  paymentDetails: {
+    amount: number;
+    payment_date: string;
+    payment_method: 'cash' | 'bank_transfer' | 'credit_card' | 'check' | 'other';
+    reference_number?: string;
+    notes?: string;
+  },
+  userId: string
+): Promise<InvoicePayment> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  // Check if payment already exists for this invoice to prevent duplicates
+  const { data: existingPayment } = await supabase
+    .from('invoice_payments')
+    .select('id')
+    .eq('invoice_id', invoiceId)
+    .eq('amount', paymentDetails.amount)
+    .eq('payment_date', paymentDetails.payment_date)
+    .maybeSingle();
+
+  if (existingPayment) {
+    throw new Error('A payment with the same amount and date already exists for this invoice');
+  }
+
+  // Insert payment record
+  const { data, error } = await supabase
+    .from('invoice_payments')
+    .insert([{
+      invoice_id: invoiceId,
+      user_id: effectiveUserId,
+      amount: paymentDetails.amount,
+      payment_date: paymentDetails.payment_date,
+      payment_method: paymentDetails.payment_method,
+      reference_number: paymentDetails.reference_number || null,
+      notes: paymentDetails.notes || null
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as InvoicePayment;
+};
+
+// Get all payments for an invoice
+export const getInvoicePayments = async (invoiceId: string): Promise<InvoicePayment[]> => {
+  const { data, error } = await supabase
+    .from('invoice_payments')
+    .select('*')
+    .eq('invoice_id', invoiceId)
+    .order('payment_date', { ascending: false });
+
+  if (error) throw error;
+  return data as InvoicePayment[];
+};
+
+// Calculate invoice balance (total paid and balance due)
+export const calculateInvoiceBalance = async (
+  invoiceId: string
+): Promise<{ total_paid: number; balance_due: number; invoice_total: number }> => {
+  // Get invoice total
+  const { data: invoice, error: invoiceError } = await supabase
+    .from('invoices')
+    .select('total')
+    .eq('id', invoiceId)
+    .single();
+
+  if (invoiceError) throw invoiceError;
+
+  // Get all payments for this invoice
+  const { data: payments, error: paymentsError } = await supabase
+    .from('invoice_payments')
+    .select('amount')
+    .eq('invoice_id', invoiceId);
+
+  if (paymentsError) throw paymentsError;
+
+  const total_paid = payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
+  const balance_due = invoice.total - total_paid;
+
+  return {
+    total_paid,
+    balance_due,
+    invoice_total: invoice.total
+  };
 };
 

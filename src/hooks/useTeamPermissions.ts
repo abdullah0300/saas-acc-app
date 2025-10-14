@@ -7,6 +7,7 @@ export const useTeamPermissions = () => {
   const { user } = useAuth();
   const [role, setRole] = useState<'owner' | 'admin' | 'member' | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,14 +20,24 @@ export const useTeamPermissions = () => {
 
 const checkPermissions = async () => {
   if (!user) return;
-  
+
   try {
+    // Check if user is a platform admin
+    const { data: platformAdminData, error: platformAdminError } = await supabase
+      .from('platform_admins')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const isAdmin = !platformAdminError && platformAdminData !== null;
+    setIsPlatformAdmin(isAdmin);
+
     // Check if user is in team_members table
     const { data, error } = await supabase
       .from('team_members')
       .select('role, team_id')
-      .eq('user_id', user.id) // Changed from 'id' to 'user_id'
-      .maybeSingle(); // Use maybeSingle instead of single
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     if (error || !data) {
       // User is not in a team - they are the owner
@@ -41,6 +52,7 @@ const checkPermissions = async () => {
     // Default to owner if error
     setRole('owner');
     setTeamId(user?.id || null);
+    setIsPlatformAdmin(false);
   } finally {
     setLoading(false);
   }
@@ -61,6 +73,7 @@ const checkPermissions = async () => {
     canManageTeam,
     isOwner: role === 'owner',
     isAdmin: role === 'admin',
-    isMember: role === 'member'
+    isMember: role === 'member',
+    isPlatformAdmin
   };
 };
