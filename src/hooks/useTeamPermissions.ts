@@ -8,6 +8,7 @@ export const useTeamPermissions = () => {
   const [role, setRole] = useState<'owner' | 'admin' | 'member' | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  const [isSEOAdmin, setIsSEOAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,15 +23,21 @@ const checkPermissions = async () => {
   if (!user) return;
 
   try {
-    // Check if user is a platform admin
+    // Check if user is a platform admin and get their admin role
     const { data: platformAdminData, error: platformAdminError } = await supabase
       .from('platform_admins')
-      .select('user_id')
+      .select('user_id, admin_role')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const isAdmin = !platformAdminError && platformAdminData !== null;
-    setIsPlatformAdmin(isAdmin);
+    if (!platformAdminError && platformAdminData !== null) {
+      const adminRole = platformAdminData.admin_role || 'platform_admin';
+      setIsPlatformAdmin(adminRole === 'platform_admin');
+      setIsSEOAdmin(adminRole === 'seo_admin' || adminRole === 'platform_admin');
+    } else {
+      setIsPlatformAdmin(false);
+      setIsSEOAdmin(false);
+    }
 
     // Check if user is in team_members table
     const { data, error } = await supabase
@@ -74,6 +81,7 @@ const checkPermissions = async () => {
     isOwner: role === 'owner',
     isAdmin: role === 'admin',
     isMember: role === 'member',
-    isPlatformAdmin
+    isPlatformAdmin,
+    isSEOAdmin
   };
 };

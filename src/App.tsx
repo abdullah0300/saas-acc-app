@@ -72,6 +72,7 @@ import { TermsOfService } from './components/Legal/TermsOfService';
 import { SmartRedirect } from './components/Auth/SmartRedirect';
 import { OwnerOnlyRoute } from './components/Auth/OwnerOnlyRoute';
 import { PlatformAdminRoute } from './components/Auth/PlatformAdminRoute';
+import { SEOAdminRoute } from './components/Auth/SEOAdminRoute';
 import { useSessionKeepAlive } from './hooks/useSessionKeepAlive';
 import { useAuth } from './contexts/AuthContext';
 import { Loader } from 'lucide-react';
@@ -302,9 +303,9 @@ function AppRoutes() {
           <Route path="ropa" element={<PlatformAdminRoute><RoPAManager /></PlatformAdminRoute>} />
         </Route>
 
-        {/* Admin SEO & Blog Management - Owner only */}
-        <Route path="/admin/seo-manager" element={<OwnerOnlyRoute><SEOManagerDashboard /></OwnerOnlyRoute>} />
-        <Route path="/admin/blog-manager" element={<OwnerOnlyRoute><BlogManagerDashboard /></OwnerOnlyRoute>} />
+        {/* Admin SEO & Blog Management - SEO Admin or Platform Admin only */}
+        <Route path="/admin/seo-manager" element={<SEOAdminRoute><SEOManagerDashboard /></SEOAdminRoute>} />
+        <Route path="/admin/blog-manager" element={<SEOAdminRoute><BlogManagerDashboard /></SEOAdminRoute>} />
 
         <Route path="/payment/success" element={<PaymentSuccess />} />
       </Route>
