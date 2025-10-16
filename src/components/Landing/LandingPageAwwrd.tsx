@@ -2,6 +2,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform, useInView, AnimatePresence, useMotionValue, useSpring, Variants } from 'framer-motion';
+import { SEOHead } from '../SEO';
+import { supabase } from '../../services/supabaseClient';
 import {
   Brain, Sparkles, ChartLine, Wand2, Receipt, MessageSquare,
   Shield, Globe, Users, PieChart, Smartphone, Plug, Star,
@@ -279,8 +281,28 @@ export const LandingPageAwwrd: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative bg-gray-50 text-gray-900 overflow-hidden">
-      {/* Navigation - Floating Capsule Style */}
+    <>
+      <SEOHead
+        pagePath="/"
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'SmartCFO',
+          applicationCategory: 'BusinessApplication',
+          offers: {
+            '@type': 'Offer',
+            price: '5',
+            priceCurrency: 'USD'
+          },
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: '4.9',
+            ratingCount: '10000'
+          }
+        }}
+      />
+      <div className="relative bg-gray-50 text-gray-900 overflow-hidden">
+        {/* Navigation - Floating Capsule Style */}
       <motion.nav
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -678,6 +700,9 @@ export const LandingPageAwwrd: React.FC = () => {
       {/* Stacked Cards Section - Award-Winning Animation */}
       <StackedCardsSection />
 
+      {/* Blog Section - Latest Insights */}
+      <BlogSection />
+
       {/* Pricing Section - Modern */}
       <section id="pricing" className="relative py-16 sm:py-24 md:py-32 bg-gradient-to-br from-purple-50 via-white to-pink-50">
         <div className="container mx-auto px-4 sm:px-6">
@@ -930,16 +955,27 @@ export const LandingPageAwwrd: React.FC = () => {
                     {[
                       { name: "Features", href: "#features" },
                       { name: "Pricing", href: "#pricing" },
-                      { name: "Solutions", href: "#solutions" }
+                      { name: "Solutions", href: "#solutions" },
+                      { name: "Blog", href: "/blog" }
                     ].map((link) => (
                       <li key={link.name}>
-                        <a
-                          href={link.href}
-                          className="text-gray-600 hover:text-purple-600 transition-colors text-sm group inline-flex items-center gap-2"
-                        >
-                          <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                          {link.name}
-                        </a>
+                        {link.href.startsWith('#') ? (
+                          <a
+                            href={link.href}
+                            className="text-gray-600 hover:text-purple-600 transition-colors text-sm group inline-flex items-center gap-2"
+                          >
+                            <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                            {link.name}
+                          </a>
+                        ) : (
+                          <Link
+                            to={link.href}
+                            className="text-gray-600 hover:text-purple-600 transition-colors text-sm group inline-flex items-center gap-2"
+                          >
+                            <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                            {link.name}
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -998,6 +1034,7 @@ export const LandingPageAwwrd: React.FC = () => {
         </div>
       </footer>
     </div>
+    </>
   );
 };
 
@@ -1360,6 +1397,123 @@ const StackedCardsSection: React.FC = () => {
             </motion.div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+};
+
+// Blog Section Component
+const BlogSection: React.FC = () => {
+  const navigate = useNavigate();
+  const [recentPosts, setRecentPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRecentPosts();
+  }, []);
+
+  const fetchRecentPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+      setRecentPosts(data || []);
+    } catch (error) {
+      console.error('Error fetching recent posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || recentPosts.length === 0) {
+    return null; // Don't show section if no posts
+  }
+
+  return (
+    <section className="relative py-16 sm:py-24 md:py-32 bg-white">
+      <div className="container mx-auto px-4 sm:px-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="text-center mb-12 sm:mb-16 md:mb-20"
+        >
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 px-4">
+            <span className="text-gray-900">Latest </span>
+            <span className="gradient-text">Insights</span>
+          </h2>
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto px-4">
+            Expert tips and industry trends to help you master your business finances
+          </p>
+        </motion.div>
+
+        <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          {recentPosts.map((post, index) => (
+            <motion.div
+              key={post.id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ y: -10, scale: 1.02 }}
+              className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer border border-gray-100 hover:shadow-2xl transition-all duration-300"
+              onClick={() => navigate(`/blog/${post.slug}`)}
+            >
+              <div className="relative h-48 overflow-hidden">
+                <img
+                  src={post.featured_image_url || 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800'}
+                  alt={post.title}
+                  className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                />
+                {post.category && (
+                  <span className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur text-purple-600 text-xs font-semibold rounded-full">
+                    {post.category}
+                  </span>
+                )}
+              </div>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 hover:text-purple-600 transition-colors">
+                  {post.title}
+                </h3>
+                <p className="text-gray-600 mb-4 line-clamp-3 text-sm">
+                  {post.excerpt}
+                </p>
+                <div className="flex items-center justify-between text-sm text-gray-500 pt-4 border-t">
+                  <span className="flex items-center">
+                    <Calendar className="w-4 h-4 mr-1" />
+                    {new Date(post.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {post.reading_time_minutes} min
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="text-center mt-12"
+        >
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/blog')}
+            className="px-8 py-4 gradient-bg text-white rounded-full font-bold text-base shadow-xl hover:shadow-2xl transition-all inline-flex items-center gap-2"
+          >
+            <span>View All Posts</span>
+            <ArrowRight className="w-5 h-5" />
+          </motion.button>
+        </motion.div>
       </div>
     </section>
   );

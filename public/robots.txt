@@ -1,3 +1,31 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+
+# Allow public pages
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /privacy
+Allow: /terms
+Allow: /reset-password
+Allow: /blog
+Allow: /blog/*
+
+# Disallow dashboard and protected pages
+Disallow: /dashboard
+Disallow: /expenses
+Disallow: /income
+Disallow: /invoices
+Disallow: /clients
+Disallow: /vendors
+Disallow: /loans
+Disallow: /credit-notes
+Disallow: /reports
+Disallow: /budget
+Disallow: /settings
+Disallow: /notifications
+Disallow: /setup
+Disallow: /admin
+
+# Sitemap location
+Sitemap: https://yourdomain.com/sitemap.xml

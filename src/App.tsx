@@ -76,6 +76,10 @@ import { useSessionKeepAlive } from './hooks/useSessionKeepAlive';
 import { useAuth } from './contexts/AuthContext';
 import { Loader } from 'lucide-react';
 import { CookieConsent } from './components/Common/CookieConsent';
+import { BlogList } from './components/Blog/BlogList';
+import { BlogPost } from './components/Blog/BlogPost';
+import SEOManagerDashboard from './components/Admin/SEOManager/SEOManagerDashboard';
+import BlogManagerDashboard from './components/Admin/BlogManager/BlogManagerDashboard';
 
 // Debug: Log environment variables
 console.log('🔧 App.tsx Environment Debug:');
@@ -159,6 +163,10 @@ function AppRoutes() {
       {/* Legal pages - public access */}
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
+
+      {/* Blog - public access */}
+      <Route path="/blog" element={<BlogList />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
 
       {/* Protected routes */}
       <Route element={
@@ -293,7 +301,11 @@ function AppRoutes() {
           <Route path="breach-management" element={<PlatformAdminRoute><BreachDashboard /></PlatformAdminRoute>} />
           <Route path="ropa" element={<PlatformAdminRoute><RoPAManager /></PlatformAdminRoute>} />
         </Route>
-        
+
+        {/* Admin SEO & Blog Management - Owner only */}
+        <Route path="/admin/seo-manager" element={<OwnerOnlyRoute><SEOManagerDashboard /></OwnerOnlyRoute>} />
+        <Route path="/admin/blog-manager" element={<OwnerOnlyRoute><BlogManagerDashboard /></OwnerOnlyRoute>} />
+
         <Route path="/payment/success" element={<PaymentSuccess />} />
       </Route>
     </Routes>
