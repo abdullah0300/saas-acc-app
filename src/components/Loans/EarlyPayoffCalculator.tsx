@@ -111,13 +111,13 @@ export const EarlyPayoffCalculator: React.FC<EarlyPayoffCalculatorProps> = ({
               <div>
                 <p className="text-gray-600">Current Balance</p>
                 <p className="font-bold text-gray-900">
-                  {formatCurrency(loan.current_balance, loan.currency)}
+                  {formatCurrency(loan.current_balance)}
                 </p>
               </div>
               <div>
                 <p className="text-gray-600">Monthly Payment</p>
                 <p className="font-bold text-gray-900">
-                  {formatCurrency(loan.monthly_payment, loan.currency)}
+                  {formatCurrency(loan.monthly_payment)}
                 </p>
               </div>
               <div>
@@ -190,7 +190,7 @@ export const EarlyPayoffCalculator: React.FC<EarlyPayoffCalculatorProps> = ({
                   <div className="bg-white rounded-lg p-4">
                     <p className="text-sm text-gray-600 mb-1">Interest Saved</p>
                     <p className="text-3xl font-bold text-green-700">
-                      {formatCurrency(calculation.interestSaved, loan.currency)}
+                      {formatCurrency(calculation.interestSaved)}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Total savings over life of loan
@@ -225,7 +225,7 @@ export const EarlyPayoffCalculator: React.FC<EarlyPayoffCalculatorProps> = ({
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-semibold text-gray-700">New Monthly Payment:</span>
                       <span className="text-lg font-bold text-indigo-700">
-                        {formatCurrency(loan.monthly_payment + extraPayment, loan.currency)}
+                        {formatCurrency(loan.monthly_payment + extraPayment)}
                       </span>
                     </div>
                   </div>

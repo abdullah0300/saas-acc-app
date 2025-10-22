@@ -328,7 +328,7 @@ export const LoanView: React.FC = () => {
                   Payment Recorded Successfully!
                 </h3>
                 <p className="mt-1 text-sm text-green-800">
-                  An expense of <span className="font-bold">{formatCurrency(interestExpenseAmount, loan.currency)}</span> was automatically created for the interest portion.{' '}
+                  An expense of <span className="font-bold">{formatCurrency(interestExpenseAmount)}</span> was automatically created for the interest portion.{' '}
                   <Link to="/expenses" className="underline font-medium hover:text-green-900">
                     View Expenses →
                   </Link>
@@ -355,7 +355,7 @@ export const LoanView: React.FC = () => {
             <div>
               <p className="text-sm text-gray-600">Current Balance</p>
               <p className="text-xl font-bold text-gray-900">
-                {formatCurrency(loan.current_balance, loan.currency)}
+                {formatCurrency(loan.current_balance)}
               </p>
             </div>
           </div>
@@ -369,7 +369,7 @@ export const LoanView: React.FC = () => {
             <div>
               <p className="text-sm text-gray-600">Monthly Payment</p>
               <p className="text-xl font-bold text-gray-900">
-                {formatCurrency(loan.monthly_payment, loan.currency)}
+                {formatCurrency(loan.monthly_payment)}
               </p>
             </div>
           </div>
@@ -408,10 +408,9 @@ export const LoanView: React.FC = () => {
           <h3 className="text-sm font-medium text-gray-700">Loan Progress</h3>
           <span className="text-sm text-gray-600">
             {formatCurrency(
-              loan.principal_amount - loan.current_balance,
-              loan.currency
+              loan.principal_amount - loan.current_balance
             )}{' '}
-            of {formatCurrency(loan.principal_amount, loan.currency)} paid
+            of {formatCurrency(loan.principal_amount)} paid
           </span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
@@ -439,7 +438,7 @@ export const LoanView: React.FC = () => {
               Principal Amount
             </label>
             <p className="mt-1 text-gray-900">
-              {formatCurrency(loan.principal_amount, loan.currency)}
+              {formatCurrency(loan.principal_amount)}
             </p>
           </div>
 
@@ -494,7 +493,7 @@ export const LoanView: React.FC = () => {
               Total Interest
             </label>
             <p className="mt-1 text-gray-900">
-              {formatCurrency(totalInterest, loan.currency)}
+              {formatCurrency(totalInterest)}
             </p>
           </div>
 
@@ -548,11 +547,11 @@ export const LoanView: React.FC = () => {
               <p className="text-sm text-yellow-800 mt-1">
                 Payment #{nextPayment.payment_number} of {loan.term_months} due
                 on {format(parseISO(nextPayment.payment_date), 'MMM dd, yyyy')}{' '}
-                - {formatCurrency(nextPayment.total_payment, loan.currency)}
+                - {formatCurrency(nextPayment.total_payment)}
               </p>
               <div className="text-xs text-yellow-700 mt-2">
-                Principal: {formatCurrency(nextPayment.principal_payment, loan.currency)} |
-                Interest: {formatCurrency(nextPayment.interest_payment, loan.currency)}
+                Principal: {formatCurrency(nextPayment.principal_payment)} |
+                Interest: {formatCurrency(nextPayment.interest_payment)}
               </div>
             </div>
           </div>
@@ -617,13 +616,13 @@ export const LoanView: React.FC = () => {
                         {format(parseISO(payment.payment_date), 'MMM dd, yyyy')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 font-semibold">
-                        {formatCurrency(payment.total_payment, loan.currency)}
+                        {formatCurrency(payment.total_payment)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">
-                        {formatCurrency(payment.principal_amount, loan.currency)}
+                        {formatCurrency(payment.principal_amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">
-                        {formatCurrency(payment.interest_amount, loan.currency)}
+                        {formatCurrency(payment.interest_amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full">
@@ -677,8 +676,7 @@ export const LoanView: React.FC = () => {
                 <p className="text-gray-600">Total Paid</p>
                 <p className="font-bold text-gray-900 text-lg">
                   {formatCurrency(
-                    payments.reduce((sum, p) => sum + p.total_payment, 0),
-                    loan.currency
+                    payments.reduce((sum, p) => sum + p.total_payment, 0)
                   )}
                 </p>
               </div>
@@ -686,8 +684,7 @@ export const LoanView: React.FC = () => {
                 <p className="text-gray-600">Principal Paid</p>
                 <p className="font-bold text-green-700 text-lg">
                   {formatCurrency(
-                    payments.reduce((sum, p) => sum + p.principal_amount, 0),
-                    loan.currency
+                    payments.reduce((sum, p) => sum + p.principal_amount, 0)
                   )}
                 </p>
               </div>
@@ -695,8 +692,7 @@ export const LoanView: React.FC = () => {
                 <p className="text-gray-600">Interest Paid</p>
                 <p className="font-bold text-orange-700 text-lg">
                   {formatCurrency(
-                    payments.reduce((sum, p) => sum + p.interest_amount, 0),
-                    loan.currency
+                    payments.reduce((sum, p) => sum + p.interest_amount, 0)
                   )}
                 </p>
               </div>
@@ -762,16 +758,16 @@ export const LoanView: React.FC = () => {
                         {format(parseISO(entry.payment_date), 'MMM dd, yyyy')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
-                        {formatCurrency(entry.total_payment, loan.currency)}
+                        {formatCurrency(entry.total_payment)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">
-                        {formatCurrency(entry.principal_payment, loan.currency)}
+                        {formatCurrency(entry.principal_payment)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">
-                        {formatCurrency(entry.interest_payment, loan.currency)}
+                        {formatCurrency(entry.interest_payment)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
-                        {formatCurrency(entry.ending_balance, loan.currency)}
+                        {formatCurrency(entry.ending_balance)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {getPaymentStatusBadge(entry, payments)}
@@ -823,7 +819,7 @@ export const LoanView: React.FC = () => {
                 </p>
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
                   <p className="text-gray-700">
-                    Amount: <span className="font-semibold">{formatCurrency(paymentToDelete.total_payment, loan.currency)}</span>
+                    Amount: <span className="font-semibold">{formatCurrency(paymentToDelete.total_payment)}</span>
                   </p>
                   <p className="text-gray-700">
                     Date: {format(parseISO(paymentToDelete.payment_date), 'MMM dd, yyyy')}

@@ -254,27 +254,26 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               <div>
                 <p className="text-indigo-700">Total Amount</p>
                 <p className="font-bold text-indigo-900 text-lg">
-                  {formatCurrency(formData.total_payment, loan.currency)}
+                  {formatCurrency(formData.total_payment)}
                 </p>
               </div>
               <div>
                 <p className="text-indigo-700">Principal</p>
                 <p className="font-semibold text-indigo-900">
-                  {formatCurrency(formData.principal_amount, loan.currency)}
+                  {formatCurrency(formData.principal_amount)}
                 </p>
               </div>
               <div>
                 <p className="text-indigo-700">Interest</p>
                 <p className="font-semibold text-indigo-900">
-                  {formatCurrency(formData.interest_amount, loan.currency)}
+                  {formatCurrency(formData.interest_amount)}
                 </p>
               </div>
               <div className="col-span-2">
                 <p className="text-indigo-700">New Balance After Payment</p>
                 <p className="font-bold text-indigo-900 text-lg">
                   {formatCurrency(
-                    Math.max(0, loan.current_balance - formData.principal_amount),
-                    loan.currency
+                    Math.max(0, loan.current_balance - formData.principal_amount)
                   )}
                 </p>
               </div>
@@ -341,7 +340,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               />
               <p className="text-xs text-gray-500 mt-1">
                 {nextPayment
-                  ? `Scheduled: ${formatCurrency(nextPayment.principal_payment, loan.currency)}`
+                  ? `Scheduled: ${formatCurrency(nextPayment.principal_payment)}`
                   : 'Amount that reduces loan balance'
                 }
               </p>
@@ -353,7 +352,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                 Total Payment Amount
               </label>
               <div className="w-full px-4 py-2 border-2 border-indigo-200 rounded-lg bg-indigo-50 text-indigo-900 font-bold text-lg">
-                {formatCurrency(formData.total_payment, loan.currency)}
+                {formatCurrency(formData.total_payment)}
               </div>
               <p className="text-xs text-indigo-600 mt-1">
                 Principal + Interest (auto-calculated)
