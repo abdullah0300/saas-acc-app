@@ -7,7 +7,8 @@
       "WebFetch(domain:tympanus.net)",
       "WebFetch(domain:www.awwwards.com)",
       "WebFetch(domain:medium.com)",
-      "WebFetch(domain:www.figma.com)"
+      "WebFetch(domain:www.figma.com)",
+      "WebFetch(domain:docs.stripe.com)"
     ],
     "deny": [],
     "ask": []

@@ -44,6 +44,7 @@ export const PublicInvoiceView: React.FC = () => {
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
   const [taxRegistrationNumber, setTaxRegistrationNumber] = useState<string>('');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [paymentTransaction, setPaymentTransaction] = useState<any>(null);
 
   // Get user country and tax features
   const userCountry = countries.find(c => c.code === userSettings?.country);

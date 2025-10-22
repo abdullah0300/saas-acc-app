@@ -251,7 +251,7 @@ const handleBulkExport = () => {
     format(parseISO(expense.date), 'yyyy-MM-dd'),
     expense.description,
     expense.category?.name || 'Uncategorized',
-    expense.vendor || 'No vendor',
+    expense.vendor_detail?.name || expense.vendor || 'No vendor',
     expense.reference_number || '',
     expense.amount.toString(),
     expense.currency || baseCurrency,
@@ -916,7 +916,7 @@ const handleViewDetails = (expense: Expense) => {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Vendor
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">
                 Reference
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -956,12 +956,14 @@ const handleViewDetails = (expense: Expense) => {
                       <div className="max-w-xs truncate">{expense.description}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {expense.vendor || '-'}
+                      {expense.vendor_detail?.name || expense.vendor || '-'}
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {expense.reference_number || '-'}
-                  </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 max-w-[8rem]">
+                      <div className="truncate" title={expense.reference_number || '-'}>
+                        {expense.reference_number || '-'}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
                         {expense.category?.name || 'Uncategorized'}
@@ -1136,7 +1138,7 @@ const handleViewDetails = (expense: Expense) => {
       </div>
       {/* Expense Detail Modal */}
 {showDetailModal && selectedExpense && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
       {/* Modal Header */}
       <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
@@ -1176,7 +1178,7 @@ const handleViewDetails = (expense: Expense) => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Reference Number</p>
-              <p className="font-medium text-gray-900">
+              <p className="font-medium text-gray-900 break-all text-xs">
                 {selectedExpense.reference_number || 'N/A'}
               </p>
             </div>
@@ -1222,9 +1224,11 @@ const handleViewDetails = (expense: Expense) => {
               <Building2 className="h-4 w-4" />
               Vendor
             </h4>
-            {selectedExpense.vendor ? (
+            {selectedExpense.vendor || selectedExpense.vendor_detail ? (
               <div>
-                <p className="font-medium text-gray-900">{selectedExpense.vendor}</p>
+                <p className="font-medium text-gray-900">
+                  {selectedExpense.vendor_detail?.name || selectedExpense.vendor}
+                </p>
                 {selectedExpense.vendor_detail && (
                   <>
                     {selectedExpense.vendor_detail.email && (
@@ -1359,7 +1363,7 @@ Description: ${selectedExpense.description}
 Amount: ${formatCurrency(selectedExpense.amount, selectedExpense.currency || baseCurrency)}
 ${selectedExpense.currency !== baseCurrency ? `Base Amount: ${formatCurrency(selectedExpense.base_amount || selectedExpense.amount, baseCurrency)}` : ''}
 Category: ${selectedExpense.category?.name || 'Uncategorized'}
-Vendor: ${selectedExpense.vendor || 'No vendor'}
+Vendor: ${selectedExpense.vendor_detail?.name || selectedExpense.vendor || 'No vendor'}
 Receipt: ${selectedExpense.receipt_url ? 'Attached' : 'None'}`;
               
               navigator.clipboard.writeText(details);

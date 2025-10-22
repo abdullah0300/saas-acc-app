@@ -6,6 +6,7 @@ import { Settings, Save, X, AlertCircle } from 'lucide-react';
 import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { InvoiceSettings } from './InvoiceSettings';
 import { InvoicePaymentSettings } from './InvoicePaymentSettings';
+import { paymentService } from '../../services/payment/PaymentService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -166,6 +167,9 @@ useEffect(() => {
   const [invoicePayments, setInvoicePayments] = useState<InvoicePayment[]>([]);
   const [paymentBalance, setPaymentBalance] = useState<{ total_paid: number; balance_due: number; invoice_total: number } | null>(null);
   const [originalInvoiceTotal, setOriginalInvoiceTotal] = useState<number>(0);
+
+  // Payment settings state - for capturing settings before invoice is created
+  const [pendingPaymentSettings, setPendingPaymentSettings] = useState<any>(null);
 
   const calculateTotals = () => {
   if (requiresLineItemVAT) {
@@ -393,6 +397,15 @@ useEffect(() => {
         gross_amount: item.gross_amount || item.amount || 0
       })));
     }
+
+    // ✅ NEW: Load payment settings from template
+    if (template.payment_settings?.payment_enabled) {
+      setPendingPaymentSettings({
+        paymentEnabled: true,
+        providers: template.payment_settings.payment_providers || [],
+        currencies: template.payment_settings.accepted_currencies || []
+      });
+    }
   };
 
   const handleSaveRecurringTemplate = async () => {
@@ -420,7 +433,14 @@ useEffect(() => {
         notes: formData.notes || '',
         payment_terms: formData.payment_terms || 30,
         currency: formData.currency || baseCurrency,
-        income_category_id: formData.income_category_id || null
+        income_category_id: formData.income_category_id || null,
+
+        // ✅ NEW: Include payment settings in template
+        payment_settings: pendingPaymentSettings?.paymentEnabled ? {
+          payment_enabled: true,
+          payment_providers: pendingPaymentSettings.providers || [],
+          accepted_currencies: pendingPaymentSettings.currencies || []
+        } : null
       };
 
       // Update only the template_data field in recurring_invoices
@@ -756,17 +776,17 @@ const handleSaveAsTemplate = async () => {
     const templateInvoiceData = {
       // Client info - IMPORTANT for edge function
       client_id: formData.client_id || null,
-      
+
       // Financial data
       subtotal: Number(subtotal.toFixed(2)),
       tax_rate: Number(parseFloat(formData.tax_rate) || 0),
       tax_amount: Number(taxAmount.toFixed(2)),
       total: Number(total.toFixed(2)),
-      
+
       // Currency - DON'T store exchange_rate, get fresh when generating
       currency: formData.currency || baseCurrency,
       // NO exchange_rate here - edge function will get current rate
-      
+
       // Items with proper structure
       items: items.map(item => ({
         description: item.description,
@@ -779,12 +799,19 @@ const handleSaveAsTemplate = async () => {
         net_amount: item.net_amount || item.amount,
         gross_amount: item.gross_amount || item.amount
       })),
-      
+
       // Settings
       notes: formData.notes || null,
       payment_terms: formData.payment_terms || 30,
       income_category_id: formData.income_category_id || null,
-      
+
+      // ✅ NEW: Payment settings for Stripe integration
+      payment_settings: pendingPaymentSettings?.paymentEnabled ? {
+        payment_enabled: true,
+        payment_providers: pendingPaymentSettings.providers || [],
+        accepted_currencies: pendingPaymentSettings.currencies || []
+      } : null,
+
       // VAT metadata for UK users
       tax_metadata: userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? {
         tax_scheme: userSettings?.uk_vat_scheme || 'standard',
@@ -819,11 +846,25 @@ const handleSaveAsTemplate = async () => {
     }
   }
 
+  // Save payment settings if they were enabled during invoice creation
+  if (pendingPaymentSettings?.paymentEnabled) {
+    try {
+      await paymentService.enableInvoicePayments(
+        newInvoice.id,
+        pendingPaymentSettings.providers,
+        pendingPaymentSettings.currencies
+      );
+    } catch (error) {
+      console.error('Error saving payment settings:', error);
+      // Don't fail the whole operation, just log the error
+    }
+  }
+
   queryClient.invalidateQueries({ queryKey: ['invoices'] });
   queryClient.invalidateQueries({ queryKey: ['recurring-invoices'] });
   queryClient.invalidateQueries({ queryKey: ['nextInvoiceNumber'] });
   addInvoiceToCache(newInvoice);
-  
+
   navigate('/invoices');
 },
   onError: (error: any) => {
@@ -853,16 +894,16 @@ const updateInvoiceMutation = useMutation({
       const templateInvoiceData = {
         // Client info
         client_id: formData.client_id || null,
-        
+
         // Financial data
         subtotal: Number(subtotal.toFixed(2)),
         tax_rate: Number(parseFloat(formData.tax_rate) || 0),
         tax_amount: Number(taxAmount.toFixed(2)),
         total: Number(total.toFixed(2)),
-        
+
         // Currency only - NO exchange_rate
         currency: formData.currency || baseCurrency,
-        
+
         // Items with proper structure
         items: items.map(item => ({
           description: item.description,
@@ -874,12 +915,19 @@ const updateInvoiceMutation = useMutation({
           net_amount: item.net_amount || item.amount,
           gross_amount: item.gross_amount || item.amount
         })),
-        
+
         // Settings
         notes: formData.notes || null,
         payment_terms: formData.payment_terms || 30,
         income_category_id: formData.income_category_id || null,
-        
+
+        // ✅ NEW: Payment settings for Stripe integration
+        payment_settings: pendingPaymentSettings?.paymentEnabled ? {
+          payment_enabled: true,
+          payment_providers: pendingPaymentSettings.providers || [],
+          accepted_currencies: pendingPaymentSettings.currencies || []
+        } : null,
+
         // VAT metadata
         tax_metadata: userCountry?.taxFeatures?.requiresInvoiceTaxBreakdown ? {
           tax_scheme: userSettings?.uk_vat_scheme || 'standard',
@@ -1783,7 +1831,10 @@ if (!isUserSettingsReady) {
               invoiceId={id}
               currency={formData.currency}
               onUpdate={(settings) => {
-                // Optional: Store settings in form state if needed
+                // Store settings for new invoices to save after creation
+                if (!id) {
+                  setPendingPaymentSettings(settings);
+                }
               }}
             />
           </div>

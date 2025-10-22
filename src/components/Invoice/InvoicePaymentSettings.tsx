@@ -149,35 +149,40 @@ export const InvoicePaymentSettings: React.FC<InvoicePaymentSettingsProps> = ({
             </div>
           </div>
 
-          {/* Accepted Currencies */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Globe className="h-4 w-4 inline mr-1" />
-              Accepted Currencies
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {availableAccounts[0]?.supported_currencies?.map((curr: string) => (
-                <label key={curr} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={acceptedCurrencies.includes(curr)}
-                    onChange={() => handleCurrencyToggle(curr)}
-                    disabled={curr === currency}
-                    className="mr-2"
-                  />
-                  <span className={`text-sm ${curr === currency ? 'font-medium' : ''}`}>
-                    {curr}
-                    {curr === currency && ' (Invoice Currency)'}
-                  </span>
-                </label>
-              ))}
+          {/* Payment Information */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Globe className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                  Multi-Currency Payments
+                </h4>
+                <div className="space-y-1 text-sm text-blue-800">
+                  <p>✓ Accepts payments in <span className="font-medium">135+ currencies worldwide</span></p>
+                  <p>✓ Stripe automatically converts to <span className="font-medium">{availableAccounts[0]?.default_currency?.toUpperCase() || 'USD'}</span> (your account currency)</p>
+                  <p>✓ Customer pays in invoice currency, you receive in {availableAccounts[0]?.default_currency?.toUpperCase() || 'USD'}</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-            <p>• Customers will see a "Pay Now" button on the invoice</p>
-            <p>• Payment processing fees apply per your provider's rates</p>
-            <p>• Funds will be deposited to your connected account</p>
+          <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-2">
+            <p className="flex items-start gap-2">
+              <span className="text-green-600 mt-0.5">•</span>
+              <span>Customers will see a "Pay Now" button on the invoice</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-green-600 mt-0.5">•</span>
+              <span>Payment processing fees apply per your provider's rates</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-green-600 mt-0.5">•</span>
+              <span>Funds deposited to your Stripe account in {availableAccounts[0]?.default_currency?.toUpperCase() || 'USD'}</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <span className="text-green-600 mt-0.5">•</span>
+              <span>Exchange rates applied automatically at time of payment</span>
+            </p>
           </div>
         </div>
       )}

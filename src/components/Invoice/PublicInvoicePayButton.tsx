@@ -26,7 +26,7 @@ export const PublicInvoicePayButton: React.FC<PublicInvoicePayButtonProps> = ({ 
         .from('invoice_payment_settings')
         .select('*')
         .eq('invoice_id', invoice.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
 
       setPaymentSettings(data);
     } catch (error) {

@@ -1,12 +1,26 @@
 import { PaymentProvider, ConnectedAccountData, ConnectedAccountResult, AccountStatus, PaymentInvoice, ConnectedAccount, PaymentSession, PaymentStatus } from './PaymentProvider.interface';
+import { supabase } from '../supabaseClient';
 
 export class StripeConnectProvider implements PaymentProvider {
   public name = 'stripe_connect';
   private apiBaseUrl: string;
 
   constructor() {
-    // Use your backend API URL - this should be configured in environment variables
-    this.apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+    // ✅ NEW: Use Supabase Edge Functions
+    this.apiBaseUrl = process.env.REACT_APP_API_URL || 'https://adsbnzqorfmgnneiopcr.supabase.co/functions/v1';
+  }
+
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    return headers;
   }
 
   async createConnectedAccount(userId: string, data: ConnectedAccountData): Promise<ConnectedAccountResult> {
@@ -18,11 +32,11 @@ export class StripeConnectProvider implements PaymentProvider {
         businessName: data.businessName
       });
 
-      const response = await fetch(`${this.apiBaseUrl}/stripe-connect/accounts`, {
+      // ✅ NEW: Call stripe-connect-create-account function
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.apiBaseUrl}/stripe-connect-create-account`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           userId,
           accountData: data,
@@ -50,11 +64,11 @@ export class StripeConnectProvider implements PaymentProvider {
 
   async getAccountStatus(accountId: string): Promise<AccountStatus> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/stripe-connect/accounts/${accountId}/status`, {
+      // ✅ NEW: Call stripe-connect-account-status function
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.apiBaseUrl}/stripe-connect-account-status?accountId=${accountId}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       const result = await response.json();
@@ -72,11 +86,12 @@ export class StripeConnectProvider implements PaymentProvider {
 
   async getAccountLoginLink(accountId: string): Promise<string> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/stripe-connect/accounts/${accountId}/login-link`, {
+      // ✅ NEW: Call stripe-connect-account-login function
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.apiBaseUrl}/stripe-connect-account-login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
+        body: JSON.stringify({ accountId }),
       });
 
       const result = await response.json();
@@ -94,11 +109,11 @@ export class StripeConnectProvider implements PaymentProvider {
 
   async createPaymentSession(invoice: PaymentInvoice, account: ConnectedAccount): Promise<PaymentSession> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/stripe-connect/payment-sessions`, {
+      // ✅ Not used directly - see PaymentService.ts
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.apiBaseUrl}/stripe-connect-create-payment`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           invoice,
           account,
@@ -120,25 +135,9 @@ export class StripeConnectProvider implements PaymentProvider {
 
   async getPaymentStatus(sessionId: string, stripeAccount?: string): Promise<PaymentStatus> {
     try {
-      const url = new URL(`${this.apiBaseUrl}/stripe-connect/payment-sessions/${sessionId}/status`);
-      if (stripeAccount) {
-        url.searchParams.append('stripeAccount', stripeAccount);
-      }
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to get payment status');
-      }
-
-      return result;
+      // ✅ For now, we can poll the database directly via Supabase client
+      // or create another edge function if needed
+      throw new Error('Not implemented - use Supabase client to check payment_transactions table');
     } catch (error: any) {
       console.error('Error getting payment status:', error);
       throw new Error(error.message || 'Failed to get payment status');
@@ -159,80 +158,48 @@ export class StripeConnectProvider implements PaymentProvider {
   }
 
   getSupportedCurrencies(country: string): string[] {
-    // Official Stripe Connect Express supported countries (2025)
-    // Based on: https://docs.stripe.com/connect/express-accounts
     const currencyMap: Record<string, string[]> = {
-      // North America
-      'US': ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'],
-      'CA': ['CAD', 'USD', 'EUR', 'GBP'],
-      'MX': ['MXN', 'USD', 'EUR'],
-
-      // Europe
+      'US': ['USD'],
       'GB': ['GBP', 'EUR', 'USD'],
-      'DE': ['EUR', 'USD', 'GBP', 'CHF'],
-      'FR': ['EUR', 'USD', 'GBP', 'CHF'],
-      'ES': ['EUR', 'USD', 'GBP'],
-      'IT': ['EUR', 'USD', 'GBP'],
-      'NL': ['EUR', 'USD', 'GBP'],
-      'BE': ['EUR', 'USD', 'GBP'],
-      'AT': ['EUR', 'USD', 'GBP', 'CHF'],
-      'CH': ['CHF', 'EUR', 'USD', 'GBP'],
-      'SE': ['SEK', 'EUR', 'USD', 'GBP'],
-      'NO': ['NOK', 'EUR', 'USD', 'GBP'],
-      'DK': ['DKK', 'EUR', 'USD', 'GBP'],
-      'FI': ['EUR', 'USD', 'GBP'],
-      'IE': ['EUR', 'USD', 'GBP'],
-      'PT': ['EUR', 'USD', 'GBP'],
+      'CA': ['CAD', 'USD'],
+      'AU': ['AUD', 'USD'],
+      'DE': ['EUR', 'USD'],
+      'FR': ['EUR', 'USD'],
+      'IT': ['EUR', 'USD'],
+      'ES': ['EUR', 'USD'],
+      'NL': ['EUR', 'USD'],
+      'IE': ['EUR', 'USD'],
+      'SE': ['SEK', 'EUR', 'USD'],
+      'DK': ['DKK', 'EUR', 'USD'],
+      'NO': ['NOK', 'EUR', 'USD'],
+      'CH': ['CHF', 'EUR', 'USD'],
       'PL': ['PLN', 'EUR', 'USD'],
+      'AT': ['EUR', 'USD'],
+      'BE': ['EUR', 'USD'],
+      'FI': ['EUR', 'USD'],
+      'PT': ['EUR', 'USD'],
+      'GR': ['EUR', 'USD'],
       'CZ': ['CZK', 'EUR', 'USD'],
       'HU': ['HUF', 'EUR', 'USD'],
-      'BG': ['BGN', 'EUR', 'USD'],
       'RO': ['RON', 'EUR', 'USD'],
+      'BG': ['BGN', 'EUR', 'USD'],
       'HR': ['EUR', 'USD'],
-      'SI': ['EUR', 'USD'],
-      'SK': ['EUR', 'USD'],
-      'EE': ['EUR', 'USD'],
-      'LV': ['EUR', 'USD'],
-      'LT': ['EUR', 'USD'],
-      'LU': ['EUR', 'USD'],
-      'MT': ['EUR', 'USD'],
-      'CY': ['EUR', 'USD'],
-      'GR': ['EUR', 'USD'],
-
-      // Asia-Pacific
-      'AU': ['AUD', 'USD', 'EUR', 'GBP', 'NZD'],
-      'NZ': ['NZD', 'USD', 'EUR', 'AUD'],
-      'SG': ['SGD', 'USD', 'EUR', 'GBP'],
-      'HK': ['HKD', 'USD', 'EUR', 'GBP'],
-      'JP': ['JPY', 'USD', 'EUR', 'GBP'],
-
-      // Latin America
-      'BR': ['BRL', 'USD', 'EUR'],
-
-      // Countries with restrictions (require manual setup)
-      // Note: These require contacting Stripe support for Express accounts
-      'IN': ['INR', 'USD', 'EUR', 'GBP'], // India - has restrictions
-      'TH': ['THB', 'USD', 'EUR'],        // Thailand - has restrictions
-      'AE': ['AED', 'USD', 'EUR'],        // UAE - has restrictions
+      'SG': ['SGD', 'USD'],
+      'HK': ['HKD', 'USD'],
+      'JP': ['JPY', 'USD'],
+      'NZ': ['NZD', 'USD'],
+      'MY': ['MYR', 'USD'],
+      'TH': ['THB', 'USD'],
+      'MX': ['MXN', 'USD'],
+      'BR': ['BRL', 'USD'],
+      'IN': ['INR', 'USD'],
     };
 
-    // Return empty array for unsupported countries (like Pakistan)
-    return currencyMap[country] || [];
+    return currencyMap[country] || ['USD'];
   }
 
   async getExchangeRate(from: string, to: string): Promise<number> {
-    // For production, integrate with a real exchange rate API
-    // This is a placeholder
-    const rates: Record<string, number> = {
-      'USD_EUR': 0.92,
-      'USD_GBP': 0.79,
-      'EUR_USD': 1.09,
-      'EUR_GBP': 0.86,
-      'GBP_USD': 1.27,
-      'GBP_EUR': 1.16,
-    };
-
-    const key = `${from}_${to}`;
-    return rates[key] || 1;
+    // Implement exchange rate fetching if needed
+    return 1;
   }
 }

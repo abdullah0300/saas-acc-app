@@ -35,29 +35,14 @@ class PaymentService {
   async createPaymentAccount(userId: string, providerName: string, data: any) {
     const provider = this.getProvider(providerName);
 
-    // Create account with provider
+    // Create account with provider (edge function handles DB save)
     const result = await provider.createConnectedAccount(userId, data);
 
     if (!result.success) {
       throw new Error(result.error);
     }
 
-    // Save to database
-    const { error } = await supabase
-      .from('user_payment_accounts')
-      .insert({
-        user_id: userId,
-        provider: providerName,
-        provider_account_id: result.accountId,
-        country: data.country,
-        default_currency: data.defaultCurrency,
-        supported_currencies: provider.getSupportedCurrencies(data.country),
-        business_type: data.businessType,
-        business_name: data.businessName,
-      });
-
-    if (error) throw error;
-
+    // ✅ Edge function already saved to database, just return the result
     return result;
   }
 
@@ -76,15 +61,24 @@ class PaymentService {
 
   async createPaymentSession(invoiceId: string, providerName: string) {
     try {
-      // Use the backend API endpoint for creating payment sessions
-      const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+      // ✅ NEW: Call stripe-connect-create-payment function
+      const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://adsbnzqorfmgnneiopcr.supabase.co/functions/v1';
 
-      const response = await fetch(`${apiBaseUrl}/stripe-connect/invoices/${invoiceId}/payment-session`, {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/stripe-connect-create-payment`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
+          invoiceId,
           providerName,
         }),
       });

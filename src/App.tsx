@@ -81,6 +81,7 @@ import { BlogList } from './components/Blog/BlogList';
 import { BlogPost } from './components/Blog/BlogPost';
 import SEOManagerDashboard from './components/Admin/SEOManager/SEOManagerDashboard';
 import BlogManagerDashboard from './components/Admin/BlogManager/BlogManagerDashboard';
+import { SitemapPage } from './components/Sitemap/SitemapPage';
 
 // Debug: Log environment variables
 console.log('🔧 App.tsx Environment Debug:');
@@ -168,6 +169,10 @@ function AppRoutes() {
       {/* Blog - public access */}
       <Route path="/blog" element={<BlogList />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
+
+      {/* Sitemap - public access */}
+      <Route path="/sitemap.xml" element={<SitemapPage />} />
+      <Route path="/sitemap" element={<SitemapPage />} />
 
       {/* Protected routes */}
       <Route element={

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Plus, Globe, DollarSign, AlertCircle, Check, ExternalLink } from 'lucide-react';
+import { CreditCard, Plus, Globe, DollarSign, AlertCircle, Check, ExternalLink, Trash2 } from 'lucide-react';
 import { paymentService } from '../../services/payment/PaymentService';
 import { useAuth } from '../../contexts/AuthContext';
 import { countries } from '../../data/countries';
+import { supabase } from '../../services/supabaseClient';
 
 export const PaymentSettings: React.FC = () => {
   const { user } = useAuth();
@@ -62,6 +63,44 @@ export const PaymentSettings: React.FC = () => {
       window.open(loginUrl, '_blank');
     } catch (error) {
       console.error('Error getting login link:', error);
+    }
+  };
+
+  const handleDeleteAccount = async (account: any) => {
+    if (!window.confirm('Are you sure you want to disconnect this payment account? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://adsbnzqorfmgnneiopcr.supabase.co/functions/v1';
+
+      const response = await fetch(`${apiBaseUrl}/stripe-connect-delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          accountId: account.provider_account_id,
+          userId: user!.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete account');
+      }
+
+      alert('Payment account disconnected successfully');
+      loadAccounts(); // Refresh the list
+    } catch (error: any) {
+      alert(`Error disconnecting account: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,6 +195,15 @@ export const PaymentSettings: React.FC = () => {
                     >
                       <ExternalLink className="h-4 w-4 inline mr-1" />
                       Manage
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteAccount(account)}
+                      disabled={loading}
+                      className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="h-4 w-4 inline mr-1" />
+                      Delete
                     </button>
                   </div>
                 </div>

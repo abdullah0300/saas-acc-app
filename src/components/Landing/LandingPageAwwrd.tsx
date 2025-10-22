@@ -478,7 +478,7 @@ export const LandingPageAwwrd: React.FC = () => {
               variants={fadeInUp}
               className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-8 sm:mb-12 max-w-3xl mx-auto leading-relaxed px-4"
             >
-              SmartCFO isn't just software—it's your personal financial genius that learns,
+              SmartCFO isn't just AI software—it's your personal financial genius that learns,
               adapts, and makes decisions <span className="text-gray-900 font-semibold">before you even ask</span>.
             </motion.p>
 
