@@ -188,7 +188,7 @@ Users Notified: ${incident.users_notified_at ? new Date(incident.users_notified_
 This notification is made in accordance with Article 33 of the UK GDPR.
 
 Data Controller: SmartCFO
-Contact: privacy@SmartCFO.com
+Contact: privacy@smartcfo.webcraftio.com
   `.trim();
 }
 
@@ -232,7 +232,7 @@ Under UK GDPR, you have the right to:
 
 CONTACT US:
 If you have any questions or concerns, please contact us:
-Email: privacy@SmartCFO.com
+Email: privacy@smartcfo.webcraftio.com
 Phone: [Your phone number]
 
 We sincerely apologize for any inconvenience or concern this may cause. Protecting your data is our top priority, and we are committed to preventing such incidents in the future.

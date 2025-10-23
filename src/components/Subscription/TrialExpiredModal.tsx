@@ -84,7 +84,7 @@ export const TrialExpiredModal: React.FC<TrialExpiredModalProps> = ({
 
           {/* Help text */}
           <p className="mt-4 text-center text-xs text-gray-500">
-            Need help? Contact us at support@SmartCFO.com
+            Need help? Contact us at support@smartcfo.webcraftio.com
           </p>
         </div>
       </div>

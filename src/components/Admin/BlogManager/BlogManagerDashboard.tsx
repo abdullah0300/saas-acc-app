@@ -1,8 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../services/supabaseClient';
-import { useAuth } from '../../../contexts/AuthContext';
-import { Plus, Edit2, Trash2, Eye, Save, X, FileText, Calendar, TrendingUp } from 'lucide-react';
-import RichTextEditor from './RichTextEditor';
+import React, { useState, useEffect } from "react";
+import { supabase } from "../../../services/supabaseClient";
+import { useAuth } from "../../../contexts/AuthContext";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Eye,
+  Save,
+  X,
+  FileText,
+  Calendar,
+  TrendingUp,
+} from "lucide-react";
+import RichTextEditor from "./RichTextEditor";
 
 interface BlogPost {
   id?: string;
@@ -12,7 +22,7 @@ interface BlogPost {
   content: string;
   featured_image_url: string;
   author_id?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: "draft" | "published" | "archived";
   published_at?: string;
   view_count?: number;
   reading_time_minutes?: number;
@@ -41,7 +51,7 @@ export const BlogManagerDashboard: React.FC = () => {
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [postSEO, setPostSEO] = useState<BlogSEO | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'content' | 'seo'>('content');
+  const [activeTab, setActiveTab] = useState<"content" | "seo">("content");
 
   useEffect(() => {
     fetchBlogPosts();
@@ -50,14 +60,14 @@ export const BlogManagerDashboard: React.FC = () => {
   const fetchBlogPosts = async () => {
     try {
       const { data, error } = await supabase
-        .from('blog_posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("blog_posts")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setPosts(data || []);
     } catch (error) {
-      console.error('Error fetching blog posts:', error);
+      console.error("Error fetching blog posts:", error);
     } finally {
       setLoading(false);
     }
@@ -66,31 +76,31 @@ export const BlogManagerDashboard: React.FC = () => {
   const generateSlug = (title: string): string => {
     return title
       .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
       .trim();
   };
 
   const createNewPost = () => {
     const newPost: BlogPost = {
-      slug: '',
-      title: '',
-      excerpt: '',
-      content: '',
-      featured_image_url: '',
-      status: 'draft',
-      category: '',
-      tags: []
+      slug: "",
+      title: "",
+      excerpt: "",
+      content: "",
+      featured_image_url: "",
+      status: "draft",
+      category: "",
+      tags: [],
     };
 
     const newSEO: BlogSEO = {
-      meta_title: '',
-      meta_description: '',
-      meta_keywords: '',
-      og_title: '',
-      og_description: '',
-      og_image_url: ''
+      meta_title: "",
+      meta_description: "",
+      meta_keywords: "",
+      og_title: "",
+      og_description: "",
+      og_image_url: "",
     };
 
     setEditingPost(newPost);
@@ -104,24 +114,26 @@ export const BlogManagerDashboard: React.FC = () => {
     if (post.id) {
       try {
         const { data, error } = await supabase
-          .from('blog_seo')
-          .select('*')
-          .eq('blog_post_id', post.id)
+          .from("blog_seo")
+          .select("*")
+          .eq("blog_post_id", post.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error && error.code !== "PGRST116") throw error;
 
-        setPostSEO(data || {
-          blog_post_id: post.id,
-          meta_title: post.title,
-          meta_description: post.excerpt,
-          meta_keywords: post.tags.join(', '),
-          og_title: post.title,
-          og_description: post.excerpt,
-          og_image_url: post.featured_image_url
-        });
+        setPostSEO(
+          data || {
+            blog_post_id: post.id,
+            meta_title: post.title,
+            meta_description: post.excerpt,
+            meta_keywords: post.tags.join(", "),
+            og_title: post.title,
+            og_description: post.excerpt,
+            og_image_url: post.featured_image_url,
+          }
+        );
       } catch (error) {
-        console.error('Error fetching blog SEO:', error);
+        console.error("Error fetching blog SEO:", error);
       }
     }
   };
@@ -132,15 +144,17 @@ export const BlogManagerDashboard: React.FC = () => {
     setSaving(true);
     try {
       // Update slug if title changed
-      if (!editingPost.slug || editingPost.slug === '') {
+      if (!editingPost.slug || editingPost.slug === "") {
         editingPost.slug = generateSlug(editingPost.title);
       }
 
       const postData = {
         ...editingPost,
         author_id: user.id,
-        status: publish ? 'published' : editingPost.status,
-        published_at: publish ? new Date().toISOString() : editingPost.published_at
+        status: publish ? "published" : editingPost.status,
+        published_at: publish
+          ? new Date().toISOString()
+          : editingPost.published_at,
       };
 
       let postId = editingPost.id;
@@ -148,15 +162,15 @@ export const BlogManagerDashboard: React.FC = () => {
       if (postId) {
         // Update existing post
         const { error } = await supabase
-          .from('blog_posts')
+          .from("blog_posts")
           .update(postData)
-          .eq('id', postId);
+          .eq("id", postId);
 
         if (error) throw error;
       } else {
         // Create new post
         const { data, error } = await supabase
-          .from('blog_posts')
+          .from("blog_posts")
           .insert([postData])
           .select()
           .single();
@@ -169,54 +183,53 @@ export const BlogManagerDashboard: React.FC = () => {
       if (postSEO && postId) {
         const seoData = {
           ...postSEO,
-          blog_post_id: postId
+          blog_post_id: postId,
         };
 
         const { data: existingSEO } = await supabase
-          .from('blog_seo')
-          .select('id')
-          .eq('blog_post_id', postId)
+          .from("blog_seo")
+          .select("id")
+          .eq("blog_post_id", postId)
           .single();
 
         if (existingSEO) {
           await supabase
-            .from('blog_seo')
+            .from("blog_seo")
             .update(seoData)
-            .eq('blog_post_id', postId);
+            .eq("blog_post_id", postId);
         } else {
-          await supabase
-            .from('blog_seo')
-            .insert([seoData]);
+          await supabase.from("blog_seo").insert([seoData]);
         }
       }
 
       await fetchBlogPosts();
       setEditingPost(null);
       setPostSEO(null);
-      alert(publish ? 'Blog post published successfully!' : 'Blog post saved as draft!');
+      alert(
+        publish
+          ? "Blog post published successfully!"
+          : "Blog post saved as draft!"
+      );
     } catch (error) {
-      console.error('Error saving blog post:', error);
-      alert('Failed to save. Please try again.');
+      console.error("Error saving blog post:", error);
+      alert("Failed to save. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
 
     try {
-      const { error } = await supabase
-        .from('blog_posts')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("blog_posts").delete().eq("id", id);
 
       if (error) throw error;
       await fetchBlogPosts();
-      alert('Blog post deleted successfully!');
+      alert("Blog post deleted successfully!");
     } catch (error) {
-      console.error('Error deleting blog post:', error);
-      alert('Failed to delete. Please try again.');
+      console.error("Error deleting blog post:", error);
+      alert("Failed to delete. Please try again.");
     }
   };
 
@@ -224,44 +237,102 @@ export const BlogManagerDashboard: React.FC = () => {
     if (!editingPost || !postSEO) return;
 
     // Strip HTML tags for clean text
-    const cleanContent = editingPost.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const cleanContent = editingPost.content
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
     // Generate meta title (50-60 chars optimal)
     let metaTitle = editingPost.title;
     if (metaTitle.length > 55) {
-      metaTitle = metaTitle.substring(0, 52) + '...';
+      metaTitle = metaTitle.substring(0, 52) + "...";
     }
-    metaTitle += ' | SmartCFO Blog';
+    metaTitle += " | SmartCFO Blog";
 
     // Generate meta description (150-160 chars optimal)
     let metaDescription = editingPost.excerpt || cleanContent;
     if (metaDescription.length > 160) {
       // Find last complete sentence within 160 chars
       const truncated = metaDescription.substring(0, 157);
-      const lastPeriod = truncated.lastIndexOf('.');
-      const lastQuestion = truncated.lastIndexOf('?');
-      const lastExclamation = truncated.lastIndexOf('!');
+      const lastPeriod = truncated.lastIndexOf(".");
+      const lastQuestion = truncated.lastIndexOf("?");
+      const lastExclamation = truncated.lastIndexOf("!");
       const lastSentence = Math.max(lastPeriod, lastQuestion, lastExclamation);
 
       if (lastSentence > 100) {
         metaDescription = truncated.substring(0, lastSentence + 1);
       } else {
-        metaDescription = truncated + '...';
+        metaDescription = truncated + "...";
       }
     }
 
     // Extract keywords intelligently from content and title
-    const words = (editingPost.title + ' ' + cleanContent.substring(0, 500))
+    const words = (editingPost.title + " " + cleanContent.substring(0, 500))
       .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
+      .replace(/[^\w\s]/g, " ")
       .split(/\s+/);
 
     // Common stop words to filter out
-    const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'can', 'could', 'may', 'might', 'must', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'what', 'which', 'who', 'when', 'where', 'why', 'how']);
+    const stopWords = new Set([
+      "the",
+      "a",
+      "an",
+      "and",
+      "or",
+      "but",
+      "in",
+      "on",
+      "at",
+      "to",
+      "for",
+      "of",
+      "with",
+      "by",
+      "from",
+      "as",
+      "is",
+      "was",
+      "are",
+      "were",
+      "been",
+      "be",
+      "have",
+      "has",
+      "had",
+      "do",
+      "does",
+      "did",
+      "will",
+      "would",
+      "should",
+      "can",
+      "could",
+      "may",
+      "might",
+      "must",
+      "this",
+      "that",
+      "these",
+      "those",
+      "i",
+      "you",
+      "he",
+      "she",
+      "it",
+      "we",
+      "they",
+      "what",
+      "which",
+      "who",
+      "when",
+      "where",
+      "why",
+      "how",
+    ]);
 
     // Count word frequency (excluding stop words and short words)
     const wordFreq: Record<string, number> = {};
-    words.forEach(word => {
+    words.forEach((word) => {
       if (word.length > 3 && !stopWords.has(word)) {
         wordFreq[word] = (wordFreq[word] || 0) + 1;
       }
@@ -274,28 +345,31 @@ export const BlogManagerDashboard: React.FC = () => {
       .map(([word]) => word);
 
     // Combine with existing tags
-    const allKeywords = Array.from(new Set([...editingPost.tags, ...topKeywords]))
-      .filter(k => k && k.length > 0)
+    const allKeywords = Array.from(
+      new Set([...editingPost.tags, ...topKeywords])
+    )
+      .filter((k) => k && k.length > 0)
       .slice(0, 10);
 
     // Generate Open Graph title (may be slightly different from meta title for social)
-    const ogTitle = editingPost.title.length > 60
-      ? editingPost.title.substring(0, 57) + '...'
-      : editingPost.title;
+    const ogTitle =
+      editingPost.title.length > 60
+        ? editingPost.title.substring(0, 57) + "..."
+        : editingPost.title;
 
     setPostSEO({
       ...postSEO,
       meta_title: metaTitle,
       meta_description: metaDescription,
-      meta_keywords: allKeywords.join(', '),
+      meta_keywords: allKeywords.join(", "),
       og_title: ogTitle,
       og_description: metaDescription,
-      og_image_url: editingPost.featured_image_url || '/smartcfo logo bg.png',
+      og_image_url: editingPost.featured_image_url || "/smartcfo logo bg.png",
       twitter_title: ogTitle,
-      twitter_description: metaDescription
+      twitter_description: metaDescription,
     });
 
-    alert('SEO metadata generated successfully! Review and adjust as needed.');
+    alert("SEO metadata generated successfully! Review and adjust as needed.");
   };
 
   if (loading) {
@@ -313,8 +387,12 @@ export const BlogManagerDashboard: React.FC = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Blog Manager</h1>
-              <p className="text-gray-600">Create and manage your blog content</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Blog Manager
+              </h1>
+              <p className="text-gray-600">
+                Create and manage your blog content
+              </p>
             </div>
             {!editingPost && (
               <button
@@ -333,7 +411,7 @@ export const BlogManagerDashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold text-gray-900">
-                {editingPost.id ? 'Edit Blog Post' : 'Create New Blog Post'}
+                {editingPost.id ? "Edit Blog Post" : "Create New Blog Post"}
               </h2>
               <button
                 onClick={() => {
@@ -350,22 +428,22 @@ export const BlogManagerDashboard: React.FC = () => {
             <div className="border-b mb-6">
               <div className="flex space-x-4">
                 <button
-                  onClick={() => setActiveTab('content')}
+                  onClick={() => setActiveTab("content")}
                   className={`pb-2 px-1 border-b-2 transition-colors ${
-                    activeTab === 'content'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                    activeTab === "content"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
                   }`}
                 >
                   <FileText className="w-4 h-4 inline mr-2" />
                   Content
                 </button>
                 <button
-                  onClick={() => setActiveTab('seo')}
+                  onClick={() => setActiveTab("seo")}
                   className={`pb-2 px-1 border-b-2 transition-colors ${
-                    activeTab === 'seo'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                    activeTab === "seo"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
                   }`}
                 >
                   <TrendingUp className="w-4 h-4 inline mr-2" />
@@ -374,7 +452,7 @@ export const BlogManagerDashboard: React.FC = () => {
               </div>
             </div>
 
-            {activeTab === 'content' ? (
+            {activeTab === "content" ? (
               /* Content Tab */
               <div className="space-y-6">
                 <div>
@@ -389,7 +467,7 @@ export const BlogManagerDashboard: React.FC = () => {
                       setEditingPost({
                         ...editingPost,
                         title: newTitle,
-                        slug: generateSlug(newTitle)
+                        slug: generateSlug(newTitle),
                       });
                     }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -402,11 +480,15 @@ export const BlogManagerDashboard: React.FC = () => {
                     URL Slug (auto-generated)
                   </label>
                   <div className="flex items-center">
-                    <span className="text-gray-500 text-sm">smartcfo.com/blog/</span>
+                    <span className="text-gray-500 text-sm">
+                      smartcfo.webcraftio.com/blog/
+                    </span>
                     <input
                       type="text"
                       value={editingPost.slug}
-                      onChange={(e) => setEditingPost({ ...editingPost, slug: e.target.value })}
+                      onChange={(e) =>
+                        setEditingPost({ ...editingPost, slug: e.target.value })
+                      }
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ml-2"
                       placeholder="url-slug"
                     />
@@ -420,7 +502,12 @@ export const BlogManagerDashboard: React.FC = () => {
                   <input
                     type="text"
                     value={editingPost.featured_image_url}
-                    onChange={(e) => setEditingPost({ ...editingPost, featured_image_url: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPost({
+                        ...editingPost,
+                        featured_image_url: e.target.value,
+                      })
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="https://example.com/image.jpg"
                   />
@@ -432,7 +519,12 @@ export const BlogManagerDashboard: React.FC = () => {
                   </label>
                   <textarea
                     value={editingPost.excerpt}
-                    onChange={(e) => setEditingPost({ ...editingPost, excerpt: e.target.value })}
+                    onChange={(e) =>
+                      setEditingPost({
+                        ...editingPost,
+                        excerpt: e.target.value,
+                      })
+                    }
                     rows={3}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Brief summary of the blog post..."
@@ -447,7 +539,12 @@ export const BlogManagerDashboard: React.FC = () => {
                     <input
                       type="text"
                       value={editingPost.category}
-                      onChange={(e) => setEditingPost({ ...editingPost, category: e.target.value })}
+                      onChange={(e) =>
+                        setEditingPost({
+                          ...editingPost,
+                          category: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Accounting Tips"
                     />
@@ -459,8 +556,13 @@ export const BlogManagerDashboard: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={editingPost.tags.join(', ')}
-                      onChange={(e) => setEditingPost({ ...editingPost, tags: e.target.value.split(',').map(t => t.trim()) })}
+                      value={editingPost.tags.join(", ")}
+                      onChange={(e) =>
+                        setEditingPost({
+                          ...editingPost,
+                          tags: e.target.value.split(",").map((t) => t.trim()),
+                        })
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="tax, accounting, tips"
                     />
@@ -473,7 +575,9 @@ export const BlogManagerDashboard: React.FC = () => {
                   </label>
                   <RichTextEditor
                     content={editingPost.content}
-                    onChange={(content) => setEditingPost({ ...editingPost, content })}
+                    onChange={(content) =>
+                      setEditingPost({ ...editingPost, content })
+                    }
                   />
                 </div>
               </div>
@@ -483,8 +587,12 @@ export const BlogManagerDashboard: React.FC = () => {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm text-blue-800 font-medium">Auto-generate SEO fields</p>
-                      <p className="text-xs text-blue-600 mt-1">Generate meta tags from your content</p>
+                      <p className="text-sm text-blue-800 font-medium">
+                        Auto-generate SEO fields
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Generate meta tags from your content
+                      </p>
                     </div>
                     <button
                       onClick={autoGenerateSEO}
@@ -504,7 +612,9 @@ export const BlogManagerDashboard: React.FC = () => {
                       <input
                         type="text"
                         value={postSEO.meta_title}
-                        onChange={(e) => setPostSEO({ ...postSEO, meta_title: e.target.value })}
+                        onChange={(e) =>
+                          setPostSEO({ ...postSEO, meta_title: e.target.value })
+                        }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       <p className="text-sm text-gray-500 mt-1">
@@ -518,12 +628,18 @@ export const BlogManagerDashboard: React.FC = () => {
                       </label>
                       <textarea
                         value={postSEO.meta_description}
-                        onChange={(e) => setPostSEO({ ...postSEO, meta_description: e.target.value })}
+                        onChange={(e) =>
+                          setPostSEO({
+                            ...postSEO,
+                            meta_description: e.target.value,
+                          })
+                        }
                         rows={3}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       <p className="text-sm text-gray-500 mt-1">
-                        {postSEO.meta_description.length} characters (Optimal: 150-160)
+                        {postSEO.meta_description.length} characters (Optimal:
+                        150-160)
                       </p>
                     </div>
 
@@ -534,7 +650,12 @@ export const BlogManagerDashboard: React.FC = () => {
                       <input
                         type="text"
                         value={postSEO.meta_keywords}
-                        onChange={(e) => setPostSEO({ ...postSEO, meta_keywords: e.target.value })}
+                        onChange={(e) =>
+                          setPostSEO({
+                            ...postSEO,
+                            meta_keywords: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
@@ -546,7 +667,12 @@ export const BlogManagerDashboard: React.FC = () => {
                       <input
                         type="text"
                         value={postSEO.og_image_url}
-                        onChange={(e) => setPostSEO({ ...postSEO, og_image_url: e.target.value })}
+                        onChange={(e) =>
+                          setPostSEO({
+                            ...postSEO,
+                            og_image_url: e.target.value,
+                          })
+                        }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
@@ -573,7 +699,7 @@ export const BlogManagerDashboard: React.FC = () => {
                 className="px-6 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center"
               >
                 <Save className="w-4 h-4 mr-2" />
-                {saving ? 'Saving...' : 'Save as Draft'}
+                {saving ? "Saving..." : "Save as Draft"}
               </button>
               <button
                 onClick={() => handleSave(true)}
@@ -581,7 +707,7 @@ export const BlogManagerDashboard: React.FC = () => {
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
               >
                 <Eye className="w-4 h-4 mr-2" />
-                {saving ? 'Publishing...' : 'Publish Now'}
+                {saving ? "Publishing..." : "Publish Now"}
               </button>
             </div>
           </div>
@@ -591,19 +717,27 @@ export const BlogManagerDashboard: React.FC = () => {
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-blue-600 text-sm font-medium">Total Posts</div>
-                  <div className="text-2xl font-bold text-gray-900 mt-1">{posts.length}</div>
+                  <div className="text-blue-600 text-sm font-medium">
+                    Total Posts
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900 mt-1">
+                    {posts.length}
+                  </div>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-green-600 text-sm font-medium">Published</div>
+                  <div className="text-green-600 text-sm font-medium">
+                    Published
+                  </div>
                   <div className="text-2xl font-bold text-gray-900 mt-1">
-                    {posts.filter(p => p.status === 'published').length}
+                    {posts.filter((p) => p.status === "published").length}
                   </div>
                 </div>
                 <div className="bg-yellow-50 p-4 rounded-lg">
-                  <div className="text-yellow-600 text-sm font-medium">Drafts</div>
+                  <div className="text-yellow-600 text-sm font-medium">
+                    Drafts
+                  </div>
                   <div className="text-2xl font-bold text-gray-900 mt-1">
-                    {posts.filter(p => p.status === 'draft').length}
+                    {posts.filter((p) => p.status === "draft").length}
                   </div>
                 </div>
               </div>
@@ -618,13 +752,13 @@ export const BlogManagerDashboard: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {post.title || 'Untitled Post'}
+                            {post.title || "Untitled Post"}
                           </h3>
                           <span
                             className={`px-2 py-1 text-xs rounded-full ${
-                              post.status === 'published'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-yellow-100 text-yellow-700'
+                              post.status === "published"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
                             }`}
                           >
                             {post.status}
@@ -637,7 +771,7 @@ export const BlogManagerDashboard: React.FC = () => {
                           <Calendar className="w-4 h-4 mr-1" />
                           {post.published_at
                             ? new Date(post.published_at).toLocaleDateString()
-                            : 'Not published'}
+                            : "Not published"}
                         </p>
                       </div>
                       <div className="flex space-x-2 ml-4">

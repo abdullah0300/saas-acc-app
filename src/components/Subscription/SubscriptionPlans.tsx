@@ -334,7 +334,10 @@ export const SubscriptionPlans: React.FC = () => {
                   <div className="mt-6">
                     {plan.originalMonthlyPrice && (
                       <div className="text-xl text-gray-400 line-through text-center mb-2">
-                        ${billingInterval === "yearly" ? plan.originalYearlyPrice : plan.originalMonthlyPrice}
+                        $
+                        {billingInterval === "yearly"
+                          ? plan.originalYearlyPrice
+                          : plan.originalMonthlyPrice}
                       </div>
                     )}
                     <div className="flex items-baseline justify-center">
@@ -347,15 +350,25 @@ export const SubscriptionPlans: React.FC = () => {
                     </div>
                     {plan.originalMonthlyPrice && (
                       <div className="mt-2 inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                        Special Offer - Save {Math.round((1 - price / (billingInterval === "yearly" ? (plan.originalYearlyPrice || price) : (plan.originalMonthlyPrice || price))) * 100)}%
+                        Special Offer - Save{" "}
+                        {Math.round(
+                          (1 -
+                            price /
+                              (billingInterval === "yearly"
+                                ? plan.originalYearlyPrice || price
+                                : plan.originalMonthlyPrice || price)) *
+                            100
+                        )}
+                        %
                       </div>
                     )}
-                    {billingInterval === "yearly" && !plan.originalMonthlyPrice && (
-                      <p className="text-sm text-green-600 mt-2">
-                        Save ${plan.monthlyPrice * 12 - plan.yearlyPrice} per
-                        year
-                      </p>
-                    )}
+                    {billingInterval === "yearly" &&
+                      !plan.originalMonthlyPrice && (
+                        <p className="text-sm text-green-600 mt-2">
+                          Save ${plan.monthlyPrice * 12 - plan.yearlyPrice} per
+                          year
+                        </p>
+                      )}
                   </div>
                 </div>
 
@@ -433,7 +446,7 @@ export const SubscriptionPlans: React.FC = () => {
         <p className="text-sm text-gray-600 mt-4">
           Need help choosing?{" "}
           <a
-            href="mailto:support@SmartCFO.com"
+            href="mailto:support@smartcfo.webcraftio.com"
             className="text-blue-600 hover:underline"
           >
             Contact our sales team
@@ -450,14 +463,14 @@ function getHighlightedFeatures(plan: PlanType): string[] {
     case "simple_start":
       return [
         "Single user access",
-        "Up to 20 monthly invoices", 
+        "Up to 20 monthly invoices",
         "Income & expense tracking",
         "Basic financial reports",
         "Client management",
         "PDF export",
         "Email support",
       ];
-   
+
     case "plus":
       return [
         "Up to 5 team members",

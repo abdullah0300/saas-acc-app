@@ -10,7 +10,7 @@ export interface SitemapURL {
 
 export const generateSitemap = async (customBaseUrl?: string): Promise<string> => {
   // SSR-compatible: Accept baseUrl as parameter or use window if available
-  const baseUrl = customBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://smartcfo.com');
+  const baseUrl = customBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://smartcfo.webcraftio.com');
   const urls: SitemapURL[] = [];
 
   // Static pages from SEO metadata

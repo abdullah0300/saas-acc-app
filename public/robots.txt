@@ -28,4 +28,4 @@ Disallow: /setup
 Disallow: /admin
 
 # Sitemap location (Updated via Supabase Edge Function)
-Sitemap: https://smartcfo.com/sitemap.xml
+Sitemap: https://smartcfo.webcraftio.com/sitemap.xml

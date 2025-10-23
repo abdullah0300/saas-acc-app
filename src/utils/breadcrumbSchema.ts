@@ -21,9 +21,9 @@ export interface BreadcrumbItem {
  *
  * @example
  * const breadcrumbs = generateBreadcrumbSchema([
- *   { name: 'Home', url: 'https://smartcfo.com' },
- *   { name: 'Blog', url: 'https://smartcfo.com/blog' },
- *   { name: 'Post Title', url: 'https://smartcfo.com/blog/post-slug' }
+ *   { name: 'Home', url: 'https://smartcfo.webcraftio.com' },
+ *   { name: 'Blog', url: 'https://smartcfo.webcraftio.com/blog' },
+ *   { name: 'Post Title', url: 'https://smartcfo.webcraftio.com/blog/post-slug' }
  * ]);
  */
 export const generateBreadcrumbSchema = (items: BreadcrumbItem[]) => {
@@ -54,13 +54,13 @@ export const generateBreadcrumbSchema = (items: BreadcrumbItem[]) => {
  * @example
  * const breadcrumbs = generateBreadcrumbsFromPath(
  *   '/blog/how-to-manage-invoices',
- *   'https://smartcfo.com',
+ *   'https://smartcfo.webcraftio.com',
  *   { blog: 'Blog', 'how-to-manage-invoices': 'How to Manage Invoices' }
  * );
  */
 export const generateBreadcrumbsFromPath = (
   pathname: string,
-  baseUrl: string = 'https://smartcfo.com',
+  baseUrl: string = 'https://smartcfo.webcraftio.com',
   pathNames?: Record<string, string>
 ) => {
   const segments = pathname.split('/').filter(Boolean);

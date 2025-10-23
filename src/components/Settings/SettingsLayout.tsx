@@ -18,7 +18,7 @@ import {
   Database,
   AlertTriangle,
   BarChart3,
-  FileText
+  FileText,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -29,30 +29,56 @@ export const SettingsLayout: React.FC = () => {
   const { user } = useAuth();
   const { subscription } = useData();
   const { isOwner, isPlatformAdmin } = useTeamPermissions();
-  
+
   // Check if we're on a specific settings page (mobile)
   const currentPath = window.location.pathname;
-  const isOnSettingsSubPage = currentPath !== '/settings' && currentPath !== '/settings/' && currentPath.startsWith('/settings/');
-  
+  const isOnSettingsSubPage =
+    currentPath !== "/settings" &&
+    currentPath !== "/settings/" &&
+    currentPath.startsWith("/settings/");
+
   // If we're on the main settings page, show navigation
-  const showNavigation = currentPath === '/settings' || currentPath === '/settings/' || !isOnSettingsSubPage;
+  const showNavigation =
+    currentPath === "/settings" ||
+    currentPath === "/settings/" ||
+    !isOnSettingsSubPage;
 
   // Company Settings - Only visible to owners
-  const companySettingsNav = isOwner ? [
-    { path: "team", label: "Team", icon: Users },
-    { path: "subscription", label: "Subscription & Billing", icon: CreditCard },
-    { path: "payment-accounts", label: "Payment Accounts", icon: CreditCard },
-    { path: "tax", label: "Tax Settings", icon: Percent },
-    { path: "currency", label: "Currency", icon: Globe },
-    { path: "import-history", label: "Import History", icon: Upload },
-    ...(isPlatformAdmin ? [
-      { path: "audit", label: "Audit Trail", icon: Activity },
-      { path: "audit-analytics", label: "Audit Analytics", icon: BarChart3 },
-      { path: "retention", label: "Data Retention", icon: Database },
-      { path: "breach-management", label: "Breach Management", icon: AlertTriangle },
-      { path: "ropa", label: "RoPA Register", icon: FileText }
-    ] : []),
-  ] : [];
+  const companySettingsNav = isOwner
+    ? [
+        { path: "team", label: "Team", icon: Users },
+        {
+          path: "subscription",
+          label: "Subscription & Billing",
+          icon: CreditCard,
+        },
+        {
+          path: "payment-accounts",
+          label: "Payment Accounts",
+          icon: CreditCard,
+        },
+        { path: "tax", label: "Tax Settings", icon: Percent },
+        { path: "currency", label: "Currency", icon: Globe },
+        { path: "import-history", label: "Import History", icon: Upload },
+        ...(isPlatformAdmin
+          ? [
+              { path: "audit", label: "Audit Trail", icon: Activity },
+              {
+                path: "audit-analytics",
+                label: "Audit Analytics",
+                icon: BarChart3,
+              },
+              { path: "retention", label: "Data Retention", icon: Database },
+              {
+                path: "breach-management",
+                label: "Breach Management",
+                icon: AlertTriangle,
+              },
+              { path: "ropa", label: "RoPA Register", icon: FileText },
+            ]
+          : []),
+      ]
+    : [];
 
   // Personal Preferences - Visible to all users
   const personalSettingsNav = [
@@ -93,10 +119,14 @@ export const SettingsLayout: React.FC = () => {
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar */}
-        <aside className={`lg:w-64 flex-shrink-0 ${isOnSettingsSubPage ? 'hidden lg:block' : ''}`}>
+        <aside
+          className={`lg:w-64 flex-shrink-0 ${isOnSettingsSubPage ? "hidden lg:block" : ""}`}
+        >
           {/* Current Plan Card - Only show for owners */}
           {isOwner && (
-            <div className={`bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 mb-6 text-white shadow-lg ${!showNavigation ? 'hidden lg:block' : ''}`}>
+            <div
+              className={`bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 mb-6 text-white shadow-lg ${!showNavigation ? "hidden lg:block" : ""}`}
+            >
               <div className="flex items-center mb-2">
                 <Zap className="h-5 w-5 mr-2" />
                 <span className="text-sm font-medium">Current Plan</span>
@@ -173,7 +203,7 @@ export const SettingsLayout: React.FC = () => {
           </nav>
 
           {/* Navigation - Mobile */}
-          <nav className={`lg:hidden ${!showNavigation ? 'hidden' : ''}`}>
+          <nav className={`lg:hidden ${!showNavigation ? "hidden" : ""}`}>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {settingsNav.map((item, index) => {
                 const Icon = item.icon;
@@ -213,7 +243,7 @@ export const SettingsLayout: React.FC = () => {
               Check out our documentation or contact support.
             </p>
             <a
-              href="mailto:support@SmartCFO.com"
+              href="mailto:support@smartcfo.webcraftio.com"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
               Contact Support →
@@ -221,7 +251,7 @@ export const SettingsLayout: React.FC = () => {
           </div>
 
           {/* Mobile Help Section */}
-          <div className={`mt-6 lg:hidden ${!showNavigation ? 'hidden' : ''}`}>
+          <div className={`mt-6 lg:hidden ${!showNavigation ? "hidden" : ""}`}>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-center mb-3">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 mr-3">
@@ -235,7 +265,7 @@ export const SettingsLayout: React.FC = () => {
                 Check out our documentation or contact support for assistance.
               </p>
               <a
-                href="mailto:support@SmartCFO.com"
+                href="mailto:support@smartcfo.webcraftio.com"
                 className="inline-flex items-center justify-center w-full px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors duration-200 active:scale-95"
               >
                 Contact Support
@@ -258,7 +288,7 @@ export const SettingsLayout: React.FC = () => {
               </button>
             </div>
           )}
-          
+
           {/* Only show outlet content if we're on a sub-page OR if we're on desktop */}
           {(isOnSettingsSubPage || window.innerWidth >= 1024) && (
             <div className="bg-white rounded-lg shadow lg:rounded-lg rounded-2xl lg:shadow shadow-sm border border-gray-100 lg:border-gray-200">
