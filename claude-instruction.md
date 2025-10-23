@@ -22,13 +22,11 @@ serve(async (req)=>{
     if (!invoiceId) {
       throw new Error('Invoice ID is required');
     }
-
     // Get environment variables
     const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     console.log('Initializing Supabase client...');
-
     // Initialize Supabase client with service role
     const supabaseClient = createClient(SUPABASE_URL || '', SUPABASE_SERVICE_ROLE_KEY || '', {
       auth: {
@@ -36,29 +34,19 @@ serve(async (req)=>{
         persistSession: false
       }
     });
-
     // Check for public access token
     const publicToken = req.headers.get('X-Invoice-Token');
     if (publicToken) {
       console.log('Public access token detected, validating...');
-
       // Validate the public access token
-      const { data: tokenData, error: tokenError } = await supabaseClient
-        .from('invoice_access_tokens')
-        .select('invoice_id, expires_at')
-        .eq('token', publicToken)
-        .eq('invoice_id', invoiceId)
-        .single();
-
+      const { data: tokenData, error: tokenError } = await supabaseClient.from('invoice_access_tokens').select('invoice_id, expires_at').eq('token', publicToken).eq('invoice_id', invoiceId).single();
       if (tokenError || !tokenData) {
         throw new Error('Invalid or expired access token');
       }
-
       // Check if token is expired
       if (new Date(tokenData.expires_at) < new Date()) {
         throw new Error('Access token has expired');
       }
-
       console.log('Public access token validated successfully');
     }
     console.log('Fetching invoice data...');

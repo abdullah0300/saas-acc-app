@@ -6,6 +6,7 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import { Invoice } from '../../types';
 import { countries } from '../../data/countries';
 import { PublicInvoicePayButton } from './PublicInvoicePayButton';
+import { getPaymentMethods, PaymentMethod } from '../../services/paymentMethodsService';
 import {
   Mail,
   Phone,
@@ -23,7 +24,10 @@ import {
   FileText,
   TrendingUp,
   Zap,
-  Shield
+  Shield,
+  Banknote,
+  Copy,
+  Check
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -39,6 +43,9 @@ export const PublicInvoiceView: React.FC = () => {
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
   const [taxRegistrationNumber, setTaxRegistrationNumber] = useState<string>('');
   const [downloading, setDownloading] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [hasOnlinePayment, setHasOnlinePayment] = useState(false);
 
   const userCountry = countries.find(c => c.code === userSettings?.country);
   const taxFeatures = userCountry?.taxFeatures;
@@ -105,10 +112,29 @@ export const PublicInvoiceView: React.FC = () => {
         .eq('user_id', invoiceData.user_id)
         .single();
 
+      // Fetch payment methods (NEW SYSTEM)
+      const methods = await getPaymentMethods(invoiceData.user_id);
+
+      // Check if online payment is enabled
+      const { data: paymentSettings } = await supabase
+        .from('invoice_payment_settings')
+        .select('payment_enabled')
+        .eq('invoice_id', id)
+        .maybeSingle();
+
+      const onlinePaymentEnabled = paymentSettings?.payment_enabled || false;
+      setHasOnlinePayment(onlinePaymentEnabled);
+
+      // Auto-open payment info if no online payment is enabled
+      if (!onlinePaymentEnabled && (methods.length > 0 || settings?.bank_name || settings?.paypal_email)) {
+        setShowPaymentInfo(true);
+      }
+
       setInvoice(invoiceData);
       setProfile(profileData);
       setInvoiceSettings(settings);
       setUserSettings(userSettingsData);
+      setPaymentMethods(methods);
 
       if (userSettingsData?.tax_registration_number) {
         setTaxRegistrationNumber(userSettingsData.tax_registration_number);
@@ -197,6 +223,16 @@ export const PublicInvoiceView: React.FC = () => {
       style: 'currency',
       currency: currency
     }).format(amount);
+  };
+
+  const handleCopyField = async (text: string, fieldId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldId);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const getStatusConfig = (status: string) => {
@@ -720,59 +756,287 @@ export const PublicInvoiceView: React.FC = () => {
               <div className="max-w-2xl mx-auto">
                 <PublicInvoicePayButton invoice={invoice} />
 
-                {(invoiceSettings?.bank_name || invoiceSettings?.paypal_email) && (
+                {/* NEW PAYMENT METHODS SYSTEM with backward compatibility */}
+                {(paymentMethods.length > 0 || invoiceSettings?.bank_name || invoiceSettings?.paypal_email) && (
                   <div className="mt-4 sm:mt-6">
                     <button
                       onClick={() => setShowPaymentInfo(!showPaymentInfo)}
                       className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors group"
                     >
-                      <span>Alternative payment methods</span>
+                      <span>{paymentMethods.length > 0 ? 'Payment methods' : 'Alternative payment methods'}</span>
                       <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-all duration-300 ${showPaymentInfo ? 'rotate-180' : ''}`} />
                       <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all" />
                     </button>
 
                     {showPaymentInfo && (
-                      <div className="mt-3 sm:mt-4 bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-gray-200 shadow-sm space-y-3 sm:space-y-4 text-xs sm:text-sm animate-slideDown">
-                        {invoiceSettings.bank_name && (
-                          <div>
-                            <p className="font-bold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
-                              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
-                              Bank Transfer
-                            </p>
-                            <div className="space-y-2 text-gray-600 pl-5 sm:pl-6">
-                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2 py-1.5 border-b border-gray-100">
-                                <span className="text-gray-500">Bank name</span>
-                                <span className="font-semibold text-gray-900 break-words">{invoiceSettings.bank_name}</span>
+                      <div className="mt-3 sm:mt-4 space-y-3 sm:space-y-4 text-xs sm:text-sm animate-slideDown">
+                        {/* NEW PAYMENT METHODS SYSTEM */}
+                        {paymentMethods.length > 0 ? (
+                          <div className="space-y-3">
+                            {paymentMethods.map((method, index) => {
+                              // Define standard order for bank fields
+                              const bankFieldOrder = [
+                                'bank_name',
+                                'account_title',
+                                'account_holder',
+                                'account_number',
+                                'iban',
+                                'swift',
+                                'swift_code',
+                                'bic',
+                                'routing_number',
+                                'sort_code',
+                                'branch_code',
+                                'ifsc',
+                                'ibft'
+                              ];
+
+                              // Function to format field label
+                              const formatFieldLabel = (key: string) => {
+                                const labelMap: Record<string, string> = {
+                                  'bank_name': 'Bank Name',
+                                  'account_title': 'Account Title',
+                                  'account_holder': 'Account Holder',
+                                  'account_number': 'Account Number',
+                                  'iban': 'IBAN',
+                                  'swift': 'SWIFT',
+                                  'swift_code': 'SWIFT Code',
+                                  'bic': 'BIC',
+                                  'routing_number': 'Routing Number',
+                                  'sort_code': 'Sort Code',
+                                  'branch_code': 'Branch Code',
+                                  'ifsc': 'IFSC',
+                                  'ibft': 'IBFT'
+                                };
+                                return labelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+                              };
+
+                              // Sort fields according to standard order
+                              const sortedFields: [string, any][] = [];
+                              const fields = method.fields || {};
+
+                              // First add fields in standard order
+                              bankFieldOrder.forEach((key) => {
+                                if (fields[key]) {
+                                  sortedFields.push([key, fields[key]]);
+                                }
+                              });
+
+                              // Then add any remaining fields not in standard order
+                              Object.entries(fields).forEach(([key, value]) => {
+                                if (!bankFieldOrder.includes(key)) {
+                                  sortedFields.push([key, value]);
+                                }
+                              });
+
+                              return (
+                                <div
+                                  key={method.id}
+                                  className="relative overflow-hidden rounded-xl sm:rounded-2xl shadow-sm transition-all hover:shadow-md"
+                                  style={{
+                                    background: method.is_primary
+                                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                      : 'white',
+                                    border: method.is_primary ? 'none' : '1px solid #e5e7eb'
+                                  }}
+                                >
+                                  {method.is_primary && (
+                                    <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                                      <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold rounded-md border border-white/30">
+                                        PRIMARY
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  <div className="p-4 sm:p-5">
+                                    <div className="flex items-start gap-3 mb-3 sm:mb-4">
+                                      <div
+                                        className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
+                                        style={{
+                                          backgroundColor: method.is_primary ? 'rgba(255,255,255,0.2)' : '#f3f4f6'
+                                        }}
+                                      >
+                                        <Banknote
+                                          className={`h-4 w-4 sm:h-5 sm:w-5 ${method.is_primary ? 'text-white' : 'text-indigo-600'
+                                            }`}
+                                        />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4
+                                          className={`font-bold text-sm sm:text-base mb-1 ${method.is_primary ? 'text-white' : 'text-gray-900'
+                                            }`}
+                                        >
+                                          {method.display_name}
+                                        </h4>
+                                        {method.type && (
+                                          <p
+                                            className={`text-xs ${method.is_primary ? 'text-white/80' : 'text-gray-500'
+                                              }`}
+                                          >
+                                            {method.type === 'bank_transfer' && 'Bank Transfer'}
+                                            {method.type === 'wallet' && 'Digital Wallet'}
+                                            {method.type === 'cash' && 'Cash Payment'}
+                                            {method.type === 'check' && 'Check Payment'}
+                                            {method.type === 'other' && 'Other Payment Method'}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {sortedFields.length > 0 && (
+                                      <div className="space-y-1.5 sm:space-y-2">
+                                        {sortedFields.map(([key, value]) => {
+                                          const fieldId = `${method.id}-${key}`;
+                                          const isCopied = copiedField === fieldId;
+
+                                          return (
+                                            <div
+                                              key={key}
+                                              className="group flex items-center justify-between gap-2 py-1.5 border-b last:border-b-0"
+                                              style={{
+                                                borderColor: method.is_primary
+                                                  ? 'rgba(255,255,255,0.2)'
+                                                  : '#f3f4f6'
+                                              }}
+                                            >
+                                              <div className="flex-1 flex flex-col sm:flex-row sm:justify-between gap-1 min-w-0">
+                                                <span
+                                                  className={`text-xs font-medium ${method.is_primary ? 'text-white/70' : 'text-gray-500'
+                                                    }`}
+                                                >
+                                                  {formatFieldLabel(key)}
+                                                </span>
+                                                <span
+                                                  className={`text-xs sm:text-sm font-semibold break-all ${method.is_primary ? 'text-white' : 'text-gray-900'
+                                                    } font-mono`}
+                                                >
+                                                  {value}
+                                                </span>
+                                              </div>
+                                              <button
+                                                onClick={() => handleCopyField(value, fieldId)}
+                                                className={`flex-shrink-0 p-1.5 rounded-md transition-all ${
+                                                  method.is_primary
+                                                    ? 'hover:bg-white/10 text-white/60 hover:text-white'
+                                                    : 'hover:bg-gray-100 text-gray-400 hover:text-gray-700'
+                                                } ${isCopied ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                                                title="Copy to clipboard"
+                                              >
+                                                {isCopied ? (
+                                                  <Check className="h-3.5 w-3.5" />
+                                                ) : (
+                                                  <Copy className="h-3.5 w-3.5" />
+                                                )}
+                                              </button>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+
+                                    {method.instructions && (
+                                      <div
+                                        className="mt-3 sm:mt-4 pt-3 sm:pt-4 text-xs leading-relaxed whitespace-pre-line"
+                                        style={{
+                                          borderTop: method.is_primary
+                                            ? '1px solid rgba(255,255,255,0.2)'
+                                            : '1px solid #e5e7eb',
+                                          color: method.is_primary ? 'rgba(255,255,255,0.9)' : '#6b7280'
+                                        }}
+                                      >
+                                        {method.instructions}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* OLD SYSTEM FALLBACK */
+                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-gray-200 shadow-sm space-y-3 sm:space-y-4">
+                            {invoiceSettings.bank_name && (
+                              <div>
+                                <p className="font-bold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
+                                  <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
+                                  Bank Transfer
+                                </p>
+                                <div className="space-y-2 text-gray-600 pl-5 sm:pl-6">
+                                  <div className="group flex items-center justify-between gap-2 py-1.5 border-b border-gray-100">
+                                    <div className="flex-1 flex flex-col sm:flex-row sm:justify-between gap-1">
+                                      <span className="text-gray-500">Bank name</span>
+                                      <span className="font-semibold text-gray-900 break-words">{invoiceSettings.bank_name}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleCopyField(invoiceSettings.bank_name, 'old-bank-name')}
+                                      className={`flex-shrink-0 p-1.5 rounded-md transition-all hover:bg-gray-100 text-gray-400 hover:text-gray-700 ${
+                                        copiedField === 'old-bank-name' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                      }`}
+                                    >
+                                      {copiedField === 'old-bank-name' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                    </button>
+                                  </div>
+                                  {invoiceSettings.account_number && (
+                                    <div className="group flex items-center justify-between gap-2 py-1.5 border-b border-gray-100">
+                                      <div className="flex-1 flex flex-col sm:flex-row sm:justify-between gap-1">
+                                        <span className="text-gray-500">Account</span>
+                                        <span className="font-semibold text-gray-900 font-mono text-xs break-all">{invoiceSettings.account_number}</span>
+                                      </div>
+                                      <button
+                                        onClick={() => handleCopyField(invoiceSettings.account_number, 'old-account-number')}
+                                        className={`flex-shrink-0 p-1.5 rounded-md transition-all hover:bg-gray-100 text-gray-400 hover:text-gray-700 ${
+                                          copiedField === 'old-account-number' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                        }`}
+                                      >
+                                        {copiedField === 'old-account-number' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                      </button>
+                                    </div>
+                                  )}
+                                  {invoiceSettings.routing_number && (
+                                    <div className="group flex items-center justify-between gap-2 py-1.5">
+                                      <div className="flex-1 flex flex-col sm:flex-row sm:justify-between gap-1">
+                                        <span className="text-gray-500">Routing</span>
+                                        <span className="font-semibold text-gray-900 font-mono text-xs break-all">{invoiceSettings.routing_number}</span>
+                                      </div>
+                                      <button
+                                        onClick={() => handleCopyField(invoiceSettings.routing_number, 'old-routing-number')}
+                                        className={`flex-shrink-0 p-1.5 rounded-md transition-all hover:bg-gray-100 text-gray-400 hover:text-gray-700 ${
+                                          copiedField === 'old-routing-number' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                        }`}
+                                      >
+                                        {copiedField === 'old-routing-number' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              {invoiceSettings.account_number && (
-                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2 py-1.5 border-b border-gray-100">
-                                  <span className="text-gray-500">Account</span>
-                                  <span className="font-semibold text-gray-900 font-mono text-xs break-all">{invoiceSettings.account_number}</span>
-                                </div>
-                              )}
-                              {invoiceSettings.routing_number && (
-                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2 py-1.5">
-                                  <span className="text-gray-500">Routing</span>
-                                  <span className="font-semibold text-gray-900 font-mono text-xs break-all">{invoiceSettings.routing_number}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                            )}
 
-                        {invoiceSettings.paypal_email && (
-                          <div className={invoiceSettings.bank_name ? 'pt-3 sm:pt-4 border-t border-gray-200' : ''}>
-                            <p className="font-bold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
-                              <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
-                              PayPal
-                            </p>
-                            <p className="text-gray-600 pl-5 sm:pl-6 font-mono text-xs break-all">{invoiceSettings.paypal_email}</p>
-                          </div>
-                        )}
+                            {invoiceSettings.paypal_email && (
+                              <div className={invoiceSettings.bank_name ? 'pt-3 sm:pt-4 border-t border-gray-200' : ''}>
+                                <p className="font-bold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
+                                  <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
+                                  PayPal
+                                </p>
+                                <div className="group flex items-center justify-between gap-2 pl-5 sm:pl-6">
+                                  <p className="text-gray-600 font-mono text-xs break-all flex-1">{invoiceSettings.paypal_email}</p>
+                                  <button
+                                    onClick={() => handleCopyField(invoiceSettings.paypal_email, 'old-paypal')}
+                                    className={`flex-shrink-0 p-1.5 rounded-md transition-all hover:bg-gray-100 text-gray-400 hover:text-gray-700 ${
+                                      copiedField === 'old-paypal' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                    }`}
+                                  >
+                                    {copiedField === 'old-paypal' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
-                        {invoiceSettings?.payment_instructions && (
-                          <div className="pt-3 sm:pt-4 border-t border-gray-200">
-                            <p className="text-gray-600 leading-relaxed break-words">{invoiceSettings.payment_instructions}</p>
+                            {invoiceSettings?.payment_instructions && (
+                              <div className="pt-3 sm:pt-4 border-t border-gray-200">
+                                <p className="text-gray-600 leading-relaxed break-words">{invoiceSettings.payment_instructions}</p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

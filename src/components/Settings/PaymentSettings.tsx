@@ -148,7 +148,7 @@ export const PaymentSettings: React.FC = () => {
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
               >
                 <Plus className="h-4 w-4 inline mr-2" />
-                Add Payment Account
+                Connect Stripe Account
               </button>
             </div>
           ) : (
@@ -215,7 +215,7 @@ export const PaymentSettings: React.FC = () => {
                   className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors"
                 >
                   <Plus className="h-4 w-4 inline mr-2" />
-                  Add Another Account
+                  Connect Another Account
                 </button>
               )}
             </div>
@@ -225,11 +225,35 @@ export const PaymentSettings: React.FC = () => {
 
       {/* Add Account Modal */}
       {showAddAccount && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Add Payment Account
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Connect Payment Account
             </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Set up your account details, then connect with Stripe
+            </p>
+
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                How It Works
+              </h4>
+              <ul className="text-sm text-blue-800 space-y-1.5">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span><strong>Have a Stripe account?</strong> You'll sign in during setup</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span><strong>New to Stripe?</strong> We'll help you create an account</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span>Complete setup at Stripe to start accepting payments</span>
+                </li>
+              </ul>
+            </div>
 
             <div className="space-y-4">
               {/* Provider Selection */}
@@ -251,7 +275,7 @@ export const PaymentSettings: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Globe className="h-4 w-4 inline mr-1" />
-                  Country
+                  Business Country
                 </label>
                 <select
                   value={formData.country}
@@ -259,7 +283,7 @@ export const PaymentSettings: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   required
                 >
-                  <option value="">Select Country</option>
+                  <option value="">Select your business country</option>
                   {getStripeConnectSupportedCountries().map((country) => (
                     <option key={country.code} value={country.code}>
                       {country.name}
@@ -267,7 +291,7 @@ export const PaymentSettings: React.FC = () => {
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Only countries supported by Stripe Connect are shown
+                  Where your business is registered or operates
                 </p>
               </div>
 
@@ -353,7 +377,7 @@ export const PaymentSettings: React.FC = () => {
                 disabled={loading || !formData.country}
                 className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Connecting...' : 'Connect Account'}
+                {loading ? 'Redirecting to Stripe...' : 'Continue to Stripe'}
               </button>
             </div>
           </div>
