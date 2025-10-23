@@ -27,5 +27,5 @@ Disallow: /notifications
 Disallow: /setup
 Disallow: /admin
 
-# Sitemap location
-Sitemap: https://yourdomain.com/sitemap.xml
+# Sitemap location (Updated via Supabase Edge Function)
+Sitemap: https://smartcfo.com/sitemap.xml

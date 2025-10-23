@@ -286,19 +286,69 @@ export const LandingPageAwwrd: React.FC = () => {
         pagePath="/"
         structuredData={{
           '@context': 'https://schema.org',
-          '@type': 'SoftwareApplication',
-          name: 'SmartCFO',
-          applicationCategory: 'BusinessApplication',
-          offers: {
-            '@type': 'Offer',
-            price: '5',
-            priceCurrency: 'USD'
-          },
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: '4.9',
-            ratingCount: '10000'
-          }
+          '@graph': [
+            {
+              '@type': 'Organization',
+              '@id': 'https://smartcfo.com/#organization',
+              name: 'SmartCFO',
+              url: 'https://smartcfo.com',
+              logo: {
+                '@type': 'ImageObject',
+                url: 'https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717',
+              },
+              description: 'AI-powered accounting software for small businesses',
+              sameAs: [
+                'https://www.linkedin.com/company/smartcfo',
+                'https://twitter.com/smartcfo',
+              ],
+            },
+            {
+              '@type': 'WebSite',
+              '@id': 'https://smartcfo.com/#website',
+              url: 'https://smartcfo.com',
+              name: 'SmartCFO',
+              description: 'Your AI Chief Financial Officer',
+              publisher: {
+                '@id': 'https://smartcfo.com/#organization',
+              },
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: {
+                  '@type': 'EntryPoint',
+                  urlTemplate: 'https://smartcfo.com/blog?q={search_term_string}',
+                },
+                'query-input': 'required name=search_term_string',
+              },
+            },
+            {
+              '@type': 'SoftwareApplication',
+              name: 'SmartCFO',
+              applicationCategory: 'FinanceApplication',
+              operatingSystem: 'Web, iOS, Android',
+              offers: {
+                '@type': 'Offer',
+                price: '5',
+                priceCurrency: 'USD',
+                priceValidUntil: '2025-12-31',
+                availability: 'https://schema.org/InStock',
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '4.9',
+                ratingCount: '10000',
+                bestRating: '5',
+                worstRating: '1',
+              },
+              featureList: [
+                'AI-powered insights',
+                'Automated invoicing',
+                'Expense tracking',
+                'VAT returns',
+                'Multi-currency support',
+                'Real-time reporting',
+              ],
+            },
+          ],
         }}
       />
       <div className="relative bg-gray-50 text-gray-900 overflow-hidden">

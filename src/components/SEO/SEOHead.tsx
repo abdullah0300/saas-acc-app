@@ -64,7 +64,9 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
     if (typeof window !== 'undefined') {
       return `${window.location.origin}${pagePath || ''}`;
     }
-    return `https://smartcfo.com${pagePath || ''}`;
+    // Fallback to REACT_APP_SITE_URL env variable or production URL
+    const siteUrl = process.env.REACT_APP_SITE_URL || 'https://smartcfo.com';
+    return `${siteUrl}${pagePath || ''}`;
   };
   const finalCanonical = getCanonicalUrl();
   const finalStructuredData = structuredData || seoData?.structured_data;
