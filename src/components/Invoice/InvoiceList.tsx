@@ -961,54 +961,73 @@ export const InvoiceList: React.FC = () => {
         }
 
         try {
-          const phoneNumber = formatPhoneForWhatsApp(
-            invoice.client.phone, 
-            invoice.client.phone_country_code
-          );
+          // Send via WhatsApp Cloud API
+          const { error: whatsappError } = await supabase.functions.invoke('send-whatsapp-invoice', {
+            body: {
+              invoiceId: invoice.id,
+              recipientPhone: invoice.client.phone,
+              recipientCountryCode: invoice.client.phone_country_code,
+              templateName: 'invoice_notification'  // Your approved template name
+            }
+          });
 
-          const publicLink = await generatePublicLink(invoice.id);
-          if (!publicLink) return;
+          if (whatsappError) {
+            console.error('WhatsApp send error:', whatsappError);
+            // Fallback to wa.me link if API fails
+            console.log('Falling back to wa.me link...');
 
-          let itemsSummary = '';
-          if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
-            itemsSummary = '\n📋 *ITEMS:*\n';
-            fullInvoiceData.items.forEach((item: any) => {
-              itemsSummary += `• ${item.description} - ${formatCurrency(item.amount, invoice.currency || baseCurrency)}\n`;
-            });
+            const phoneNumber = formatPhoneForWhatsApp(
+              invoice.client.phone,
+              invoice.client.phone_country_code
+            );
+
+            const publicLink = await generatePublicLink(invoice.id);
+            if (!publicLink) return;
+
+            let itemsSummary = '';
+            if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
+              itemsSummary = '\n📋 *ITEMS:*\n';
+              fullInvoiceData.items.forEach((item: any) => {
+                itemsSummary += `• ${item.description} - ${formatCurrency(item.amount, invoice.currency || baseCurrency)}\n`;
+              });
+            }
+
+            const message = encodeURIComponent(
+              `🏢 *${companyName}*\n` +
+              (companyAddress ? `📍 ${companyAddress}\n` : '') +
+              (companyPhone ? `☎️ ${companyPhone}\n` : '') +
+              `━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `📄 *INVOICE*\n\n` +
+              `*To:* ${invoice.client?.name}\n` +
+              (invoice.client?.address ? `${invoice.client.address}\n` : '') +
+              `\n*Invoice #:* ${invoice.invoice_number}\n` +
+              `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
+              `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
+              itemsSummary +
+              `\n━━━━━━━━━━━━━━━━━━━━\n` +
+              `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
+              (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
+              `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
+              `━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `📱 *View Full Invoice:*\n` +
+              `${publicLink}\n\n` +
+              `💳 *Payment Options:*\n` +
+              `• Bank Transfer\n` +
+              `• Credit/Debit Card\n` +
+              `• PayPal\n` +
+              (settingsData?.payment_instructions ?
+                `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
+              `Thank you for your business! 🙏\n\n` +
+              `_Please save this number to receive future updates._`
+            );
+
+            window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+          } else {
+            alert('✅ WhatsApp message sent successfully!');
           }
 
-          const message = encodeURIComponent(
-            `🏢 *${companyName}*\n` +
-            (companyAddress ? `📍 ${companyAddress}\n` : '') +
-            (companyPhone ? `☎️ ${companyPhone}\n` : '') +
-            `━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📄 *INVOICE*\n\n` +
-            `*To:* ${invoice.client?.name}\n` +
-            (invoice.client?.address ? `${invoice.client.address}\n` : '') +
-            `\n*Invoice #:* ${invoice.invoice_number}\n` +
-            `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
-            `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
-            itemsSummary +
-            `\n━━━━━━━━━━━━━━━━━━━━\n` +
-            `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
-            (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
-            `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
-            `━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📱 *View Full Invoice:*\n` +
-            `${publicLink}\n\n` +
-            `💳 *Payment Options:*\n` +
-            `• Bank Transfer\n` +
-            `• Credit/Debit Card\n` +
-            `• PayPal\n` +
-            (settingsData?.payment_instructions ? 
-              `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
-            `Thank you for your business! 🙏\n\n` +
-            `_Please save this number to receive future updates._`
-          );
-          
-          window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
-          
         } catch (error: any) {
+          console.error('WhatsApp error:', error);
           alert(`Error: ${error.message}\nPlease update the client's country code.`);
           return;
         }
