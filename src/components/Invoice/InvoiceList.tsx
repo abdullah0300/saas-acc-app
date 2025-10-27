@@ -961,13 +961,24 @@ export const InvoiceList: React.FC = () => {
         }
 
         try {
+          // Generate public link for the invoice
+          const publicLink = await generatePublicLink(invoice.id);
+          if (!publicLink) {
+            alert('Error generating invoice link');
+            return;
+          }
+
           // Send via WhatsApp Cloud API
-          const { error: whatsappError } = await supabase.functions.invoke('send-whatsapp-invoice', {
+          const { data: whatsappData, error: whatsappError } = await supabase.functions.invoke('send-whatsapp-invoice', {
             body: {
               invoiceId: invoice.id,
-              recipientPhone: invoice.client.phone,
-              recipientCountryCode: invoice.client.phone_country_code,
-              templateName: 'invoice_notification'  // Your approved template name
+              clientPhone: invoice.client.phone,
+              clientName: invoice.client.name,
+              invoiceNumber: invoice.invoice_number,
+              companyName: companyName,
+              amount: formatCurrency(invoice.total, invoice.currency || baseCurrency),
+              dueDate: format(parseISO(invoice.due_date), 'MMM dd, yyyy'),
+              invoiceUrl: publicLink
             }
           });
 

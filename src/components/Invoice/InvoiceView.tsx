@@ -559,13 +559,24 @@ const isUK = invoice.currency === 'GBP' &&
     if (!phoneNumber || !invoice) return;
 
     try {
+      // Generate public link first
+      const link = await generatePublicLink();
+      if (!link) {
+        alert('Error generating invoice link');
+        return;
+      }
+
       // Try sending via WhatsApp Cloud API first
-      const { error: whatsappError } = await supabase.functions.invoke('send-whatsapp-invoice', {
+      const { data: whatsappData, error: whatsappError } = await supabase.functions.invoke('send-whatsapp-invoice', {
         body: {
           invoiceId: invoice.id,
-          recipientPhone: phoneNumber,
-          recipientCountryCode: invoice.client?.phone_country_code,
-          templateName: 'invoice_notification'
+          clientPhone: phoneNumber,
+          clientName: invoice.client?.name || 'Customer',
+          invoiceNumber: invoice.invoice_number,
+          companyName: profile?.company_name || invoiceSettings?.company_name || 'Your Company',
+          amount: formatCurrency(invoice.total, invoice.currency || baseCurrency),
+          dueDate: format(parseISO(invoice.due_date), 'MMM dd, yyyy'),
+          invoiceUrl: link
         }
       });
 
@@ -573,8 +584,6 @@ const isUK = invoice.currency === 'GBP' &&
         console.error('WhatsApp API error, falling back to wa.me:', whatsappError);
 
         // Fallback to wa.me link
-        const link = await generatePublicLink();
-        if (!link) return;
 
         const message = encodeURIComponent(
           `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
