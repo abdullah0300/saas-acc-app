@@ -25,6 +25,9 @@ import { InvoiceForm } from './components/Invoice/InvoiceForm';
 import { InvoiceView } from './components/Invoice/InvoiceView';
 import { PublicInvoiceView } from './components/Invoice/PublicInvoiceView';
 import { InvoiceTemplatesPage } from './components/Invoice/InvoiceTemplatesPage';
+import { ProjectsList } from './components/Projects/ProjectsList';
+import { ProjectForm } from './components/Projects/ProjectForm';
+import { ProjectDetail } from './components/Projects/ProjectDetail';
 import { ReportsOverview } from './components/Reports/ReportsOverview';
 import { ProfitLossReport } from './components/Reports/ProfitLossReport';
 import { VATReport } from './components/Reports/VATReport';
@@ -214,7 +217,13 @@ function AppRoutes() {
         <Route path="/invoices/recurring" element={<RecurringInvoices />} />
         <Route path="/invoices/recurring/edit/:id" element={<RecurringInvoiceEdit />} />
         <Route path="/invoices/recurring/template/:id" element={<RecurringInvoiceTemplateEdit />} />
-        
+
+        {/* Projects */}
+        <Route path="/projects" element={<ProjectsList />} />
+        <Route path="/projects/new" element={<ProjectForm />} />
+        <Route path="/projects/:projectId" element={<ProjectDetail />} />
+        <Route path="/projects/:projectId/edit" element={<ProjectForm />} />
+
         {/* Notifications */}
         <Route path="/notifications" element={<NotificationCenter />} />
         

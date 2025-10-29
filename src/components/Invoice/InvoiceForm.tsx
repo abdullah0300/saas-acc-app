@@ -28,7 +28,8 @@ import {
   deleteInvoiceTemplate,
   getCategories,
   getInvoicePayments,
-  calculateInvoiceBalance
+  calculateInvoiceBalance,
+  getProjects
 } from '../../services/database';
 import { Invoice, InvoiceItem, Client, InvoicePayment } from '../../types';
 import { format, addDays, parseISO, addWeeks, addMonths } from 'date-fns';
@@ -128,6 +129,7 @@ useEffect(() => {
   const [formData, setFormData] = useState({
     invoice_number: '',
     client_id: '',
+    project_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
     tax_rate: '0',
@@ -260,6 +262,16 @@ useEffect(() => {
     queryFn: async () => {
       if (!user) return [];
       return await getClients(user.id);
+    },
+    enabled: !!user
+  });
+
+  // Fetch projects
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects', user?.id, 'active'],
+    queryFn: async () => {
+      if (!user) return [];
+      return await getProjects(user.id, 'active');
     },
     enabled: !!user
   });
@@ -1023,6 +1035,7 @@ useEffect(() => {
     setFormData({
       invoice_number: invoice.invoice_number,
       client_id: invoice.client_id || '',
+      project_id: (invoice as any).project_id || '',
       date: invoice.date,
       due_date: invoice.due_date,
       tax_rate: invoice.tax_rate.toString(),
@@ -1167,6 +1180,7 @@ const baseTaxAmount = taxAmount / exchangeRate;
     const cleanInvoiceData = {
       invoice_number: formData.invoice_number,
       client_id: formData.client_id || null,
+      project_id: formData.project_id || null,
       date: formData.date,
       due_date: formData.due_date,
       subtotal: Number(subtotal.toFixed(2)),
@@ -1461,7 +1475,33 @@ if (!isUserSettingsReady) {
               )}
             </div>
 
-
+            {/* Project Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Project (Optional)
+              </label>
+              <select
+                value={formData.project_id}
+                onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">No project</option>
+                {projects
+                  .filter((p: any) => !formData.client_id || p.client_id === formData.client_id)
+                  .map((project: any) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+              </select>
+              {formData.client_id && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {projects.filter((p: any) => p.client_id === formData.client_id).length > 0
+                    ? 'Showing projects for selected client'
+                    : 'No projects found for this client'}
+                </p>
+              )}
+            </div>
 
             {/* Hide Invoice Date in recurring template mode */}
             {!isRecurringTemplateMode && (

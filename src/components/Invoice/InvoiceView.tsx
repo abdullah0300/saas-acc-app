@@ -305,6 +305,7 @@ const isUK = invoice.currency === 'GBP' &&
             date: new Date().toISOString().split('T')[0],
             client_id: invoice.client_id || null,
             category_id: invoice.income_category_id || null,
+            project_id: (invoice as any).project_id || null, // 🔴 FIX: Copy project_id from invoice
             reference_number: invoice.invoice_number,
             currency: baseCurrency, // 🔴 FIX: Always use BASE currency for income entries
             exchange_rate: 1, // 🔴 FIX: Rate is 1 since we're already in base currency
@@ -432,6 +433,7 @@ const isUK = invoice.currency === 'GBP' &&
           date: partialPaymentData.payment_date,
           client_id: invoice.client_id || null,
           category_id: invoice.income_category_id || null,
+          project_id: (invoice as any).project_id || null, // 🔴 FIX: Copy project_id from invoice
           reference_number: invoice.invoice_number,
           currency: baseCurrency, // 🔴 FIX: Always use BASE currency for income entries
           exchange_rate: 1, // 🔴 FIX: Rate is 1 since we're already in base currency

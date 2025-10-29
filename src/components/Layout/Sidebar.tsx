@@ -20,6 +20,7 @@ import {
   ChevronUp,
   Sparkles,
   Landmark,
+  Briefcase,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { getProfile } from "../../services/database";
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { path: "/expenses", icon: TrendingDown, label: "Expenses" },
     { path: "/clients", icon: Users, label: "Clients" },
     { path: "/invoices", icon: FileText, label: "Invoices" },
+    { path: "/projects", icon: Briefcase, label: "Projects" },
     { path: "/loans", icon: Landmark, label: "Loans" },
     {
       path: "/budget",
@@ -65,6 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
   const moreItems = [
     { path: "/clients", icon: Users, label: "Clients" },
+    { path: "/projects", icon: Briefcase, label: "Projects" },
     { path: "/loans", icon: Landmark, label: "Loans" },
     {
       path: "/budget",

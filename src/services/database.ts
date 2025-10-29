@@ -2018,3 +2018,1037 @@ export const calculateInvoiceBalance = async (
   };
 };
 
+// ==========================================
+// PROJECT FUNCTIONS
+// ==========================================
+
+/**
+ * Calculate project statistics on-the-fly
+ * This is a fallback when materialized view doesn't exist
+ */
+const calculateProjectStats = async (projectId: string) => {
+  try {
+    // Get all transactions for this project
+    const [incomeResult, expenseResult, invoiceResult] = await Promise.all([
+      supabase
+        .from('income')
+        .select('base_amount')
+        .eq('project_id', projectId)
+        .is('deleted_at', null),
+      supabase
+        .from('expenses')
+        .select('base_amount')
+        .eq('project_id', projectId)
+        .is('deleted_at', null),
+      supabase
+        .from('invoices')
+        .select('base_amount, status')
+        .eq('project_id', projectId)
+        .is('deleted_at', null)
+    ]);
+
+    const incomes = incomeResult.data || [];
+    const expenses = expenseResult.data || [];
+    const invoices = invoiceResult.data || [];
+
+    const total_income = incomes.reduce((sum, i) => sum + (i.base_amount || 0), 0);
+    const total_expenses = expenses.reduce((sum, e) => sum + (e.base_amount || 0), 0);
+    const invoice_total = invoices.reduce((sum, inv) => sum + (inv.base_amount || 0), 0);
+    const profit = total_income - total_expenses;
+    const profit_margin_percentage = total_income > 0 ? (profit / total_income) * 100 : 0;
+
+    return {
+      total_income,
+      total_expenses,
+      invoice_total,
+      profit,
+      profit_margin_percentage,
+      income_count: incomes.length,
+      expense_count: expenses.length,
+      invoice_count: invoices.length,
+      paid_invoice_count: invoices.filter(inv => inv.status === 'paid').length
+    };
+  } catch (error) {
+    console.error('Error calculating project stats:', error);
+    // Return zero stats on error
+    return {
+      total_income: 0,
+      total_expenses: 0,
+      invoice_total: 0,
+      profit: 0,
+      profit_margin_percentage: 0,
+      income_count: 0,
+      expense_count: 0,
+      invoice_count: 0,
+      paid_invoice_count: 0
+    };
+  }
+};
+
+export interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  client_id?: string;
+  status: 'active' | 'completed' | 'on_hold' | 'cancelled';
+  start_date?: string;
+  end_date?: string;
+  budget_amount?: number;
+  budget_currency?: string;
+  color?: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  // Populated from joins
+  client?: any;
+  stats?: {
+    total_income: number;
+    total_expenses: number;
+    invoice_total: number;
+    profit: number;
+    profit_margin_percentage: number;
+    income_count: number;
+    expense_count: number;
+    invoice_count: number;
+    paid_invoice_count: number;
+  };
+}
+
+/**
+ * Get all projects for a user (team-aware)
+ */
+export const getProjects = async (
+  userId: string,
+  status?: 'active' | 'completed' | 'on_hold' | 'cancelled' | 'all'
+): Promise<Project[]> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  let query = supabase
+    .from('projects')
+    .select(`
+      *,
+      client:clients(id, name, email)
+    `)
+    .eq('user_id', effectiveUserId)
+    .is('deleted_at', null);
+
+  if (status && status !== 'all') {
+    query = query.eq('status', status);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  // Calculate stats for each project
+  const projectsWithStats = await Promise.all(
+    (data || []).map(async (project) => {
+      const stats = await calculateProjectStats(project.id);
+      return { ...project, stats };
+    })
+  );
+
+  return projectsWithStats as Project[];
+};
+
+/**
+ * Get a single project by ID
+ */
+export const getProject = async (projectId: string): Promise<Project> => {
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .eq('id', projectId)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) throw error;
+
+  // Calculate stats for the project
+  const stats = await calculateProjectStats(projectId);
+
+  return { ...data, stats } as Project;
+};
+
+/**
+ * Create a new project
+ */
+export const createProject = async (
+  project: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
+): Promise<Project> => {
+  const effectiveUserId = await getEffectiveUserId(project.user_id);
+
+  const { data, error } = await supabase
+    .from('projects')
+    .insert([{
+      ...project,
+      user_id: effectiveUserId,
+      client_id: project.client_id || null,
+      description: project.description || null,
+      start_date: project.start_date || null,
+      end_date: project.end_date || null,
+      budget_amount: project.budget_amount || null,
+      budget_currency: project.budget_currency || null,
+      color: project.color || '#6366F1'
+    }])
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .single();
+
+  if (error) throw error;
+
+  // New projects have zero stats (no transactions yet)
+  const stats = {
+    total_income: 0,
+    total_expenses: 0,
+    invoice_total: 0,
+    profit: 0,
+    profit_margin_percentage: 0,
+    income_count: 0,
+    expense_count: 0,
+    invoice_count: 0,
+    paid_invoice_count: 0
+  };
+
+  return { ...data, stats } as Project;
+};
+
+/**
+ * Update a project
+ */
+export const updateProject = async (
+  projectId: string,
+  updates: Partial<Project>
+): Promise<Project> => {
+  const updateData: any = { ...updates };
+
+  // Handle nullable fields
+  if ('client_id' in updates) updateData.client_id = updates.client_id || null;
+  if ('description' in updates) updateData.description = updates.description || null;
+  if ('start_date' in updates) updateData.start_date = updates.start_date || null;
+  if ('end_date' in updates) updateData.end_date = updates.end_date || null;
+  if ('budget_amount' in updates) updateData.budget_amount = updates.budget_amount || null;
+
+  const { data, error } = await supabase
+    .from('projects')
+    .update(updateData)
+    .eq('id', projectId)
+    .select(`
+      *,
+      client:clients(*)
+    `)
+    .single();
+
+  if (error) throw error;
+
+  // Calculate fresh stats
+  const stats = await calculateProjectStats(projectId);
+
+  return { ...data, stats } as Project;
+};
+
+/**
+ * Soft delete a project
+ */
+export const deleteProject = async (projectId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('projects')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', projectId);
+
+  if (error) throw error;
+};
+
+/**
+ * Get project transactions (income + expenses + invoices)
+ */
+export const getProjectTransactions = async (projectId: string) => {
+  const [incomes, expenses, invoices] = await Promise.all([
+    supabase
+      .from('income')
+      .select('*, category:categories(*)')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('date', { ascending: false }),
+    supabase
+      .from('expenses')
+      .select('*, category:categories(*), vendor_detail:vendors(*)')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('date', { ascending: false }),
+    supabase
+      .from('invoices')
+      .select('*, client:clients(*), items:invoice_items(*)')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('date', { ascending: false })
+  ]);
+
+  return {
+    incomes: incomes.data || [],
+    expenses: expenses.data || [],
+    invoices: invoices.data || []
+  };
+};
+
+/**
+ * Get projects by client
+ */
+export const getProjectsByClient = async (
+  userId: string,
+  clientId: string
+): Promise<Project[]> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('user_id', effectiveUserId)
+    .eq('client_id', clientId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  // Calculate stats for each project
+  const projectsWithStats = await Promise.all(
+    (data || []).map(async (project) => {
+      const stats = await calculateProjectStats(project.id);
+      return { ...project, stats };
+    })
+  );
+
+  return projectsWithStats as Project[];
+};
+
+/**
+ * Check if project name already exists for user
+ */
+export const checkProjectNameExists = async (
+  userId: string,
+  name: string,
+  excludeId?: string
+): Promise<boolean> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  let query = supabase
+    .from('projects')
+    .select('id')
+    .eq('user_id', effectiveUserId)
+    .eq('name', name)
+    .is('deleted_at', null);
+
+  if (excludeId) {
+    query = query.neq('id', excludeId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return (data && data.length > 0);
+};
+
+/**
+ * Auto-suggest project from transaction description using AI
+ * (Simple keyword matching for now, can be enhanced with AI later)
+ */
+export const suggestProjectFromDescription = async (
+  userId: string,
+  description: string,
+  clientId?: string
+): Promise<Project | null> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  // Get active projects
+  let query = supabase
+    .from('projects')
+    .select('*')
+    .eq('user_id', effectiveUserId)
+    .eq('status', 'active')
+    .is('deleted_at', null);
+
+  if (clientId) {
+    query = query.eq('client_id', clientId);
+  }
+
+  const { data: projects, error } = await query;
+
+  if (error || !projects || projects.length === 0) return null;
+
+  // Simple keyword matching (can be enhanced with AI)
+  const descLower = description.toLowerCase();
+
+  // Find project where description contains project name
+  const match = projects.find(p =>
+    descLower.includes(p.name.toLowerCase())
+  );
+
+  if (!match) return null;
+
+  // Calculate stats for the matched project
+  const stats = await calculateProjectStats(match.id);
+
+  return { ...match, stats } as Project;
+};
+
+/**
+ * Duplicate a project with its milestones and goals
+ * Does NOT copy: time entries, files, activity log, income, expenses, invoices
+ */
+export const duplicateProject = async (
+  projectId: string,
+  userId: string
+): Promise<Project> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+
+  // Get original project
+  const { data: originalProject, error: projectError } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('id', projectId)
+    .eq('user_id', effectiveUserId)
+    .is('deleted_at', null)
+    .single();
+
+  if (projectError) throw projectError;
+  if (!originalProject) throw new Error('Project not found');
+
+  // Create new project with " - Copy" suffix
+  const { data: newProject, error: newProjectError } = await supabase
+    .from('projects')
+    .insert([{
+      user_id: effectiveUserId,
+      name: `${originalProject.name} - Copy`,
+      description: originalProject.description,
+      client_id: originalProject.client_id,
+      budget_amount: originalProject.budget_amount,
+      budget_currency: originalProject.budget_currency,
+      status: 'active', // Reset to active
+      start_date: null, // Reset dates
+      end_date: null
+    }])
+    .select()
+    .single();
+
+  if (newProjectError) throw newProjectError;
+
+  // Get original milestones
+  const { data: originalMilestones } = await supabase
+    .from('project_milestones')
+    .select('*')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('due_date', { ascending: true });
+
+  // Copy milestones if any exist
+  if (originalMilestones && originalMilestones.length > 0) {
+    const milestonesToInsert = originalMilestones.map(m => ({
+      project_id: newProject.id,
+      user_id: effectiveUserId,
+      name: m.name,
+      description: m.description,
+      due_date: null, // Reset date
+      target_amount: m.target_amount,
+      currency: m.currency,
+      status: 'pending' as const, // Reset to pending
+      completion_date: null, // Clear completion
+      invoice_id: null // Don't link to old invoice
+    }));
+
+    await supabase
+      .from('project_milestones')
+      .insert(milestonesToInsert);
+  }
+
+  // Get original goals
+  const { data: originalGoals } = await supabase
+    .from('project_goals')
+    .select('*')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('order_index', { ascending: true });
+
+  // Copy goals if any exist
+  if (originalGoals && originalGoals.length > 0) {
+    const goalsToInsert = originalGoals.map(g => ({
+      project_id: newProject.id,
+      user_id: effectiveUserId,
+      title: g.title,
+      description: g.description,
+      status: 'todo' as const, // Reset to todo
+      order_index: g.order_index
+    }));
+
+    await supabase
+      .from('project_goals')
+      .insert(goalsToInsert);
+  }
+
+  // Calculate stats for new project
+  const stats = await calculateProjectStats(newProject.id);
+
+  return { ...newProject, stats } as Project;
+};
+
+// ==========================================
+// PROJECT MILESTONE FUNCTIONS
+// ==========================================
+
+export interface ProjectMilestone {
+  id: string;
+  project_id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  due_date?: string;
+  target_amount?: number;
+  currency?: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'paid';
+  completion_date?: string;
+  invoice_id?: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  // Populated from joins
+  invoice?: any;
+}
+
+/**
+ * Get all milestones for a project
+ */
+export const getProjectMilestones = async (projectId: string): Promise<ProjectMilestone[]> => {
+  const { data, error } = await supabase
+    .from('project_milestones')
+    .select(`
+      *,
+      invoice:invoices(id, invoice_number, total, status, currency)
+    `)
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('due_date', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as ProjectMilestone[];
+};
+
+/**
+ * Get a single milestone by ID
+ */
+export const getMilestone = async (milestoneId: string): Promise<ProjectMilestone> => {
+  const { data, error } = await supabase
+    .from('project_milestones')
+    .select(`
+      *,
+      invoice:invoices(id, invoice_number, total, status, currency)
+    `)
+    .eq('id', milestoneId)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) throw error;
+  return data as ProjectMilestone;
+};
+
+/**
+ * Create a new milestone
+ */
+export const createMilestone = async (
+  milestone: Omit<ProjectMilestone, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
+): Promise<ProjectMilestone> => {
+  const { data, error } = await supabase
+    .from('project_milestones')
+    .insert([{
+      project_id: milestone.project_id,
+      user_id: milestone.user_id,
+      name: milestone.name,
+      description: milestone.description || null,
+      due_date: milestone.due_date || null,
+      target_amount: milestone.target_amount || null,
+      currency: milestone.currency || null,
+      status: milestone.status || 'pending',
+      completion_date: milestone.completion_date || null,
+      invoice_id: milestone.invoice_id || null
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectMilestone;
+};
+
+/**
+ * Update a milestone
+ */
+export const updateMilestone = async (
+  milestoneId: string,
+  updates: Partial<ProjectMilestone>
+): Promise<ProjectMilestone> => {
+  const { data, error } = await supabase
+    .from('project_milestones')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', milestoneId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectMilestone;
+};
+
+/**
+ * Delete a milestone (soft delete)
+ */
+export const deleteMilestone = async (milestoneId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('project_milestones')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', milestoneId);
+
+  if (error) throw error;
+};
+
+// ==========================================
+// PROJECT GOALS/DELIVERABLES FUNCTIONS
+// ==========================================
+
+export interface ProjectGoal {
+  id: string;
+  project_id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  status: 'todo' | 'in_progress' | 'done';
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+/**
+ * Get all goals for a project
+ */
+export const getProjectGoals = async (projectId: string): Promise<ProjectGoal[]> => {
+  const { data, error } = await supabase
+    .from('project_goals')
+    .select('*')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('order_index', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as ProjectGoal[];
+};
+
+/**
+ * Create a new goal
+ */
+export const createGoal = async (
+  goal: Omit<ProjectGoal, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
+): Promise<ProjectGoal> => {
+  const { data, error } = await supabase
+    .from('project_goals')
+    .insert([{
+      project_id: goal.project_id,
+      user_id: goal.user_id,
+      title: goal.title,
+      description: goal.description || null,
+      status: goal.status || 'todo',
+      order_index: goal.order_index
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectGoal;
+};
+
+/**
+ * Update a goal
+ */
+export const updateGoal = async (
+  goalId: string,
+  updates: Partial<ProjectGoal>
+): Promise<ProjectGoal> => {
+  const { data, error } = await supabase
+    .from('project_goals')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', goalId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectGoal;
+};
+
+/**
+ * Delete a goal (soft delete)
+ */
+export const deleteGoal = async (goalId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('project_goals')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', goalId);
+
+  if (error) throw error;
+};
+
+/**
+ * Reorder goals
+ */
+export const reorderGoals = async (goals: { id: string; order_index: number }[]): Promise<void> => {
+  const updates = goals.map(g =>
+    supabase
+      .from('project_goals')
+      .update({ order_index: g.order_index })
+      .eq('id', g.id)
+  );
+
+  await Promise.all(updates);
+};
+
+// ==========================================
+// PROJECT TIME TRACKING FUNCTIONS
+// ==========================================
+
+export interface TimeEntry {
+  id: string;
+  project_id: string;
+  user_id: string;
+  date: string;
+  hours: number;
+  description?: string;
+  billable: boolean;
+  hourly_rate?: number;
+  amount?: number; // hours * hourly_rate (if billable)
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+/**
+ * Get all time entries for a project
+ */
+export const getProjectTimeEntries = async (projectId: string): Promise<TimeEntry[]> => {
+  const { data, error } = await supabase
+    .from('project_time_entries')
+    .select('*')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('date', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as TimeEntry[];
+};
+
+/**
+ * Create a new time entry
+ */
+export const createTimeEntry = async (
+  entry: Omit<TimeEntry, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'amount'>
+): Promise<TimeEntry> => {
+  // Calculate amount if billable
+  const amount = entry.billable && entry.hourly_rate
+    ? entry.hours * entry.hourly_rate
+    : null;
+
+  const { data, error } = await supabase
+    .from('project_time_entries')
+    .insert([{
+      project_id: entry.project_id,
+      user_id: entry.user_id,
+      date: entry.date,
+      hours: entry.hours,
+      description: entry.description || null,
+      billable: entry.billable,
+      hourly_rate: entry.hourly_rate || null,
+      amount
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as TimeEntry;
+};
+
+/**
+ * Update a time entry
+ */
+export const updateTimeEntry = async (
+  entryId: string,
+  updates: Partial<TimeEntry>
+): Promise<TimeEntry> => {
+  // Recalculate amount if hours, rate, or billable status changes
+  const updateData: any = {
+    ...updates,
+    updated_at: new Date().toISOString()
+  };
+
+  if (updates.hours !== undefined || updates.hourly_rate !== undefined || updates.billable !== undefined) {
+    // Fetch current entry to get all values
+    const { data: current } = await supabase
+      .from('project_time_entries')
+      .select('*')
+      .eq('id', entryId)
+      .single();
+
+    if (current) {
+      const hours = updates.hours ?? current.hours;
+      const rate = updates.hourly_rate ?? current.hourly_rate;
+      const billable = updates.billable ?? current.billable;
+      updateData.amount = billable && rate ? hours * rate : null;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('project_time_entries')
+    .update(updateData)
+    .eq('id', entryId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as TimeEntry;
+};
+
+/**
+ * Delete a time entry (soft delete)
+ */
+export const deleteTimeEntry = async (entryId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('project_time_entries')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', entryId);
+
+  if (error) throw error;
+};
+
+/**
+ * Get time tracking summary for a project
+ */
+export const getProjectTimeStats = async (projectId: string) => {
+  const entries = await getProjectTimeEntries(projectId);
+
+  const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
+  const billableHours = entries.filter(e => e.billable).reduce((sum, e) => sum + e.hours, 0);
+  const nonBillableHours = entries.filter(e => !e.billable).reduce((sum, e) => sum + e.hours, 0);
+  const totalAmount = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  return {
+    totalHours,
+    billableHours,
+    nonBillableHours,
+    totalAmount,
+    entryCount: entries.length
+  };
+};
+
+// ==========================================
+// PROJECT FILE ATTACHMENTS FUNCTIONS
+// ==========================================
+
+export interface ProjectAttachment {
+  id: string;
+  project_id: string;
+  user_id: string;
+  file_name: string;
+  file_path: string; // Path in Supabase storage
+  file_size: number; // in bytes
+  file_type: string; // MIME type
+  description?: string;
+  created_at: string;
+  deleted_at?: string;
+}
+
+/**
+ * Get all attachments for a project
+ */
+export const getProjectAttachments = async (projectId: string): Promise<ProjectAttachment[]> => {
+  const { data, error } = await supabase
+    .from('project_attachments')
+    .select('*')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as ProjectAttachment[];
+};
+
+/**
+ * Upload a file and create attachment record
+ */
+export const uploadProjectFile = async (
+  projectId: string,
+  userId: string,
+  file: File,
+  description?: string
+): Promise<ProjectAttachment> => {
+  // Generate unique file path
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const filePath = `${userId}/${projectId}/${fileName}`;
+
+  // Upload to Supabase storage
+  const { error: uploadError } = await supabase.storage
+    .from('project-files')
+    .upload(filePath, file);
+
+  if (uploadError) throw uploadError;
+
+  // Create database record
+  const { data, error } = await supabase
+    .from('project_attachments')
+    .insert([{
+      project_id: projectId,
+      user_id: userId,
+      file_name: file.name,
+      file_path: filePath,
+      file_size: file.size,
+      file_type: file.type,
+      description: description || null
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectAttachment;
+};
+
+/**
+ * Download/Get URL for a file
+ */
+export const getFileUrl = async (filePath: string): Promise<string> => {
+  const { data } = await supabase.storage
+    .from('project-files')
+    .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+  if (!data) throw new Error('Failed to generate file URL');
+  return data.signedUrl;
+};
+
+/**
+ * Delete an attachment (soft delete + remove from storage)
+ */
+export const deleteAttachment = async (attachmentId: string): Promise<void> => {
+  // Get attachment info
+  const { data: attachment } = await supabase
+    .from('project_attachments')
+    .select('file_path')
+    .eq('id', attachmentId)
+    .single();
+
+  if (!attachment) throw new Error('Attachment not found');
+
+  // Delete from storage
+  await supabase.storage
+    .from('project-files')
+    .remove([attachment.file_path]);
+
+  // Soft delete from database
+  const { error } = await supabase
+    .from('project_attachments')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', attachmentId);
+
+  if (error) throw error;
+};
+
+// ==========================================
+// PROJECT NOTES/ACTIVITY LOG FUNCTIONS
+// ==========================================
+
+export interface ProjectNote {
+  id: string;
+  project_id: string;
+  user_id: string;
+  type: 'note' | 'meeting' | 'call' | 'email' | 'change_request' | 'milestone' | 'other';
+  title: string;
+  content?: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+/**
+ * Get all notes/activities for a project
+ */
+export const getProjectNotes = async (projectId: string): Promise<ProjectNote[]> => {
+  const { data, error } = await supabase
+    .from('project_notes')
+    .select('*')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('date', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as ProjectNote[];
+};
+
+/**
+ * Create a new note/activity
+ */
+export const createNote = async (
+  note: Omit<ProjectNote, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
+): Promise<ProjectNote> => {
+  const { data, error } = await supabase
+    .from('project_notes')
+    .insert([{
+      project_id: note.project_id,
+      user_id: note.user_id,
+      type: note.type,
+      title: note.title,
+      content: note.content || null,
+      date: note.date
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectNote;
+};
+
+/**
+ * Update a note
+ */
+export const updateNote = async (
+  noteId: string,
+  updates: Partial<ProjectNote>
+): Promise<ProjectNote> => {
+  const { data, error } = await supabase
+    .from('project_notes')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', noteId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProjectNote;
+};
+
+/**
+ * Delete a note (soft delete)
+ */
+export const deleteNote = async (noteId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('project_notes')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', noteId);
+
+  if (error) throw error;
+};
+
