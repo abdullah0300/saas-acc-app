@@ -1888,13 +1888,13 @@ export const InvoiceList: React.FC = () => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-28">
                     Type
                   </th>
-                  <th className="sticky right-0 px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                  <th className="sticky right-0 px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 w-40">
                     Actions
                   </th>
                 </tr>
