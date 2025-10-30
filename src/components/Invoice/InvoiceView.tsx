@@ -573,6 +573,7 @@ const isUK = invoice.currency === 'GBP' &&
         body: {
           invoiceId: invoice.id,
           clientPhone: phoneNumber,
+          clientCountryCode: invoice.client?.phone_country_code, // Pass country code for multi-country support
           clientName: invoice.client?.name || 'Customer',
           invoiceNumber: invoice.invoice_number,
           companyName: profile?.company_name || invoiceSettings?.company_name || 'Your Company',
