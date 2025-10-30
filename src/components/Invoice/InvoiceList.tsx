@@ -1894,7 +1894,7 @@ export const InvoiceList: React.FC = () => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="sticky right-0 px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
+                  <th className="sticky right-0 px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                     Actions
                   </th>
                 </tr>
@@ -2036,7 +2036,7 @@ export const InvoiceList: React.FC = () => {
                             <span className="text-sm text-gray-500">One-time</span>
                           )}
                         </td>
-                        <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-white group-hover:bg-gray-50 shadow-[-2px_0_4px_rgba(0,0,0,0.05)] transition-colors">
+                        <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-white group-hover:bg-gray-50">
                           <div className="flex items-center justify-center space-x-2">
                             <Link
                               to={`/invoices/${invoice.id}/view`}
