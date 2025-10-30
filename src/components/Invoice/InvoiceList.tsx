@@ -961,54 +961,84 @@ export const InvoiceList: React.FC = () => {
         }
 
         try {
-          const phoneNumber = formatPhoneForWhatsApp(
-            invoice.client.phone, 
-            invoice.client.phone_country_code
-          );
-
+          // Generate public link for the invoice
           const publicLink = await generatePublicLink(invoice.id);
-          if (!publicLink) return;
-
-          let itemsSummary = '';
-          if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
-            itemsSummary = '\n📋 *ITEMS:*\n';
-            fullInvoiceData.items.forEach((item: any) => {
-              itemsSummary += `• ${item.description} - ${formatCurrency(item.amount, invoice.currency || baseCurrency)}\n`;
-            });
+          if (!publicLink) {
+            alert('Error generating invoice link');
+            return;
           }
 
-          const message = encodeURIComponent(
-            `🏢 *${companyName}*\n` +
-            (companyAddress ? `📍 ${companyAddress}\n` : '') +
-            (companyPhone ? `☎️ ${companyPhone}\n` : '') +
-            `━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📄 *INVOICE*\n\n` +
-            `*To:* ${invoice.client?.name}\n` +
-            (invoice.client?.address ? `${invoice.client.address}\n` : '') +
-            `\n*Invoice #:* ${invoice.invoice_number}\n` +
-            `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
-            `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
-            itemsSummary +
-            `\n━━━━━━━━━━━━━━━━━━━━\n` +
-            `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
-            (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
-            `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
-            `━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📱 *View Full Invoice:*\n` +
-            `${publicLink}\n\n` +
-            `💳 *Payment Options:*\n` +
-            `• Bank Transfer\n` +
-            `• Credit/Debit Card\n` +
-            `• PayPal\n` +
-            (settingsData?.payment_instructions ? 
-              `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
-            `Thank you for your business! 🙏\n\n` +
-            `_Please save this number to receive future updates._`
-          );
-          
-          window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
-          
+          // Send via WhatsApp Cloud API
+          const { data: whatsappData, error: whatsappError } = await supabase.functions.invoke('send-whatsapp-invoice', {
+            body: {
+              invoiceId: invoice.id,
+              clientPhone: invoice.client.phone,
+              clientName: invoice.client.name,
+              invoiceNumber: invoice.invoice_number,
+              companyName: companyName,
+              amount: formatCurrency(invoice.total, invoice.currency || baseCurrency),
+              dueDate: format(parseISO(invoice.due_date), 'MMM dd, yyyy'),
+              invoiceUrl: publicLink
+            }
+          });
+
+          if (whatsappError) {
+            console.error('WhatsApp send error:', whatsappError);
+            // Fallback to wa.me link if API fails
+            console.log('Falling back to wa.me link...');
+
+            const phoneNumber = formatPhoneForWhatsApp(
+              invoice.client.phone,
+              invoice.client.phone_country_code
+            );
+
+            const publicLink = await generatePublicLink(invoice.id);
+            if (!publicLink) return;
+
+            let itemsSummary = '';
+            if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
+              itemsSummary = '\n📋 *ITEMS:*\n';
+              fullInvoiceData.items.forEach((item: any) => {
+                itemsSummary += `• ${item.description} - ${formatCurrency(item.amount, invoice.currency || baseCurrency)}\n`;
+              });
+            }
+
+            const message = encodeURIComponent(
+              `🏢 *${companyName}*\n` +
+              (companyAddress ? `📍 ${companyAddress}\n` : '') +
+              (companyPhone ? `☎️ ${companyPhone}\n` : '') +
+              `━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `📄 *INVOICE*\n\n` +
+              `*To:* ${invoice.client?.name}\n` +
+              (invoice.client?.address ? `${invoice.client.address}\n` : '') +
+              `\n*Invoice #:* ${invoice.invoice_number}\n` +
+              `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
+              `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
+              itemsSummary +
+              `\n━━━━━━━━━━━━━━━━━━━━\n` +
+              `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
+              (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
+              `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
+              `━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `📱 *View Full Invoice:*\n` +
+              `${publicLink}\n\n` +
+              `💳 *Payment Options:*\n` +
+              `• Bank Transfer\n` +
+              `• Credit/Debit Card\n` +
+              `• PayPal\n` +
+              (settingsData?.payment_instructions ?
+                `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
+              `Thank you for your business! 🙏\n\n` +
+              `_Please save this number to receive future updates._`
+            );
+
+            window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+          } else {
+            alert('✅ WhatsApp message sent successfully!');
+          }
+
         } catch (error: any) {
+          console.error('WhatsApp error:', error);
           alert(`Error: ${error.message}\nPlease update the client's country code.`);
           return;
         }
@@ -1798,10 +1828,24 @@ export const InvoiceList: React.FC = () => {
                 </button>
                 <button
                   onClick={handleBulkDelete}
-                  className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  disabled={bulkActionLoading}
+                  className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    bulkActionLoading
+                      ? 'border-gray-300 text-gray-400 bg-gray-50 cursor-not-allowed'
+                      : 'border-red-300 text-red-700 bg-white hover:bg-red-50 focus:ring-red-500'
+                  }`}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected
+                  {bulkActionLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={clearSelections}
@@ -2117,15 +2161,24 @@ export const InvoiceList: React.FC = () => {
                                       handleDelete(invoice.id);
                                       setShowActionMenu(null);
                                     }}
-                                    disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at || !!invoice.payment_locked_at}
+                                    disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at || !!invoice.payment_locked_at || deleteMutation.isPending}
                                     className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at || invoice.payment_locked_at
+                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at || invoice.payment_locked_at || deleteMutation.isPending
                                         ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                                         : 'text-red-600 hover:bg-red-50'
                                     }`}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-3" />
-                                    Delete
+                                    {deleteMutation.isPending ? (
+                                      <>
+                                        <RefreshCw className="h-4 w-4 mr-3 animate-spin" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Trash2 className="h-4 w-4 mr-3" />
+                                        Delete
+                                      </>
+                                    )}
                                   </button>
                                 </div>
                               )}

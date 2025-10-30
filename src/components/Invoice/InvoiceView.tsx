@@ -305,6 +305,7 @@ const isUK = invoice.currency === 'GBP' &&
             date: new Date().toISOString().split('T')[0],
             client_id: invoice.client_id || null,
             category_id: invoice.income_category_id || null,
+            project_id: (invoice as any).project_id || null, // 🔴 FIX: Copy project_id from invoice
             reference_number: invoice.invoice_number,
             currency: baseCurrency, // 🔴 FIX: Always use BASE currency for income entries
             exchange_rate: 1, // 🔴 FIX: Rate is 1 since we're already in base currency
@@ -432,6 +433,7 @@ const isUK = invoice.currency === 'GBP' &&
           date: partialPaymentData.payment_date,
           client_id: invoice.client_id || null,
           category_id: invoice.income_category_id || null,
+          project_id: (invoice as any).project_id || null, // 🔴 FIX: Copy project_id from invoice
           reference_number: invoice.invoice_number,
           currency: baseCurrency, // 🔴 FIX: Always use BASE currency for income entries
           exchange_rate: 1, // 🔴 FIX: Rate is 1 since we're already in base currency
@@ -556,22 +558,56 @@ const isUK = invoice.currency === 'GBP' &&
   };
 
   const handleWhatsAppShare = async () => {
-    const link = await generatePublicLink();
-    if (!link || !phoneNumber) return;
-    
-     const message = encodeURIComponent(
-    `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
-    `Amount: ${formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}\n` +
-    `Due Date: ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
-    `📱 *View Full Invoice:*\n` +
-    `${link}\n\n` + // ✅ Use the public link instead of private one
-    `💳 Payment methods available.\n\n` +
-    `Thank you for your business!`
-  );
-    
-    const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=${message}`;
-    window.open(whatsappUrl, '_blank');
-    setShowWhatsApp(false);
+    if (!phoneNumber || !invoice) return;
+
+    try {
+      // Generate public link first
+      const link = await generatePublicLink();
+      if (!link) {
+        alert('Error generating invoice link');
+        return;
+      }
+
+      // Try sending via WhatsApp Cloud API first
+      const { data: whatsappData, error: whatsappError } = await supabase.functions.invoke('send-whatsapp-invoice', {
+        body: {
+          invoiceId: invoice.id,
+          clientPhone: phoneNumber,
+          clientName: invoice.client?.name || 'Customer',
+          invoiceNumber: invoice.invoice_number,
+          companyName: profile?.company_name || invoiceSettings?.company_name || 'Your Company',
+          amount: formatCurrency(invoice.total, invoice.currency || baseCurrency),
+          dueDate: format(parseISO(invoice.due_date), 'MMM dd, yyyy'),
+          invoiceUrl: link
+        }
+      });
+
+      if (whatsappError) {
+        console.error('WhatsApp API error, falling back to wa.me:', whatsappError);
+
+        // Fallback to wa.me link
+
+        const message = encodeURIComponent(
+          `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
+          `Amount: ${formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}\n` +
+          `Due Date: ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
+          `📱 *View Full Invoice:*\n` +
+          `${link}\n\n` +
+          `💳 Payment methods available.\n\n` +
+          `Thank you for your business!`
+        );
+
+        const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=${message}`;
+        window.open(whatsappUrl, '_blank');
+      } else {
+        alert('✅ WhatsApp message sent successfully!');
+      }
+
+      setShowWhatsApp(false);
+    } catch (error: any) {
+      console.error('WhatsApp error:', error);
+      alert('Error sending WhatsApp message: ' + error.message);
+    }
   };
 
   if (loading) {
