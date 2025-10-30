@@ -973,7 +973,6 @@ export const InvoiceList: React.FC = () => {
             body: {
               invoiceId: invoice.id,
               clientPhone: invoice.client.phone,
-              clientCountryCode: invoice.client.phone_country_code, // Pass country code for multi-country support
               clientName: invoice.client.name,
               invoiceNumber: invoice.invoice_number,
               companyName: companyName,
