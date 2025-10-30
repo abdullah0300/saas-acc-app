@@ -1880,7 +1880,7 @@ export const InvoiceList: React.FC = () => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <th className="sticky right-0 px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                     Actions
                   </th>
                 </tr>
@@ -1894,7 +1894,7 @@ export const InvoiceList: React.FC = () => {
                     const totalTax = calculateInvoiceTaxTotal(invoice);
                     
                     return (
-                      <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={invoice.id} className="hover:bg-gray-50 transition-colors group">
                         <td className="relative w-12 px-6 sm:w-16 sm:px-8">
                           <input
                             type="checkbox"
@@ -2022,7 +2022,7 @@ export const InvoiceList: React.FC = () => {
                             <span className="text-sm text-gray-500">One-time</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-white group-hover:bg-gray-50">
                           <div className="flex items-center justify-center space-x-2">
                             <Link
                               to={`/invoices/${invoice.id}/view`}
