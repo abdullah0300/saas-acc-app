@@ -12,6 +12,7 @@ import {
   updateExpense,
   getExpenses,
   getCategories,
+  getProjects,
 } from "../../services/database";
 import { Vendor, Category } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
@@ -45,6 +46,7 @@ const [isVatReclaimable, setIsVatReclaimable] = useState(true);
   date: new Date().toISOString().split("T")[0],
   vendor: "",
   vendor_id: "",
+  project_id: "",
   receipt_url: "",
   tax_rate: defaultTaxRate.toString(),
   tax_amount: "0",
@@ -54,6 +56,7 @@ const [isVatReclaimable, setIsVatReclaimable] = useState(true);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [error, setError] = useState("");
@@ -86,9 +89,10 @@ useEffect(() => {
 
   useEffect(() => {
   loadCategories();
+  loadProjects();
   // Preload user's learning patterns for instant suggestions
   AIService.preloadUserPatterns();
-  
+
   if (isEdit && id) {
     loadExpense();
   }
@@ -129,6 +133,17 @@ useEffect(() => {
     }
   };
 
+  const loadProjects = async () => {
+    if (!user) return;
+
+    try {
+      const data = await getProjects(user.id, 'active');
+      setProjects(data);
+    } catch (err: any) {
+      console.error('Error loading projects:', err);
+    }
+  };
+
   const loadExpense = async () => {
     if (!user || !id) return;
 
@@ -144,10 +159,11 @@ useEffect(() => {
     date: expense.date,
     vendor: expense.vendor || "",
     vendor_id: expense.vendor_id || "",
+    project_id: (expense as any).project_id || "",
     receipt_url: expense.receipt_url || "",
     tax_rate: (expense.tax_rate || defaultTaxRate).toString(),
     tax_amount: (expense.tax_amount || 0).toString(),
-    currency: expense.currency || baseCurrency, 
+    currency: expense.currency || baseCurrency,
     reference_number: expense.reference_number || "",
   });
   // Store original exchange rate for comparison
@@ -366,6 +382,7 @@ const expenseData = {
   date: formData.date,
   vendor: formData.vendor || undefined,
   vendor_id: formData.vendor_id || undefined,
+  project_id: formData.project_id || undefined,
   receipt_url: formData.receipt_url || undefined,
   reference_number: formData.reference_number || undefined,
   tax_rate: parseFloat(formData.tax_rate) || 0,
@@ -740,6 +757,28 @@ if (!isUserSettingsReady) {
               </div>
             </div>
           </div>
+
+          {/* Project Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Project (Optional)
+            </label>
+            <select
+              value={formData.project_id}
+              onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">No project</option>
+              {projects
+                .filter(p => !formData.vendor_id || p.client_id === formData.vendor_id)
+                .map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Reference Number

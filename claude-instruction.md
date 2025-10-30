@@ -1,1191 +1,1464 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// Simple HTML sanitization function for PDFs
-function sanitizeHTMLForPDF(html) {
-  if (!html || typeof html !== 'string') return html;
-  return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').replace(/<iframe\b[^>]*>/gi, '').replace(/<object\b[^>]*>/gi, '').replace(/<embed\b[^>]*>/gi, '').replace(/<form\b[^>]*>/gi, '').replace(/<input\b[^>]*>/gi, '').replace(/javascript:/gi, '').replace(/on\w+\s*=/gi, '').replace(/\0/g, '').replace(/[\r\n\0\x08\x0B\x0C]/g, ' ');
+# PROJECTS FEATURE IMPLEMENTATION INSTRUCTIONS FOR CLAUDE CODE
+
+## 🎯 CRITICAL: Read This First
+
+**BEFORE YOU WRITE ANY CODE**, you MUST:
+
+1. **Study the SmartCFO Design System** - Read these files to understand our aesthetic:
+   - `/src/constants/Colors.ts` - Color palette (blue-purple gradient theme)
+   - `/src/index.css` - Custom animations and scrollbar styles
+   - `/src/components/Landing/LandingPage.tsx` - Modern gradient patterns
+   - `/src/components/Invoice/InvoiceView.tsx` - Card-based layouts with gradients
+   - `/src/components/Reports/TaxReport.tsx` - Professional dashboard styling
+
+2. **Understand Our Current Architecture**:
+   - Web: React + TypeScript + Tailwind CSS
+   - Mobile: React Native + Expo + LinearGradient
+   - Backend: Supabase (PostgreSQL)
+   - We use **team-aware queries** via `getEffectiveUserId()`
+   - All features support multi-currency
+   - All financial data respects user's base currency settings
+
+3. **Key Design Principles**:
+   - ✨ **Gradient-heavy** aesthetic (purple-blue-pink combinations)
+   - 🎴 **Card-based** layouts with subtle shadows
+   - 🌊 **Smooth animations** for state changes
+   - 📱 **Mobile-first** thinking (but web is primary)
+   - 🎯 **3-tap rule** for mobile interactions
+   - 💎 **Premium feel** - this is a paid SaaS, make it look expensive
+
+---
+
+## 📊 FEATURE OVERVIEW: Projects System
+
+### What is it?
+A **profitability tracking system** for service businesses (photographers, consultants, agencies) who need to answer: **"Did THIS specific job make money?"**
+
+### Hot Selling Points:
+1. **Real-time Profitability** - See profit margins instantly
+2. **Smart Auto-Linking** - AI detects projects from descriptions
+3. **Client Relationship View** - All projects per client in one place
+4. **Budget Alerts** - Know when project is over budget
+5. **Historical Insights** - Compare project performance over time
+
+---
+
+## 🗄️ DATABASE SCHEMA
+
+### Step 1: Create Projects Table
+
+```sql
+-- Run this in Supabase SQL Editor
+
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  
+  -- Basic Info
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+  
+  -- Status
+  status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'completed', 'on_hold', 'cancelled')),
+  
+  -- Dates
+  start_date DATE,
+  end_date DATE,
+  
+  -- Budget
+  budget_amount DECIMAL(15, 2),
+  budget_currency VARCHAR(3) DEFAULT 'USD',
+  
+  -- Color for visual grouping (optional)
+  color VARCHAR(7) DEFAULT '#6366F1',
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  
+  -- Constraints
+  CONSTRAINT projects_user_id_name_unique UNIQUE(user_id, name, deleted_at)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_projects_user_id ON projects(user_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_projects_client_id ON projects(client_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_projects_status ON projects(status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_projects_dates ON projects(start_date, end_date) WHERE deleted_at IS NULL;
+
+-- Enable Row Level Security
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies (team-aware)
+CREATE POLICY "Users can view their own projects or team projects"
+  ON projects FOR SELECT
+  USING (
+    user_id = auth.uid() OR
+    user_id IN (
+      SELECT team_id FROM team_members 
+      WHERE user_id = auth.uid() AND status = 'active'
+    )
+  );
+
+CREATE POLICY "Users can create projects"
+  ON projects FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own projects"
+  ON projects FOR UPDATE
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can soft delete their own projects"
+  ON projects FOR DELETE
+  USING (user_id = auth.uid());
+
+-- Trigger to update updated_at
+CREATE OR REPLACE FUNCTION update_projects_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER projects_updated_at
+  BEFORE UPDATE ON projects
+  FOR EACH ROW
+  EXECUTE FUNCTION update_projects_updated_at();
+```
+
+### Step 2: Add project_id to Existing Tables
+
+```sql
+-- Add project_id to income table
+ALTER TABLE income ADD COLUMN project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+CREATE INDEX idx_income_project_id ON income(project_id) WHERE project_id IS NOT NULL;
+
+-- Add project_id to expenses table
+ALTER TABLE expenses ADD COLUMN project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+CREATE INDEX idx_expenses_project_id ON expenses(project_id) WHERE project_id IS NOT NULL;
+
+-- Add project_id to invoices table
+ALTER TABLE invoices ADD COLUMN project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+CREATE INDEX idx_invoices_project_id ON invoices(project_id) WHERE project_id IS NOT NULL;
+```
+
+### Step 3: Create Project Summary View (for performance)
+
+```sql
+-- Materialized view for fast project stats
+CREATE MATERIALIZED VIEW project_stats AS
+SELECT 
+  p.id as project_id,
+  p.user_id,
+  
+  -- Income totals (converted to base currency)
+  COALESCE(SUM(i.base_amount), 0) as total_income,
+  COUNT(DISTINCT i.id) as income_count,
+  
+  -- Expense totals (converted to base currency)
+  COALESCE(SUM(e.base_amount), 0) as total_expenses,
+  COUNT(DISTINCT e.id) as expense_count,
+  
+  -- Invoice totals (converted to base currency)
+  COALESCE(SUM(inv.base_total), 0) as invoice_total,
+  COUNT(DISTINCT inv.id) as invoice_count,
+  COUNT(DISTINCT CASE WHEN inv.status = 'paid' THEN inv.id END) as paid_invoice_count,
+  
+  -- Calculated fields
+  COALESCE(SUM(i.base_amount), 0) - COALESCE(SUM(e.base_amount), 0) as profit,
+  CASE 
+    WHEN COALESCE(SUM(i.base_amount), 0) > 0 
+    THEN ROUND(((COALESCE(SUM(i.base_amount), 0) - COALESCE(SUM(e.base_amount), 0)) / SUM(i.base_amount) * 100)::numeric, 2)
+    ELSE 0
+  END as profit_margin_percentage
+  
+FROM projects p
+LEFT JOIN income i ON i.project_id = p.id AND i.deleted_at IS NULL
+LEFT JOIN expenses e ON e.project_id = p.id AND e.deleted_at IS NULL
+LEFT JOIN invoices inv ON inv.project_id = p.id AND inv.deleted_at IS NULL
+WHERE p.deleted_at IS NULL
+GROUP BY p.id, p.user_id;
+
+-- Index for fast lookups
+CREATE UNIQUE INDEX idx_project_stats_project_id ON project_stats(project_id);
+CREATE INDEX idx_project_stats_user_id ON project_stats(user_id);
+
+-- Function to refresh stats (call after income/expense/invoice changes)
+CREATE OR REPLACE FUNCTION refresh_project_stats()
+RETURNS void AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY project_stats;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 🎨 WEB APP IMPLEMENTATION
+
+### Phase 1: Core Database Service Functions
+
+**File: `/src/services/database.ts`**
+
+Add these functions to the existing file:
+
+```typescript
+import { getEffectiveUserId } from './database'; // Already exists
+
+// ==========================================
+// PROJECT FUNCTIONS
+// ==========================================
+
+export interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  client_id?: string;
+  status: 'active' | 'completed' | 'on_hold' | 'cancelled';
+  start_date?: string;
+  end_date?: string;
+  budget_amount?: number;
+  budget_currency?: string;
+  color?: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  // Populated from joins
+  client?: any;
+  stats?: {
+    total_income: number;
+    total_expenses: number;
+    invoice_total: number;
+    profit: number;
+    profit_margin_percentage: number;
+    income_count: number;
+    expense_count: number;
+    invoice_count: number;
+    paid_invoice_count: number;
+  };
 }
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-invoice-token'
+
+/**
+ * Get all projects for a user (team-aware)
+ */
+export const getProjects = async (
+  userId: string,
+  status?: 'active' | 'completed' | 'on_hold' | 'cancelled' | 'all'
+): Promise<Project[]> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  let query = supabase
+    .from('projects')
+    .select(`
+      *,
+      client:clients(id, name, email),
+      stats:project_stats(*)
+    `)
+    .eq('user_id', effectiveUserId)
+    .is('deleted_at', null);
+  
+  if (status && status !== 'all') {
+    query = query.eq('status', status);
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data as Project[];
 };
-serve(async (req)=>{
-  console.log('PDF Generation Started - Enhanced Invoice Template v2 (with Payment Methods)');
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
-    });
-  }
-  try {
-    const { invoiceId } = await req.json();
-    console.log('Invoice ID:', invoiceId);
-    if (!invoiceId) {
-      throw new Error('Invoice ID is required');
-    }
-    // Get environment variables
-    const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    console.log('Initializing Supabase client...');
-    // Initialize Supabase client with service role
-    const supabaseClient = createClient(SUPABASE_URL || '', SUPABASE_SERVICE_ROLE_KEY || '', {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-    // Check for public access token
-    const publicToken = req.headers.get('X-Invoice-Token');
-    if (publicToken) {
-      console.log('Public access token detected, validating...');
-      // Validate the public access token
-      const { data: tokenData, error: tokenError } = await supabaseClient.from('invoice_access_tokens').select('invoice_id, expires_at').eq('token', publicToken).eq('invoice_id', invoiceId).single();
-      if (tokenError || !tokenData) {
-        throw new Error('Invalid or expired access token');
-      }
-      // Check if token is expired
-      if (new Date(tokenData.expires_at) < new Date()) {
-        throw new Error('Access token has expired');
-      }
-      console.log('Public access token validated successfully');
-    }
-    console.log('Fetching invoice data...');
-    // Fetch invoice with all related data
-    const { data: invoice, error: invoiceError } = await supabaseClient.from('invoices').select(`
-        *,
-        client:clients(*),
-        items:invoice_items(*)
-      `).eq('id', invoiceId).single();
-    if (invoiceError) {
-      console.error('Invoice fetch error:', invoiceError);
-      throw new Error('Invoice not found');
-    }
-    console.log('Invoice fetched:', invoice.invoice_number);
-    // Fetch user profile
-    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', invoice.user_id).single();
-    console.log('Profile fetched');
-    // Fetch invoice settings
-    const { data: settings } = await supabaseClient.from('invoice_settings').select('*').eq('user_id', invoice.user_id).single();
-    console.log('Invoice settings fetched');
-    // Fetch user settings for country, currency, and tax config
-    const { data: userSettings } = await supabaseClient.from('user_settings').select('*').eq('user_id', invoice.user_id).single();
-    console.log('User settings fetched');
-    // 🆕 Fetch payment methods (NEW SYSTEM)
-    const { data: paymentMethods } = await supabaseClient.from('payment_methods').select('*').eq('user_id', invoice.user_id).eq('is_enabled', true).order('display_order', {
-      ascending: true
-    });
-    console.log('Payment methods fetched:', paymentMethods?.length || 0);
-    // Generate HTML with all settings including new payment methods
-    const rawHtml = generateInvoiceHTML(invoice, profile, settings, userSettings, paymentMethods || []);
-    // Sanitize HTML
-    const html = sanitizeHTMLForPDF(rawHtml);
-    console.log('HTML generated, length:', html.length);
-    // Browserless URL
-    const browserlessUrl = BROWSERLESS_API_KEY ? `https://production-sfo.browserless.io/pdf?token=${BROWSERLESS_API_KEY}` : 'https://production-sfo.browserless.io/pdf';
-    console.log('Calling Browserless...');
-    // Convert HTML to PDF
-    const pdfResponse = await fetch(browserlessUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        html: html,
-        options: {
-          displayHeaderFooter: false,
-          printBackground: true,
-          format: 'A4',
-          margin: {
-            top: '0.5in',
-            bottom: '0.5in',
-            left: '0.5in',
-            right: '0.5in'
-          }
-        }
-      })
-    });
-    console.log('Browserless response status:', pdfResponse.status);
-    if (!pdfResponse.ok) {
-      const errorText = await pdfResponse.text();
-      console.error('Browserless error:', errorText);
-      throw new Error(`Failed to generate PDF: ${errorText}`);
-    }
-    const pdfData = await pdfResponse.arrayBuffer();
-    console.log('PDF generated successfully, size:', pdfData.byteLength);
-    return new Response(pdfData, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="invoice-${invoice.invoice_number}.pdf"`
-      }
-    });
-  } catch (error) {
-    console.error('Error in PDF generation:', error);
-    return new Response(JSON.stringify({
-      error: error.message,
-      stack: error.stack
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
-  }
-});
-function generateInvoiceHTML(invoice, profile, settings, userSettings, paymentMethods) {
-  // Configuration and settings
-  const primaryColor = settings?.invoice_color || '#4F46E5';
-  const companyName = profile?.company_name || settings?.company_name || 'Your Company';
-  const companyLogo = profile?.company_logo || settings?.company_logo || '';
-  const companyAddress = profile?.company_address || settings?.company_address || '';
-  const companyPhone = profile?.phone || settings?.company_phone || '';
-  const companyEmail = profile?.email || settings?.company_email || '';
-  const companyWebsite = settings?.company_website || '';
-  // Country and tax configuration
-  const country = userSettings?.country || 'US';
-  const baseCurrency = userSettings?.base_currency || 'USD';
-  const isUK = country === 'GB';
-  const isEU = [
-    'GB',
-    'DE',
-    'FR',
-    'IT',
-    'ES',
-    'NL',
-    'BE',
-    'AT',
-    'IE'
-  ].includes(country);
-  const requiresVATBreakdown = isUK || isEU;
-  // Tax registration number
-  const taxNumber = settings?.tax_number || userSettings?.tax_registration_number || '';
-  // Determine tax label based on country
-  const getTaxLabel = ()=>{
-    switch(country){
-      case 'GB':
-        return 'VAT';
-      case 'CA':
-        return 'GST/HST';
-      case 'AU':
-        return 'GST';
-      case 'IN':
-        return 'GST';
-      case 'NZ':
-        return 'GST';
-      default:
-        return 'Tax';
-    }
+
+/**
+ * Get a single project by ID
+ */
+export const getProject = async (projectId: string): Promise<Project> => {
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      client:clients(*),
+      stats:project_stats(*)
+    `)
+    .eq('id', projectId)
+    .is('deleted_at', null)
+    .single();
+  
+  if (error) throw error;
+  return data as Project;
+};
+
+/**
+ * Create a new project
+ */
+export const createProject = async (
+  project: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
+): Promise<Project> => {
+  const effectiveUserId = await getEffectiveUserId(project.user_id);
+  
+  const { data, error } = await supabase
+    .from('projects')
+    .insert([{
+      ...project,
+      user_id: effectiveUserId,
+      client_id: project.client_id || null,
+      description: project.description || null,
+      start_date: project.start_date || null,
+      end_date: project.end_date || null,
+      budget_amount: project.budget_amount || null,
+      budget_currency: project.budget_currency || null,
+      color: project.color || '#6366F1'
+    }])
+    .select(`
+      *,
+      client:clients(*),
+      stats:project_stats(*)
+    `)
+    .single();
+  
+  if (error) throw error;
+  
+  // Refresh project stats
+  await supabase.rpc('refresh_project_stats');
+  
+  return data as Project;
+};
+
+/**
+ * Update a project
+ */
+export const updateProject = async (
+  projectId: string,
+  updates: Partial<Project>
+): Promise<Project> => {
+  const updateData: any = { ...updates };
+  
+  // Handle nullable fields
+  if ('client_id' in updates) updateData.client_id = updates.client_id || null;
+  if ('description' in updates) updateData.description = updates.description || null;
+  if ('start_date' in updates) updateData.start_date = updates.start_date || null;
+  if ('end_date' in updates) updateData.end_date = updates.end_date || null;
+  if ('budget_amount' in updates) updateData.budget_amount = updates.budget_amount || null;
+  
+  const { data, error } = await supabase
+    .from('projects')
+    .update(updateData)
+    .eq('id', projectId)
+    .select(`
+      *,
+      client:clients(*),
+      stats:project_stats(*)
+    `)
+    .single();
+  
+  if (error) throw error;
+  
+  // Refresh project stats
+  await supabase.rpc('refresh_project_stats');
+  
+  return data as Project;
+};
+
+/**
+ * Soft delete a project
+ */
+export const deleteProject = async (projectId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('projects')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', projectId);
+  
+  if (error) throw error;
+};
+
+/**
+ * Get project transactions (income + expenses + invoices)
+ */
+export const getProjectTransactions = async (projectId: string) => {
+  const [incomes, expenses, invoices] = await Promise.all([
+    supabase
+      .from('income')
+      .select('*, category:categories(*)')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('date', { ascending: false }),
+    supabase
+      .from('expenses')
+      .select('*, category:categories(*), vendor_detail:vendors(*)')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('date', { ascending: false }),
+    supabase
+      .from('invoices')
+      .select('*, client:clients(*), items:invoice_items(*)')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('date', { ascending: false })
+  ]);
+  
+  return {
+    incomes: incomes.data || [],
+    expenses: expenses.data || [],
+    invoices: invoices.data || []
   };
-  const taxLabel = getTaxLabel();
-  // Currency formatting with proper symbols - UPDATED WITH SPACE
-  const formatMoney = (amount, currency = invoice.currency || 'USD')=>{
-    const num = parseFloat(amount) || 0;
-    const symbols = {
-      'USD': '$',
-      'EUR': '€',
-      'GBP': '£',
-      'JPY': '¥',
-      'CNY': '¥',
-      'INR': '₹',
-      'CAD': 'C$',
-      'AUD': 'A$',
-      'NZD': 'NZ$',
-      'CHF': 'CHF',
-      'SEK': 'kr',
-      'NOK': 'kr',
-      'DKK': 'kr',
-      'PKR': 'Rs',
-      'AED': 'AED',
-      'SAR': 'SAR'
-    };
-    const symbol = symbols[currency] || currency + ' ';
-    if ([
-      'EUR',
-      'SEK',
-      'NOK',
-      'DKK'
-    ].includes(currency)) {
-      return `${num.toFixed(2)} ${symbol}`;
-    } else if (currency === 'JPY') {
-      return `${symbol} ${Math.round(num).toLocaleString()}`;
-    } else {
-      return `${symbol} ${num.toFixed(2)}`;
-    }
-  };
-  // Format dates
-  const formatDate = (dateStr)=>{
+};
+
+/**
+ * Get projects by client
+ */
+export const getProjectsByClient = async (
+  userId: string,
+  clientId: string
+): Promise<Project[]> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      stats:project_stats(*)
+    `)
+    .eq('user_id', effectiveUserId)
+    .eq('client_id', clientId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data as Project[];
+};
+
+/**
+ * Check if project name already exists for user
+ */
+export const checkProjectNameExists = async (
+  userId: string,
+  name: string,
+  excludeId?: string
+): Promise<boolean> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  let query = supabase
+    .from('projects')
+    .select('id')
+    .eq('user_id', effectiveUserId)
+    .eq('name', name)
+    .is('deleted_at', null);
+  
+  if (excludeId) {
+    query = query.neq('id', excludeId);
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  return (data && data.length > 0);
+};
+
+/**
+ * Auto-suggest project from transaction description using AI
+ * (Simple keyword matching for now, can be enhanced with AI later)
+ */
+export const suggestProjectFromDescription = async (
+  userId: string,
+  description: string,
+  clientId?: string
+): Promise<Project | null> => {
+  const effectiveUserId = await getEffectiveUserId(userId);
+  
+  // Get active projects
+  let query = supabase
+    .from('projects')
+    .select('*, stats:project_stats(*)')
+    .eq('user_id', effectiveUserId)
+    .eq('status', 'active')
+    .is('deleted_at', null);
+  
+  if (clientId) {
+    query = query.eq('client_id', clientId);
+  }
+  
+  const { data: projects, error } = await query;
+  
+  if (error || !projects || projects.length === 0) return null;
+  
+  // Simple keyword matching (can be enhanced with AI)
+  const descLower = description.toLowerCase();
+  
+  // Find project where description contains project name
+  const match = projects.find(p => 
+    descLower.includes(p.name.toLowerCase())
+  );
+  
+  return match as Project || null;
+};
+```
+
+---
+
+### Phase 2: Web UI Components
+
+#### 2.1: Projects List Page
+
+**File: `/src/components/Projects/ProjectsList.tsx`** (NEW FILE)
+
+```typescript
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, Filter, Briefcase, TrendingUp, TrendingDown, Calendar, Users, X } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
+import { getProjects } from '../../services/database';
+import type { Project } from '../../services/database';
+
+export const ProjectsList: React.FC = () => {
+  const { user } = useAuth();
+  const { formatCurrency, baseCurrency } = useSettings();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'on_hold' | 'cancelled'>('active');
+
+  useEffect(() => {
+    loadProjects();
+  }, [user, statusFilter]);
+
+  const loadProjects = async () => {
+    if (!user) return;
     try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch (e) {
-      return dateStr;
+      setLoading(true);
+      const data = await getProjects(user.id, statusFilter);
+      setProjects(data);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    } finally {
+      setLoading(false);
     }
   };
-  // Get invoice status badge
-  const getStatusBadge = (status)=>{
-    const statusStyles = {
-      draft: {
-        bg: '#f3f4f6',
-        color: '#6b7280',
-        text: 'DRAFT'
-      },
-      sent: {
-        bg: '#dbeafe',
-        color: '#3b82f6',
-        text: 'SENT'
-      },
-      paid: {
-        bg: '#d1fae5',
-        color: '#10b981',
-        text: 'PAID'
-      },
-      overdue: {
-        bg: '#fee2e2',
-        color: '#ef4444',
-        text: 'OVERDUE'
-      },
-      canceled: {
-        bg: '#fef3c7',
-        color: '#f59e0b',
-        text: 'CANCELED'
-      }
+
+  const filteredProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.client?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      active: 'from-green-500 to-emerald-600',
+      completed: 'from-blue-500 to-indigo-600',
+      on_hold: 'from-yellow-500 to-orange-600',
+      cancelled: 'from-gray-500 to-slate-600'
     };
-    const style = statusStyles[status] || statusStyles.draft;
-    return `
-      <span style="
-        display: inline-block;
-        padding: 5px 10px;
-        background-color: ${style.bg};
-        color: ${style.color};
-        font-size: 11px;
-        font-weight: 600;
-        border-radius: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      ">${style.text}</span>
-    `;
+    return colors[status as keyof typeof colors] || colors.active;
   };
-  // SVG Icons
-  const icons = {
-    mapPin: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
-    phone: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`,
-    mail: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`,
-    globe: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
-    shield: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
-    calendar: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
-    user: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
-  };
-  // Calculate totals and VAT breakdown
-  let subtotal = 0;
-  let totalTaxAmount = 0;
-  let taxBreakdown = {};
-  // Build items HTML
-  let itemsHTML = '';
-  if (invoice.items && invoice.items.length > 0) {
-    invoice.items.forEach((item)=>{
-      if (requiresVATBreakdown && item.tax_rate !== undefined) {
-        const netAmount = item.net_amount || item.amount || 0;
-        const itemTaxRate = item.tax_rate || 0;
-        const itemTaxAmount = item.tax_amount || netAmount * itemTaxRate / 100;
-        const grossAmount = item.gross_amount || netAmount + itemTaxAmount;
-        subtotal += netAmount;
-        totalTaxAmount += itemTaxAmount;
-        if (itemTaxRate > 0) {
-          if (!taxBreakdown[itemTaxRate]) {
-            taxBreakdown[itemTaxRate] = {
-              net: 0,
-              tax: 0
-            };
-          }
-          taxBreakdown[itemTaxRate].net += netAmount;
-          taxBreakdown[itemTaxRate].tax += itemTaxAmount;
-        }
-        itemsHTML += `
-          <tr>
-            <td class="description-cell">${item.description || ''}</td>
-            <td class="quantity-cell">${item.quantity || 0}</td>
-            <td class="rate-cell">${formatMoney(item.rate)}</td>
-            <td class="net-cell">${formatMoney(netAmount)}</td>
-            <td class="vat-rate-cell">${itemTaxRate}%</td>
-            <td class="vat-amount-cell">${formatMoney(itemTaxAmount)}</td>
-            <td class="amount-cell">${formatMoney(grossAmount)}</td>
-          </tr>
-        `;
-      } else {
-        const amount = item.amount || item.quantity * item.rate;
-        subtotal += amount;
-        itemsHTML += `
-          <tr>
-            <td class="description-cell">${item.description || ''}</td>
-            <td class="quantity-cell">${item.quantity || 0}</td>
-            <td class="rate-cell">${formatMoney(item.rate)}</td>
-            <td class="amount-cell">${formatMoney(amount)}</td>
-          </tr>
-        `;
-      }
-    });
-  }
-  if (subtotal === 0) subtotal = invoice.subtotal || 0;
-  if (totalTaxAmount === 0) totalTaxAmount = invoice.tax_amount || 0;
-  const total = invoice.total || subtotal + totalTaxAmount;
-  // Build VAT summary HTML
-  let vatSummaryHTML = '';
-  if (requiresVATBreakdown && Object.keys(taxBreakdown).length > 0) {
-    vatSummaryHTML = `
-      <div class="vat-summary">
-        <h3 class="vat-summary-title">${taxLabel} Summary</h3>
-        <table class="vat-summary-table">
-          ${Object.entries(taxBreakdown).map(([rate, amounts])=>`
-            <tr>
-              <td class="vat-desc">${taxLabel} @ ${rate}% on ${formatMoney(amounts.net)}</td>
-              <td class="vat-amount">${formatMoney(amounts.tax)}</td>
-            </tr>
-          `).join('')}
-        </table>
-      </div>
-    `;
-  }
-  // Payment schedule HTML if exists
-  let paymentScheduleHTML = '';
-  if (invoice.payment_schedule?.enabled && invoice.payment_schedule.splits?.length > 0) {
-    const splits = invoice.payment_schedule.splits;
-    paymentScheduleHTML = `
-      <div class="payment-schedule">
-        <h3 class="schedule-title">Payment Schedule</h3>
-        <table class="schedule-table">
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Due Date</th>
-              <th>Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${splits.map((split, index)=>{
-      const splitAmount = split.type === 'percentage' ? invoice.total * split.value / 100 : split.value;
-      return `
-                <tr>
-                  <td>${split.description || `Installment ${index + 1}`}</td>
-                  <td>${formatDate(split.due_date)}</td>
-                  <td>${formatMoney(splitAmount)}</td>
-                  <td><span class="status-${split.status}">${(split.status || 'pending').toUpperCase()}</span></td>
-                </tr>
-              `;
-    }).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
-  // 🆕 Payment information HTML - NEW SYSTEM with standardized bank details order
-  let paymentInfoHTML = '';
-  if (paymentMethods && paymentMethods.length > 0) {
-    // NEW PAYMENT METHODS SYSTEM - Only show PRIMARY method for clients
-    const primaryMethod = paymentMethods.find((m)=>m.is_primary) || paymentMethods[0];
-    // Define standard order for bank fields
-    const bankFieldOrder = [
-      'bank_name',
-      'account_title',
-      'account_holder',
-      'account_number',
-      'iban',
-      'swift',
-      'swift_code',
-      'bic',
-      'routing_number',
-      'sort_code',
-      'branch_code',
-      'ifsc',
-      'ibft'
-    ];
-    // Function to format field label
-    const formatFieldLabel = (key)=>{
-      const labelMap = {
-        'bank_name': 'Bank Name',
-        'account_title': 'Account Title',
-        'account_holder': 'Account Holder',
-        'account_number': 'Account Number',
-        'iban': 'IBAN',
-        'swift': 'SWIFT',
-        'swift_code': 'SWIFT Code',
-        'bic': 'BIC',
-        'routing_number': 'Routing Number',
-        'sort_code': 'Sort Code',
-        'branch_code': 'Branch Code',
-        'ifsc': 'IFSC',
-        'ibft': 'IBFT'
-      };
-      return labelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (l)=>l.toUpperCase());
+
+  const getStatusBadgeColor = (status: string) => {
+    const colors = {
+      active: 'bg-green-100 text-green-800',
+      completed: 'bg-blue-100 text-blue-800',
+      on_hold: 'bg-yellow-100 text-yellow-800',
+      cancelled: 'bg-gray-100 text-gray-800'
     };
-    // Sort fields according to standard order
-    const sortedFields = [];
-    const fields = primaryMethod.fields || {};
-    // First add fields in standard order
-    bankFieldOrder.forEach((key)=>{
-      if (fields[key]) {
-        sortedFields.push([
-          key,
-          fields[key]
-        ]);
-      }
-    });
-    // Then add any remaining fields not in standard order
-    Object.entries(fields).forEach(([key, value])=>{
-      if (!bankFieldOrder.includes(key)) {
-        sortedFields.push([
-          key,
-          value
-        ]);
-      }
-    });
-    paymentInfoHTML = `
-      <div class="payment-info">
-        <h3 class="section-title">PAYMENT INFORMATION</h3>
-        <div class="payment-method primary-method">
-          ${primaryMethod.name ? `<div class="method-name">${primaryMethod.name}</div>` : ''}
-          <div class="method-details">
-            ${sortedFields.map(([key, value])=>{
-      const fieldLabel = formatFieldLabel(key);
-      return `
-                <div class="method-field">
-                  <strong>${fieldLabel}:</strong> ${value}
-                </div>
-              `;
-    }).join('')}
-          </div>
-          ${primaryMethod.instructions ? `
-            <div class="method-instructions">
-              ${primaryMethod.instructions}
+    return colors[status as keyof typeof colors] || colors.active;
+  };
+
+  const getProfitColor = (margin: number) => {
+    if (margin >= 50) return 'text-green-600';
+    if (margin >= 25) return 'text-blue-600';
+    if (margin >= 10) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="flex items-start space-x-4">
+              <div className="p-4 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-lg">
+                <Briefcase className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                  Projects
+                </h1>
+                <p className="text-gray-600 mt-2 text-lg">
+                  Track profitability across all your projects
+                </p>
+              </div>
             </div>
-          ` : ''}
-        </div>
-      </div>
-    `;
-  } else if (settings?.bank_name || settings?.paypal_email || settings?.payment_instructions) {
-    // FALLBACK TO OLD SYSTEM with standardized order
-    const oldSystemFields = [];
-    // Add fields in standard order for old system
-    if (settings?.bank_name) oldSystemFields.push([
-      'Bank Name',
-      settings.bank_name
-    ]);
-    if (settings?.account_title) oldSystemFields.push([
-      'Account Title',
-      settings.account_title
-    ]);
-    if (settings?.account_holder) oldSystemFields.push([
-      'Account Holder',
-      settings.account_holder
-    ]);
-    if (settings?.account_number) oldSystemFields.push([
-      'Account Number',
-      settings.account_number
-    ]);
-    if (settings?.iban) oldSystemFields.push([
-      'IBAN',
-      settings.iban
-    ]);
-    if (settings?.swift || settings?.swift_code) oldSystemFields.push([
-      'SWIFT',
-      settings.swift || settings.swift_code
-    ]);
-    if (settings?.routing_number) oldSystemFields.push([
-      'Routing Number',
-      settings.routing_number
-    ]);
-    if (settings?.ibft) oldSystemFields.push([
-      'IBFT',
-      settings.ibft
-    ]);
-    if (settings?.paypal_email) oldSystemFields.push([
-      'PayPal',
-      settings.paypal_email
-    ]);
-    paymentInfoHTML = `
-      <div class="payment-info">
-        <h3 class="section-title">PAYMENT INFORMATION</h3>
-        <div class="payment-details">
-          ${oldSystemFields.map(([label, value])=>`<div><strong>${label}:</strong> ${value}</div>`).join('')}
-          ${settings?.payment_instructions ? `<div style="margin-top: 8px;">${settings.payment_instructions}</div>` : ''}
-        </div>
-      </div>
-    `;
-  }
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      color: #1a1a1a;
-      background: white;
-      line-height: 1.4;
-      font-size: 13px;
-    }
-    .container { 
-      max-width: 800px; 
-      margin: 0 auto; 
-      background: white;
-    }
-    
-    /* Professional Header Styles */
-    .header-section {
-      background: white;
-      padding: 24px 0 20px;
-      border-bottom: 2px solid ${primaryColor};
-    }
-    .header-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-    .company-info { 
-      flex: 1;
-    }
-    .company-logo {
-      height: 50px;
-      margin-bottom: 12px;
-      object-fit: contain;
-    }
-    .company-logo-placeholder {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .logo-circle {
-      width: 40px;
-      height: 40px;
-      background-color: ${primaryColor};
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      font-size: 18px;
-      font-weight: bold;
-    }
-    .company-name {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1a1a1a;
-      letter-spacing: -0.5px;
-    }
-    .company-details {
-      margin-top: 6px;
-      font-size: 12px;
-      color: #6b7280;
-      line-height: 1.5;
-    }
-    .detail-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 3px;
-    }
-    
-    /* Professional Invoice Header */
-    .invoice-header { 
-      text-align: right;
-    }
-    .vat-invoice-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .invoice-title {
-      font-size: 28px;
-      font-weight: 300;
-      color: #1a1a1a;
-      margin-bottom: 6px;
-      letter-spacing: -1px;
-    }
-    .invoice-number {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 8px;
-    }
-    
-    /* Professional Client and Date Section */
-    .invoice-details {
-      display: flex;
-      padding: 24px 0;
-      gap: 40px;
-    }
-    .bill-to { 
-      flex: 1;
-    }
-    .section-title {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #6b7280;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .client-info {
-      background-color: #fafafa;
-      padding: 14px;
-      border-radius: 6px;
-      border-left: 3px solid ${primaryColor};
-    }
-    .client-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 6px;
-    }
-    .client-company {
-      font-size: 13px;
-      font-weight: 500;
-      color: #374151;
-      margin-bottom: 4px;
-    }
-    .client-details {
-      font-size: 12px;
-      color: #6b7280;
-      line-height: 1.5;
-    }
-    .dates-info { 
-      min-width: 220px;
-    }
-    .date-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 6px;
-      font-size: 12px;
-      padding: 4px 0;
-    }
-    .date-label {
-      color: #6b7280;
-      font-weight: 500;
-    }
-    .date-value {
-      color: #1a1a1a;
-      font-weight: 600;
-    }
-    
-    /* Professional Items Table */
-    .items-section {
-      padding: 0 0 20px;
-    }
-    .table-container {
-      background-color: white;
-      border-radius: 6px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      border: 1px solid #e5e7eb;
-    }
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    .items-table thead {
-      background-color: #f8f9fa;
-    }
-    .items-table th {
-      padding: 10px 12px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #6b7280;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    .items-table th:nth-child(2),
-    .items-table th:nth-child(5) { 
-      text-align: center; 
-      width: 60px;
-    }
-    .items-table th:nth-child(3),
-    .items-table th:nth-child(4),
-    .items-table th:nth-child(6),
-    .items-table th:last-child { 
-      text-align: right;
-      width: 90px;
-    }
-    
-    .items-table td {
-      padding: 12px;
-      font-size: 12px;
-      color: #1a1a1a;
-      border-bottom: 1px solid #f3f4f6;
-    }
-    .items-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-    .items-table tbody tr:hover {
-      background-color: #fafafa;
-    }
-    .description-cell {
-      font-weight: 500;
-    }
-    .quantity-cell,
-    .vat-rate-cell { 
-      text-align: center; 
-    }
-    .rate-cell,
-    .net-cell,
-    .vat-amount-cell,
-    .amount-cell { 
-      text-align: right;
-      font-weight: 500;
-    }
-    
-    /* Compact VAT Summary */
-    .vat-summary {
-      margin: 12px 0;
-      padding: 10px;
-      background-color: #f8f9fa;
-      border-radius: 6px;
-      border: 1px solid #e5e7eb;
-    }
-    .vat-summary-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-    }
-    .vat-summary-table {
-      width: 100%;
-    }
-    .vat-desc {
-      font-size: 10px;
-      color: #6b7280;
-      padding: 2px 0;
-    }
-    .vat-amount {
-      text-align: right;
-      font-weight: 600;
-      color: #1a1a1a;
-      font-size: 11px;
-    }
-    
-    /* Compact Payment Schedule */
-    .payment-schedule {
-      margin: 12px 0;
-      padding: 10px;
-      background-color: #fff8e1;
-      border-radius: 6px;
-      border: 1px solid #ffb300;
-    }
-    .schedule-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: #e65100;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-    }
-    .schedule-table {
-      width: 100%;
-      font-size: 10px;
-    }
-    .schedule-table th {
-      text-align: left;
-      padding: 4px 0;
-      border-bottom: 1px solid #ffb300;
-      color: #e65100;
-      font-weight: 600;
-      font-size: 10px;
-    }
-    .schedule-table td {
-      padding: 4px 0;
-      color: #5d4037;
-      font-size: 10px;
-    }
-    .status-paid { color: #10b981; font-weight: 600; }
-    .status-pending { color: #f59e0b; font-weight: 600; }
-    .status-overdue { color: #ef4444; font-weight: 600; }
-    
-    /* Professional Totals Section */
-    .totals-section {
-      padding: 0 0 20px;
-      display: flex;
-      justify-content: flex-end;
-    }
-    .totals-box {
-      width: 300px;
-    }
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 14px;
-      font-size: 13px;
-      border-radius: 4px;
-      margin-bottom: 3px;
-    }
-    .total-row.subtotal {
-      background-color: #f8f9fa;
-      color: #4b5563;
-    }
-    .total-row.tax {
-      background-color: #fef3c7;
-      color: #92400e;
-    }
-    .total-row.grand-total {
-      background-color: ${primaryColor};
-      color: white;
-      font-size: 16px;
-      font-weight: 700;
-      margin-top: 6px;
-      padding: 10px 14px;
-    }
-    .total-label { 
-      font-weight: 500; 
-    }
-    .total-value { 
-      font-weight: 600; 
-    }
-    
-    /* Professional Payment Info */
-    .payment-info {
-      margin: 16px 0;
-      padding: 0;
-    }
-    
-    .payment-method {
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 12px;
-      background: #fafafa;
-    }
-    
-    .method-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 8px;
-    }
-    
-    .method-details {
-      margin-top: 8px;
-    }
-    
-    .method-field {
-      font-size: 12px;
-      padding: 4px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    
-    .method-field:last-child {
-      border-bottom: none;
-    }
-    
-    .method-field strong {
-      color: #374151;
-      font-weight: 600;
-      display: inline-block;
-      min-width: 120px;
-    }
-    
-    .method-instructions {
-      margin-top: 10px;
-      padding: 8px 10px;
-      background-color: white;
-      border-left: 3px solid ${primaryColor};
-      border-radius: 0 4px 4px 0;
-      font-size: 11px;
-      color: #4b5563;
-      line-height: 1.5;
-    }
-    
-    .payment-details {
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 12px;
-      background: #fafafa;
-    }
-    
-    .payment-details div {
-      font-size: 12px;
-      padding: 4px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    
-    .payment-details div:last-child {
-      border-bottom: none;
-    }
-    
-    .payment-details strong {
-      color: #374151;
-      font-weight: 600;
-      display: inline-block;
-      min-width: 120px;
-    }
-    
-    /* Compact Notes Section */
-    .notes-section {
-      padding: 12px 0;
-      border-top: 1px solid #e5e7eb;
-    }
-    .notes-title {
-      font-size: 10px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-    }
-    .notes-text {
-      font-size: 11px;
-      color: #6b7280;
-      white-space: pre-line;
-      line-height: 1.3;
-    }
-    
-    /* Compact Footer */
-    .footer {
-      padding: 8px 0;
-      background-color: #f8f9fa;
-      border-top: 1px solid #e5e7eb;
-      text-align: center;
-      font-size: 10px;
-      color: #6b7280;
-    }
-    
-    /* Print optimization */
-    @media print {
-      body { 
-        font-size: 11px; 
-      }
-      .table-container {
-        box-shadow: none;
-      }
-      .items-table tbody tr:hover {
-        background-color: transparent;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <!-- Professional Header Section -->
-    <div class="header-section">
-      <div class="header-content">
-        <!-- Company Info -->
-        <div class="company-info">
-          ${companyLogo ? `
-            <img src="${companyLogo}" alt="${companyName}" class="company-logo" />
-          ` : `
-            <div class="company-logo-placeholder">
-              <div class="logo-circle">${companyName.charAt(0).toUpperCase()}</div>
-              <div class="company-name">${companyName}</div>
-            </div>
-          `}
-          
-          <div class="company-details">
-            ${companyAddress ? `
-              <div class="detail-row">
-                ${icons.mapPin}
-                <span>${companyAddress.replace(/\n/g, '<br>')}</span>
-              </div>
-            ` : ''}
-            ${companyPhone ? `
-              <div class="detail-row">
-                ${icons.phone}
-                <span>${companyPhone}</span>
-              </div>
-            ` : ''}
-            ${companyEmail ? `
-              <div class="detail-row">
-                ${icons.mail}
-                <span>${companyEmail}</span>
-              </div>
-            ` : ''}
-            ${companyWebsite ? `
-              <div class="detail-row">
-                ${icons.globe}
-                <span>${companyWebsite}</span>
-              </div>
-            ` : ''}
-            ${taxNumber ? `
-              <div class="detail-row">
-                ${icons.shield}
-                <span><strong>${isUK ? 'VAT Number' : isEU ? 'VAT ID' : 'Tax ID'}:</strong> ${taxNumber}</span>
-              </div>
-            ` : ''}
+            
+            <Link
+              to="/projects/new"
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              New Project
+            </Link>
           </div>
         </div>
-        
-        <!-- Invoice Header -->
-        <div class="invoice-header">
-          ${isUK ? '<div class="vat-invoice-label">VAT INVOICE</div>' : ''}
-          <h1 class="invoice-title">INVOICE</h1>
-          <h2 class="invoice-number">${invoice.invoice_number}</h2>
-          ${getStatusBadge(invoice.status)}
+
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search projects, clients..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-gray-50 hover:bg-white transition-all duration-200"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2"
+                >
+                  <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter */}
+            <div className="flex gap-2 flex-wrap">
+              {(['all', 'active', 'completed', 'on_hold', 'cancelled'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    statusFilter === status
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
+
+        {/* Projects Grid */}
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-100">
+            <Briefcase className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No projects found</h3>
+            <p className="text-gray-500 mb-6">
+              {searchTerm ? 'Try adjusting your search' : 'Get started by creating your first project'}
+            </p>
+            {!searchTerm && (
+              <Link
+                to="/projects/new"
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-200"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Create Project
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProjects.map((project) => {
+              const stats = project.stats || {
+                total_income: 0,
+                total_expenses: 0,
+                profit: 0,
+                profit_margin_percentage: 0,
+                invoice_total: 0,
+                income_count: 0,
+                expense_count: 0,
+                invoice_count: 0
+              };
+
+              return (
+                <Link
+                  key={project.id}
+                  to={`/projects/${project.id}`}
+                  className="group"
+                >
+                  <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-purple-200 transform hover:scale-[1.02]">
+                    {/* Card Header with Gradient */}
+                    <div
+                      className={`p-6 bg-gradient-to-r ${getStatusColor(project.status)} text-white relative overflow-hidden`}
+                    >
+                      {/* Background Pattern */}
+                      <div className="absolute inset-0 opacity-10">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full blur-2xl"></div>
+                      </div>
+
+                      <div className="relative">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold mb-2 truncate">
+                              {project.name}
+                            </h3>
+                            {project.client && (
+                              <div className="flex items-center gap-2 text-white/90">
+                                <Users className="h-4 w-4" />
+                                <span className="text-sm">{project.client.name}</span>
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(project.status)}`}
+                          >
+                            {project.status}
+                          </span>
+                        </div>
+
+                        {/* Project Timeline */}
+                        {(project.start_date || project.end_date) && (
+                          <div className="flex items-center gap-2 text-white/80 text-sm">
+                            <Calendar className="h-4 w-4" />
+                            <span>
+                              {project.start_date && new Date(project.start_date).toLocaleDateString()}
+                              {project.start_date && project.end_date && ' - '}
+                              {project.end_date && new Date(project.end_date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="p-6 space-y-4">
+                      {/* Profit Display */}
+                      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-600">Net Profit</span>
+                          <span className={`text-xl font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(stats.profit, baseCurrency)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {stats.profit >= 0 ? (
+                            <TrendingUp className={`h-4 w-4 ${getProfitColor(stats.profit_margin_percentage)}`} />
+                          ) : (
+                            <TrendingDown className="h-4 w-4 text-red-600" />
+                          )}
+                          <span className={`text-sm font-semibold ${getProfitColor(stats.profit_margin_percentage)}`}>
+                            {stats.profit_margin_percentage.toFixed(1)}% margin
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Revenue & Expenses */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                          <div className="text-xs text-green-600 font-medium mb-1">Revenue</div>
+                          <div className="text-lg font-bold text-green-700">
+                            {formatCurrency(stats.total_income, baseCurrency)}
+                          </div>
+                          <div className="text-xs text-green-600 mt-1">
+                            {stats.income_count} transaction{stats.income_count !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+
+                        <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                          <div className="text-xs text-red-600 font-medium mb-1">Expenses</div>
+                          <div className="text-lg font-bold text-red-700">
+                            {formatCurrency(stats.total_expenses, baseCurrency)}
+                          </div>
+                          <div className="text-xs text-red-600 mt-1">
+                            {stats.expense_count} transaction{stats.expense_count !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Budget Progress (if budget exists) */}
+                      {project.budget_amount && project.budget_amount > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between text-sm mb-2">
+                            <span className="text-gray-600">Budget Usage</span>
+                            <span className="font-semibold text-gray-900">
+                              {formatCurrency(stats.total_expenses, project.budget_currency || baseCurrency)} / {formatCurrency(project.budget_amount, project.budget_currency || baseCurrency)}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                (stats.total_expenses / project.budget_amount) * 100 > 90
+                                  ? 'bg-gradient-to-r from-red-500 to-red-600'
+                                  : (stats.total_expenses / project.budget_amount) * 100 > 75
+                                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                                  : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                              }`}
+                              style={{
+                                width: `${Math.min(100, (stats.total_expenses / project.budget_amount) * 100)}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
+  );
+};
+```
+
+#### 2.2: Project Form Component
+
+**File: `/src/components/Projects/ProjectForm.tsx`** (NEW FILE)
+
+```typescript
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Save, ArrowLeft, Trash2, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
+import { 
+  createProject, 
+  updateProject, 
+  getProject, 
+  deleteProject,
+  checkProjectNameExists,
+  getClients 
+} from '../../services/database';
+
+export const ProjectForm: React.FC = () => {
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { baseCurrency, enabledCurrencies } = useSettings();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [clients, setClients] = useState<any[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    client_id: '',
+    status: 'active' as 'active' | 'completed' | 'on_hold' | 'cancelled',
+    start_date: '',
+    end_date: '',
+    budget_amount: '',
+    budget_currency: baseCurrency,
+    color: '#6366F1'
+  });
+
+  useEffect(() => {
+    loadData();
+  }, [projectId, user]);
+
+  const loadData = async () => {
+    if (!user) return;
     
-    <!-- Professional Invoice Details -->
-    <div class="invoice-details">
-      <!-- Bill To -->
-      <div class="bill-to">
-        <h3 class="section-title">
-          ${icons.user}
-          BILL TO
-        </h3>
-        <div class="client-info">
-          ${invoice.client ? `
-            <div class="client-name">${invoice.client.name}</div>
-            ${invoice.client.company_name ? `<div class="client-company">${invoice.client.company_name}</div>` : ''}
-            <div class="client-details">
-              ${invoice.client.email ? `${invoice.client.email}<br>` : ''}
-              ${invoice.client.phone ? `${invoice.client.phone}<br>` : ''}
-              ${invoice.client.address ? invoice.client.address.replace(/\n/g, '<br>') : ''}
-            </div>
-          ` : `
-            <div class="client-name">No client selected</div>
-          `}
-        </div>
-      </div>
+    try {
+      setLoading(true);
+      const clientsData = await getClients(user.id);
+      setClients(clientsData);
+
+      if (projectId) {
+        const project = await getProject(projectId);
+        setFormData({
+          name: project.name,
+          description: project.description || '',
+          client_id: project.client_id || '',
+          status: project.status,
+          start_date: project.start_date || '',
+          end_date: project.end_date || '',
+          budget_amount: project.budget_amount?.toString() || '',
+          budget_currency: project.budget_currency || baseCurrency,
+          color: project.color || '#6366F1'
+        });
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validate = async () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Project name is required';
+    } else if (user) {
+      const exists = await checkProjectNameExists(user.id, formData.name, projectId);
+      if (exists) {
+        newErrors.name = 'A project with this name already exists';
+      }
+    }
+
+    if (formData.start_date && formData.end_date) {
+      if (new Date(formData.start_date) > new Date(formData.end_date)) {
+        newErrors.end_date = 'End date must be after start date';
+      }
+    }
+
+    if (formData.budget_amount && parseFloat(formData.budget_amount) < 0) {
+      newErrors.budget_amount = 'Budget must be a positive number';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !(await validate())) return;
+
+    try {
+      setSaving(true);
       
-      <!-- Dates and Details -->
-      <div class="dates-info">
-        <h3 class="section-title">
-          ${icons.calendar}
-          INVOICE DETAILS
-        </h3>
-        <div class="date-row">
-          <span class="date-label">Invoice Date:</span>
-          <span class="date-value">${formatDate(invoice.date)}</span>
-        </div>
-        <div class="date-row">
-          <span class="date-label">Due Date:</span>
-          <span class="date-value">${formatDate(invoice.due_date)}</span>
-        </div>
-        ${settings?.payment_terms ? `
-          <div class="date-row">
-            <span class="date-label">Payment Terms:</span>
-            <span class="date-value">Net ${settings.payment_terms} days</span>
+      const projectData = {
+        user_id: user.id,
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        client_id: formData.client_id || undefined,
+        status: formData.status,
+        start_date: formData.start_date || undefined,
+        end_date: formData.end_date || undefined,
+        budget_amount: formData.budget_amount ? parseFloat(formData.budget_amount) : undefined,
+        budget_currency: formData.budget_currency,
+        color: formData.color
+      };
+
+      if (projectId) {
+        await updateProject(projectId, projectData);
+      } else {
+        await createProject(projectData as any);
+      }
+
+      navigate('/projects');
+    } catch (error) {
+      console.error('Error saving project:', error);
+      setErrors({ submit: 'Failed to save project. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!projectId || !window.confirm('Are you sure you want to delete this project? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await deleteProject(projectId);
+      navigate('/projects');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      setErrors({ submit: 'Failed to delete project. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const colorOptions = [
+    { value: '#6366F1', label: 'Indigo' },
+    { value: '#8B5CF6', label: 'Purple' },
+    { value: '#EC4899', label: 'Pink' },
+    { value: '#10B981', label: 'Green' },
+    { value: '#F59E0B', label: 'Amber' },
+    { value: '#EF4444', label: 'Red' },
+    { value: '#3B82F6', label: 'Blue' },
+    { value: '#14B8A6', label: 'Teal' }
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/projects')}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="h-6 w-6 text-gray-600" />
+              </button>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                {projectId ? 'Edit Project' : 'New Project'}
+              </h1>
+            </div>
+            
+            {projectId && (
+              <button
+                onClick={handleDelete}
+                disabled={saving}
+                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="h-5 w-5" />
+                Delete
+              </button>
+            )}
           </div>
-        ` : ''}
-        ${invoice.currency && invoice.currency !== baseCurrency ? `
-          <div class="date-row">
-            <span class="date-label">Currency:</span>
-            <span class="date-value">${invoice.currency}</span>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {errors.submit && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-red-800">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Basic Info */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">Basic Information</h2>
+            
+            <div className="space-y-4">
+              {/* Project Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    errors.name ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                  placeholder="e.g., Sarah's Wedding Photography"
+                />
+                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Brief description of the project..."
+                />
+              </div>
+
+              {/* Client */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Client
+                </label>
+                <select
+                  value={formData.client_id}
+                  onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">No client linked</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status *
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="on_hold">On Hold</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              {/* Color */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Color
+                </label>
+                <div className="flex gap-3 flex-wrap">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, color: color.value })}
+                      className={`w-12 h-12 rounded-xl transition-all ${
+                        formData.color === color.value
+                          ? 'ring-4 ring-purple-300 scale-110'
+                          : 'hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.label}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        ` : ''}
+
+          {/* Timeline */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">Timeline</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.end_date}
+                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    errors.end_date ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                />
+                {errors.end_date && <p className="mt-1 text-sm text-red-600">{errors.end_date}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Budget */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">Budget</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Budget Amount
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.budget_amount}
+                  onChange={(e) => setFormData({ ...formData, budget_amount: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    errors.budget_amount ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                  placeholder="0.00"
+                />
+                {errors.budget_amount && <p className="mt-1 text-sm text-red-600">{errors.budget_amount}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Currency
+                </label>
+                <select
+                  value={formData.budget_currency}
+                  onChange={(e) => setFormData({ ...formData, budget_currency: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  {enabledCurrencies.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-4">
+            <button
+              type="button"
+              onClick={() => navigate('/projects')}
+              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" />
+                  {projectId ? 'Update Project' : 'Create Project'}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
-    
-    <!-- Professional Items Table -->
-    <div class="items-section">
-      <h3 class="section-title" style="margin-bottom: 12px;">INVOICE ITEMS</h3>
-      <div class="table-container">
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th>DESCRIPTION</th>
-              <th>QTY</th>
-              <th>RATE</th>
-              ${requiresVATBreakdown ? `
-                <th>NET</th>
-                <th>${taxLabel} %</th>
-                <th>${taxLabel}</th>
-                <th>GROSS</th>
-              ` : '<th>AMOUNT</th>'}
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHTML}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    
-    ${vatSummaryHTML}
-    ${paymentScheduleHTML}
-    
-    <!-- Professional Totals -->
-    <div class="totals-section">
-      <div class="totals-box">
-        <div class="total-row subtotal">
-          <span class="total-label">${requiresVATBreakdown ? 'Net Total' : 'Subtotal'}</span>
-          <span class="total-value">${formatMoney(subtotal)}</span>
-        </div>
-        
-        ${!requiresVATBreakdown && invoice.tax_rate > 0 ? `
-          <div class="total-row tax">
-            <span class="total-label">${taxLabel} (${invoice.tax_rate}%)</span>
-            <span class="total-value">${formatMoney(totalTaxAmount)}</span>
-          </div>
-        ` : ''}
-        
-        ${requiresVATBreakdown && totalTaxAmount > 0 ? `
-          <div class="total-row tax">
-            <span class="total-label">Total ${taxLabel}</span>
-            <span class="total-value">${formatMoney(totalTaxAmount)}</span>
-          </div>
-        ` : ''}
-        
-        <div class="total-row grand-total">
-          <span class="total-label">Total Due</span>
-          <span class="total-value">${formatMoney(total)}</span>
-        </div>
-        
-        ${invoice.amount_paid && invoice.amount_paid > 0 ? `
-          <div class="total-row" style="background-color: #d1fae5; color: #065f46;">
-            <span class="total-label">Paid to Date</span>
-            <span class="total-value">-${formatMoney(invoice.amount_paid)}</span>
-          </div>
-          <div class="total-row" style="background-color: ${invoice.balance_due > 0 ? '#fee2e2' : '#d1fae5'}; color: ${invoice.balance_due > 0 ? '#991b1b' : '#065f46'}; font-weight: 600;">
-            <span class="total-label">Balance Due</span>
-            <span class="total-value">${formatMoney(invoice.balance_due || 0)}</span>
-          </div>
-        ` : ''}
-      </div>
-    </div>
-    
-    ${paymentInfoHTML}
-    
-    <!-- Professional Notes & Footer -->
-    ${invoice.notes || settings?.invoice_notes || settings?.invoice_footer ? `
-      <div class="notes-section">
-        ${invoice.notes ? `
-          <div>
-            <div class="notes-title">Notes</div>
-            <div class="notes-text">${invoice.notes.replace(/\n/g, '<br>')}</div>
-          </div>
-        ` : ''}
-        ${settings?.invoice_notes && !invoice.notes ? `
-          <div>
-            <div class="notes-title">Notes</div>
-            <div class="notes-text">${settings.invoice_notes.replace(/\n/g, '<br>')}</div>
-          </div>
-        ` : ''}
-        ${settings?.invoice_footer ? `
-          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-            <div class="notes-text" style="text-align: center;">${settings.invoice_footer.replace(/\n/g, '<br>')}</div>
-          </div>
-        ` : ''}
-      </div>
-    ` : ''}
-    
-    <!-- Professional Footer -->
-    <div class="footer">
-      Thank you for your business!
-    </div>
-  </div>
-</body>
-</html>
-  `;
-}
+  );
+};
+```
+
+---
+
+### Phase 3: Add Project Selection to Transaction Forms
+
+**Update these existing files to add project selection:**
+
+#### 3.1: Income Form
+
+**File: `/src/components/Income/IncomeForm.tsx`**
+
+Add this import:
+```typescript
+import { getProjects } from '../../services/database';
+```
+
+Add to state:
+```typescript
+const [projects, setProjects] = useState<any[]>([]);
+const [selectedProjectId, setSelectedProjectId] = useState('');
+```
+
+In the `loadData` function:
+```typescript
+const projectsData = await getProjects(user.id, 'active');
+setProjects(projectsData);
+```
+
+Add this field in the form (after client selector):
+```tsx
+{/* Project */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Project (Optional)
+  </label>
+  <select
+    value={selectedProjectId}
+    onChange={(e) => setSelectedProjectId(e.target.value)}
+    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+  >
+    <option value="">No project</option>
+    {projects
+      .filter(p => !selectedClientId || p.client_id === selectedClientId)
+      .map((project) => (
+        <option key={project.id} value={project.id}>
+          {project.name}
+        </option>
+      ))}
+  </select>
+  <p className="mt-1 text-sm text-gray-500">
+    {selectedClientId 
+      ? 'Showing projects for selected client'
+      : 'Select a client to filter projects'}
+  </p>
+</div>
+```
+
+Update the submit handler to include `project_id: selectedProjectId || null`
+
+#### 3.2: Expense Form
+
+**File: `/src/components/Expense/ExpenseForm.tsx`**
+
+Apply the same changes as Income Form.
+
+#### 3.3: Invoice Form
+
+**File: `/src/components/Invoice/InvoiceForm.tsx`**
+
+Apply similar changes, with project selector after client selection.
+
+---
+
+### Phase 4: Add Routes
+
+**File: `/src/App.tsx`**
+
+Add these routes:
+```tsx
+import { ProjectsList } from './components/Projects/ProjectsList';
+import { ProjectForm } from './components/Projects/ProjectForm';
+import { ProjectDetail } from './components/Projects/ProjectDetail'; // We'll create this next
+
+// Inside your Routes:
+<Route path="/projects" element={<ProtectedRoute><ProjectsList /></ProtectedRoute>} />
+<Route path="/projects/new" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
+<Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+<Route path="/projects/:projectId/edit" element={<ProtectedRoute><ProjectForm /></ProtectedRoute>} />
+```
+
+---
+
+## 📱 MOBILE APP IMPLEMENTATION
+
+*(Due to length constraints, I'll provide the key mobile components structure)*
+
+### Mobile Project Components Structure:
+
+1. **`/src/screens/ProjectsScreen.tsx`** - Main projects list (similar to web but with mobile UI)
+2. **`/src/screens/ProjectDetailScreen.tsx`** - Project detail view
+3. **`/src/screens/CreateProjectScreen.tsx`** - Project form
+4. **`/src/components/projects/ProjectCard.tsx`** - Reusable project card component
+5. **`/src/components/projects/ProjectSelector.tsx`** - Project picker for transaction forms
+
+### Key Mobile Design Patterns:
+
+```typescript
+// Use LinearGradient for headers
+<LinearGradient
+  colors={['#6366F1', '#8B5CF6']}
+  start={{x: 0, y: 0}}
+  end={{x: 1, y: 1}}
+  style={styles.header}
+>
+  // Header content
+</LinearGradient>
+
+// Use card-based layouts with shadows
+const styles = StyleSheet.create({
+  projectCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  // ... more styles following existing pattern
+});
+```
+
+---
+
+## 🎯 IMPLEMENTATION CHECKLIST
+
+### Phase 1: Database (Day 1)
+- [ ] Run all SQL migrations in Supabase
+- [ ] Verify RLS policies work
+- [ ] Test materialized view refresh
+
+### Phase 2: Backend (Day 2)
+- [ ] Add project functions to `database.ts`
+- [ ] Test all CRUD operations
+- [ ] Verify team-aware queries work
+
+### Phase 3: Web UI (Days 3-4)
+- [ ] Create ProjectsList component
+- [ ] Create ProjectForm component
+- [ ] Create ProjectDetail component
+- [ ] Add project selectors to Income/Expense/Invoice forms
+- [ ] Add routes to App.tsx
+- [ ] Test all flows
+
+### Phase 4: Mobile UI (Days 5-6)
+- [ ] Create mobile project screens
+- [ ] Add project selectors to mobile transaction forms
+- [ ] Test on iOS and Android
+- [ ] Verify data sync with web
+
+### Phase 5: Testing & Polish (Day 7)
+- [ ] Test edge cases (deleted projects, budget alerts, etc.)
+- [ ] Add loading states and error handling
+- [ ] Performance testing with 100+ projects
+- [ ] Final UI polish and animations
+
+---
+
+## 🚀 QUICK START COMMANDS
+
+```bash
+# 1. Create the database tables
+# Run SQL in Supabase Dashboard → SQL Editor
+
+# 2. Update database service
+# Add functions to /src/services/database.ts
+
+# 3. Create components
+mkdir -p src/components/Projects
+touch src/components/Projects/ProjectsList.tsx
+touch src/components/Projects/ProjectForm.tsx
+touch src/components/Projects/ProjectDetail.tsx
+
+# 4. Update routes
+# Edit src/App.tsx
+
+# 5. Test locally
+npm run dev
+
+# 6. Deploy
+git add .
+git commit -m "feat: Add Projects feature"
+git push
+```
+
+---
+
+## 💡 SMART FEATURES TO IMPLEMENT LATER
+
+1. **AI Auto-Linking**: Use AI to detect projects from transaction descriptions
+2. **Budget Alerts**: Notify when project exceeds 80% of budget
+3. **Time Tracking**: Add hours worked per project
+4. **Profitability Forecasting**: Predict final profit based on current trajectory
+5. **Client Lifetime Value**: Show total value from all client projects
+
+---
+
+## ⚠️ CRITICAL REMINDERS
+
+1. **ALWAYS use `getEffectiveUserId()`** for team support
+2. **ALWAYS handle multi-currency** conversions
+3. **ALWAYS add loading states** for async operations
+4. **ALWAYS validate user input** before database operations
+5. **ALWAYS maintain aesthetic consistency** with existing components
+6. **NEVER break existing functionality** - test thoroughly
+7. **ALWAYS refresh project_stats** after transaction changes
+
+---
+
+## 📞 SUPPORT
+
+If you encounter issues:
+1. Check Supabase logs for SQL errors
+2. Verify RLS policies are correct
+3. Test with simple data first
+4. Use browser DevTools to debug React components
+
+<!-- **Good luck! Make it look amazing! 🎨✨** -->

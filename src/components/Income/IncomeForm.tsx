@@ -12,6 +12,7 @@ import {
   updateIncome,
   getIncomes,
   getCategories,
+  getProjects,
 } from "../../services/database";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingsContext"; // Added useSettings import
@@ -32,6 +33,7 @@ export const IncomeForm: React.FC = () => {
   description: "",
   category_id: "",
   client_id: "",
+  project_id: "",
   date: new Date().toISOString().split("T")[0],
   reference_number: "",
   tax_rate: defaultTaxRate.toString(),
@@ -45,6 +47,7 @@ export const IncomeForm: React.FC = () => {
 const [originalRate, setOriginalRate] = useState<number | null>(null);
 const [useHistoricalRate, setUseHistoricalRate] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [showClientModal, setShowClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({
     name: "",
@@ -58,6 +61,7 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
   useEffect(() => {
     loadCategories();
     loadClients();
+    loadProjects();
     if (isEdit && id) {
       loadIncome();
     }
@@ -102,6 +106,17 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     }
   };
 
+  const loadProjects = async () => {
+    if (!user) return;
+
+    try {
+      const data = await getProjects(user.id, 'active');
+      setProjects(data);
+    } catch (err: any) {
+      console.error('Error loading projects:', err);
+    }
+  };
+
   const loadIncome = async () => {
     if (!user || !id) return;
 
@@ -115,6 +130,7 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     description: income.description,
     category_id: income.category_id || "",
     client_id: income.client_id || "",
+    project_id: (income as any).project_id || "",
     date: income.date,
     reference_number: income.reference_number || "",
     tax_rate: (income.tax_rate || defaultTaxRate).toString(),
@@ -219,6 +235,7 @@ const incomeData = {
   description: formData.description,
   category_id: formData.category_id || undefined,
   client_id: formData.client_id || undefined,
+  project_id: formData.project_id || undefined,
   date: formData.date,
   reference_number: formData.reference_number || undefined,
   tax_rate: parseFloat(formData.tax_rate) || undefined,
@@ -520,6 +537,34 @@ if (!isUserSettingsReady) {
                 <Plus className="h-4 w-4" />
               </button>
             </div>
+          </div>
+
+          {/* Project Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Project (Optional)
+            </label>
+            <select
+              value={formData.project_id}
+              onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">No project</option>
+              {projects
+                .filter(p => !formData.client_id || p.client_id === formData.client_id)
+                .map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+            </select>
+            {formData.client_id && (
+              <p className="text-xs text-gray-500 mt-1">
+                {projects.filter(p => p.client_id === formData.client_id).length > 0
+                  ? 'Showing projects for selected client'
+                  : 'No projects found for this client'}
+              </p>
+            )}
           </div>
 
           {/* Total Summary */}

@@ -973,7 +973,6 @@ export const InvoiceList: React.FC = () => {
             body: {
               invoiceId: invoice.id,
               clientPhone: invoice.client.phone,
-              clientCountryCode: invoice.client.phone_country_code, // Pass country code for multi-country support
               clientName: invoice.client.name,
               invoiceNumber: invoice.invoice_number,
               companyName: companyName,
@@ -1829,10 +1828,24 @@ export const InvoiceList: React.FC = () => {
                 </button>
                 <button
                   onClick={handleBulkDelete}
-                  className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  disabled={bulkActionLoading}
+                  className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    bulkActionLoading
+                      ? 'border-gray-300 text-gray-400 bg-gray-50 cursor-not-allowed'
+                      : 'border-red-300 text-red-700 bg-white hover:bg-red-50 focus:ring-red-500'
+                  }`}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected
+                  {bulkActionLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={clearSelections}
@@ -2148,15 +2161,24 @@ export const InvoiceList: React.FC = () => {
                                       handleDelete(invoice.id);
                                       setShowActionMenu(null);
                                     }}
-                                    disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at || !!invoice.payment_locked_at}
+                                    disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at || !!invoice.payment_locked_at || deleteMutation.isPending}
                                     className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at || invoice.payment_locked_at
+                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at || invoice.payment_locked_at || deleteMutation.isPending
                                         ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                                         : 'text-red-600 hover:bg-red-50'
                                     }`}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-3" />
-                                    Delete
+                                    {deleteMutation.isPending ? (
+                                      <>
+                                        <RefreshCw className="h-4 w-4 mr-3 animate-spin" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Trash2 className="h-4 w-4 mr-3" />
+                                        Delete
+                                      </>
+                                    )}
                                   </button>
                                 </div>
                               )}
