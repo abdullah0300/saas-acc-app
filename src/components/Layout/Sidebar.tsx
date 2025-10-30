@@ -241,8 +241,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
             </div>
 
             {/* User info */}
-            <div className={`py-4 border-b border-gray-700/50 ${!isExpanded ? 'lg:px-2' : 'px-6'}`}>
-              <div className={`flex items-center ${!isExpanded ? 'lg:justify-center' : 'space-x-3'}`}>
+            <div className={`py-4 border-b border-gray-700/50 ${!isExpanded ? 'lg:px-0' : 'px-6'}`}>
+              <button
+                onClick={() => {
+                  navigate('/settings/profile');
+                  if (window.innerWidth < 1024) {
+                    onToggle();
+                  }
+                }}
+                className={`w-full flex items-center ${!isExpanded ? 'lg:justify-center lg:px-0' : 'space-x-3 px-2'} hover:bg-gray-800/50 rounded-lg transition-all duration-200 py-2`}
+                title={!isExpanded ? (profile?.company_name || user?.email || "User") : "View Profile"}
+              >
                 <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-medium text-gray-300">
                     {profile?.company_name?.[0]?.toUpperCase() ||
@@ -251,7 +260,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                   </span>
                 </div>
                 {isExpanded && (
-                  <div className="flex-1 min-w-0 hidden lg:block">
+                  <div className="flex-1 min-w-0 hidden lg:block text-left">
                     <p className="text-sm font-medium text-gray-200 truncate">
                       {profile?.company_name || user?.email || "User"}
                     </p>
@@ -260,7 +269,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                     </p>
                   </div>
                 )}
-                <div className="flex-1 min-w-0 lg:hidden">
+                <div className="flex-1 min-w-0 lg:hidden text-left">
                   <p className="text-sm font-medium text-gray-200 truncate">
                     {profile?.company_name || user?.email || "User"}
                   </p>
@@ -268,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                     {profile?.company_name ? "Company" : "Account"}
                   </p>
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* Navigation */}
