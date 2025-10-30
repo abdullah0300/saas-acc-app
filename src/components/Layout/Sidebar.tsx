@@ -170,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
 
         {/* Sidebar */}
         <div
-          className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white transform transition-all duration-300 ease-in-out z-50 shadow-2xl ${
+          className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white transform transition-all duration-200 ease-out z-50 shadow-2xl ${
             isOpen ? "translate-x-0 w-72" : "-translate-x-full w-72"
           } lg:translate-x-0 ${isExpanded ? 'lg:w-64' : 'lg:w-20'}`}
           onMouseEnter={() => {
@@ -189,31 +189,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
             <div className={`p-6 border-b border-gray-700/50 ${!isExpanded ? 'lg:px-2 lg:py-4' : ''}`}>
               {/* Collapsed: Stack vertically */}
               {!isExpanded ? (
-                <div className="hidden lg:flex flex-col items-center space-y-3 transition-all duration-300">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300">
+                <div className="hidden lg:flex flex-col items-center space-y-3 transition-all duration-200 ease-out">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg transition-all duration-200 ease-out">
                     <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
                   </div>
                   <button
                     onClick={toggleCollapse}
-                    className="flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 transition-all duration-300 p-2 rounded-lg shadow-md hover:shadow-lg w-10 h-10"
+                    className="flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 transition-all duration-200 ease-out p-2 rounded-lg shadow-md hover:shadow-lg w-10 h-10"
                     title="Expand sidebar"
                   >
                     <Menu className="h-5 w-5" />
                   </button>
                 </div>
               ) : (
-                <div className="hidden lg:flex items-center justify-between transition-all duration-300">
-                  <div className="flex items-center space-x-3 transition-all duration-300">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 transition-all duration-300">
+                <div className="hidden lg:flex items-center justify-between transition-all duration-200 ease-out">
+                  <div className="flex items-center space-x-3 transition-all duration-200 ease-out">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 transition-all duration-200 ease-out">
                       <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
                     </div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-all duration-300 animate-in fade-in slide-in-from-left-2">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-all duration-200 ease-out animate-in fade-in slide-in-from-left-2">
                       SmartCFO
                     </h1>
                   </div>
                   <button
                     onClick={toggleCollapse}
-                    className="flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 transition-all duration-300 p-2 rounded-lg shadow-md hover:shadow-lg animate-in fade-in slide-in-from-right-2"
+                    className="flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 transition-all duration-200 ease-out p-2 rounded-lg shadow-md hover:shadow-lg animate-in fade-in slide-in-from-right-2"
                     title="Collapse sidebar"
                   >
                     <Menu className="h-5 w-5" />

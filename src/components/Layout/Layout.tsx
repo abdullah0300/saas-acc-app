@@ -19,7 +19,7 @@ export const Layout: React.FC = () => {
         onCollapseChange={setSidebarCollapsed}
       />
 
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+      <div className={`transition-all duration-200 ease-out ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
         <main className="p-4 md:p-6">
