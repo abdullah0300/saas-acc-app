@@ -1992,7 +1992,7 @@ export const InvoiceList: React.FC = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap w-32">
                           <div className="flex items-center gap-1">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
                               {getStatusIcon(invoice.status)}
@@ -2010,7 +2010,7 @@ export const InvoiceList: React.FC = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap w-28">
                           {isRecurring ? (
                             <div className="flex items-center text-sm">
                               <RefreshCw className={`h-4 w-4 mr-1 ${recurringInfo?.is_active ? 'text-indigo-600' : 'text-gray-400'}`} />
@@ -2022,7 +2022,7 @@ export const InvoiceList: React.FC = () => {
                             <span className="text-sm text-gray-500">One-time</span>
                           )}
                         </td>
-                        <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-white group-hover:bg-gray-50">
+                        <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-white group-hover:bg-gray-50 w-40">
                           <div className="flex items-center justify-center space-x-2">
                             <Link
                               to={`/invoices/${invoice.id}/view`}
