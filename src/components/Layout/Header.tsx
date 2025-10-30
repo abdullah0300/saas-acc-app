@@ -144,10 +144,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   return (
     <header className="bg-white shadow-sm border-b lg:bg-white lg:shadow-sm lg:border-b">
       <div className="flex items-center justify-between px-4 py-4 lg:px-4 lg:py-4">
-        {/* Desktop Menu Button (Hidden on mobile) */}
+        {/* Mobile Menu Button (Hidden on desktop) */}
         <button
           onClick={onMenuClick}
-          className="hidden lg:block text-gray-600 hover:text-gray-900"
+          className="lg:hidden text-gray-600 hover:text-gray-900"
         >
           <Menu className="h-6 w-6" />
         </button>

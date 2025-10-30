@@ -29,9 +29,10 @@ import { User } from "../../types";
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
+  onCollapseChange?: (collapsed: boolean) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseChange }) => {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
@@ -39,6 +40,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const { hasFeature, showAnticipationModal } = useSubscription();
   const navigate = useNavigate();
   const [showMoreDropup, setShowMoreDropup] = useState(false);
+
+  // Collapsible sidebar state
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved ? JSON.parse(saved) : true;
+  });
+
+  // Temporary hover expand state
+  const [isHoverExpanded, setIsHoverExpanded] = useState(false);
+
+  // Determine if sidebar should show expanded (either permanently or temporarily on hover)
+  const isExpanded = !isCollapsed || isHoverExpanded;
+
+  // Notify parent component of collapse state changes
+  React.useEffect(() => {
+    if (onCollapseChange) {
+      onCollapseChange(isCollapsed && !isHoverExpanded);
+    }
+  }, [isCollapsed, isHoverExpanded, onCollapseChange]);
+
+  const toggleCollapse = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
+  };
 
   const menuItems = [
     { path: "/dashboard", icon: Home, label: "Dashboard" },
@@ -144,16 +170,61 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
         {/* Sidebar */}
         <div
-          className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white w-72 transform transition-all duration-300 ease-in-out z-50 shadow-2xl ${
-            isOpen ? "translate-x-0" : "-translate-x-full"
-          } lg:translate-x-0 lg:w-64`}
+          className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white transform transition-all duration-300 ease-in-out z-50 shadow-2xl ${
+            isOpen ? "translate-x-0 w-72" : "-translate-x-full w-72"
+          } lg:translate-x-0 ${isExpanded ? 'lg:w-64' : 'lg:w-20'}`}
+          onMouseEnter={() => {
+            if (isCollapsed) {
+              setIsHoverExpanded(true);
+            }
+          }}
+          onMouseLeave={() => {
+            if (isCollapsed) {
+              setIsHoverExpanded(false);
+            }
+          }}
         >
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="p-6 border-b border-gray-700/50">
-              <div className="flex items-center justify-between">
+            <div className={`p-6 border-b border-gray-700/50 ${!isExpanded ? 'lg:px-2 lg:py-4' : ''}`}>
+              {/* Collapsed: Stack vertically */}
+              {!isExpanded ? (
+                <div className="hidden lg:flex flex-col items-center space-y-3 transition-all duration-300">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300">
+                    <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
+                  </div>
+                  <button
+                    onClick={toggleCollapse}
+                    className="flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 transition-all duration-300 p-2 rounded-lg shadow-md hover:shadow-lg w-10 h-10"
+                    title="Expand sidebar"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="hidden lg:flex items-center justify-between transition-all duration-300">
+                  <div className="flex items-center space-x-3 transition-all duration-300">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 transition-all duration-300">
+                      <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
+                    </div>
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-all duration-300 animate-in fade-in slide-in-from-left-2">
+                      SmartCFO
+                    </h1>
+                  </div>
+                  <button
+                    onClick={toggleCollapse}
+                    className="flex items-center justify-center text-white bg-gray-700 hover:bg-gray-600 transition-all duration-300 p-2 rounded-lg shadow-md hover:shadow-lg animate-in fade-in slide-in-from-right-2"
+                    title="Collapse sidebar"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Mobile: Always show horizontal layout */}
+              <div className="flex lg:hidden items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                     <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
                   </div>
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -162,7 +233,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                 </div>
                 <button
                   onClick={onToggle}
-                  className="lg:hidden text-gray-400 hover:text-white transition-colors duration-200"
+                  className="text-gray-400 hover:text-white transition-colors duration-200"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -170,16 +241,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             </div>
 
             {/* User info */}
-            <div className="px-6 py-4 border-b border-gray-700/50">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+            <div className={`py-4 border-b border-gray-700/50 ${!isExpanded ? 'lg:px-2' : 'px-6'}`}>
+              <div className={`flex items-center ${!isExpanded ? 'lg:justify-center' : 'space-x-3'}`}>
+                <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-medium text-gray-300">
                     {profile?.company_name?.[0]?.toUpperCase() ||
                       user?.email?.[0]?.toUpperCase() ||
                       "U"}
                   </span>
                 </div>
-                <div className="flex-1 min-w-0">
+                {isExpanded && (
+                  <div className="flex-1 min-w-0 hidden lg:block">
+                    <p className="text-sm font-medium text-gray-200 truncate">
+                      {profile?.company_name || user?.email || "User"}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {profile?.company_name ? "Company" : "Account"}
+                    </p>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 lg:hidden">
                   <p className="text-sm font-medium text-gray-200 truncate">
                     {profile?.company_name || user?.email || "User"}
                   </p>
@@ -191,7 +272,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+            <nav className={`flex-1 py-6 space-y-1 overflow-y-auto custom-scrollbar ${!isExpanded ? 'lg:px-2' : 'px-4'}`}>
               {menuItems.map(({ path, icon: Icon, label, feature }) => {
                 const active = isActive(path);
                 const hasAccess = !feature || hasFeature(feature as any);
@@ -211,23 +292,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                         }
                       }
                     }}
-                    className={`w-full group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    className={`w-full group flex items-center px-4 py-3 rounded-xl transition-all duration-200 relative ${
+                      !isExpanded ? 'lg:justify-center lg:px-2' : 'space-x-3'
+                    } ${
                       active
                         ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25"
                         : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
                     }`}
                   >
                     <Icon
-                      className={`h-5 w-5 transition-transform duration-200 ${
+                      className={`h-5 w-5 transition-transform duration-200 flex-shrink-0 ${
                         active ? "scale-110" : "group-hover:scale-110"
                       }`}
                     />
-                    <span className="font-medium">{label}</span>
+                    {isExpanded && (
+                      <>
+                        <span className="font-medium hidden lg:block">{label}</span>
+                        {feature && !hasAccess && (
+                          <Crown className="h-4 w-4 ml-auto text-amber-400 hidden lg:block" />
+                        )}
+                        {active && hasAccess && (
+                          <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse hidden lg:block" />
+                        )}
+                      </>
+                    )}
+                    <span className="font-medium lg:hidden">{label}</span>
                     {feature && !hasAccess && (
-                      <Crown className="h-4 w-4 ml-auto text-amber-400" />
+                      <Crown className="h-4 w-4 ml-auto text-amber-400 lg:hidden" />
                     )}
                     {active && hasAccess && (
-                      <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                      <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse lg:hidden" />
+                    )}
+                    {!isExpanded && feature && !hasAccess && (
+                      <Crown className="h-3 w-3 absolute top-2 right-2 text-amber-400 hidden lg:block" />
                     )}
                   </button>
                 );
@@ -235,21 +332,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             </nav>
 
             {/* Sign out button */}
-            <div className="p-4 border-t border-gray-700/50">
+            <div className={`p-4 border-t border-gray-700/50 ${!isExpanded ? 'lg:px-2' : ''}`}>
               <button
                 onClick={handleSignOut}
                 disabled={isLoggingOut}
-                className="w-full flex items-center justify-center space-x-3 px-4 py-3 text-gray-300 hover:bg-red-600/10 hover:text-red-400 rounded-xl transition-all duration-200 group"
+                className={`w-full flex items-center px-4 py-3 text-gray-300 hover:bg-red-600/10 hover:text-red-400 rounded-xl transition-all duration-200 group ${
+                  !isExpanded ? 'lg:justify-center lg:px-2' : 'justify-center space-x-3'
+                }`}
               >
-                <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
-                <span className="font-medium">
+                <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:scale-110 flex-shrink-0" />
+                {isExpanded && (
+                  <span className="font-medium hidden lg:block">
+                    {isLoggingOut ? "Signing out..." : "Sign Out"}
+                  </span>
+                )}
+                <span className="font-medium lg:hidden">
                   {isLoggingOut ? "Signing out..." : "Sign Out"}
                 </span>
               </button>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-700/50">
+            {isExpanded && (
+              <div className="px-6 py-4 border-t border-gray-700/50 hidden lg:block">
+                <p className="text-xs text-center text-gray-500">
+                  © 2024 SmartCFO
+                </p>
+              </div>
+            )}
+            <div className="px-6 py-4 border-t border-gray-700/50 lg:hidden">
               <p className="text-xs text-center text-gray-500">
                 © 2024 SmartCFO
               </p>
