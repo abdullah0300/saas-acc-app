@@ -433,31 +433,71 @@ const paginatedIncomes = getPaginatedIncomes();
 };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Description', 'Category', 'Client', 'Company', 'Amount', 'Tax', 'Total', 'Currency', 'Base Amount', 'Type', 'Reference'];
-const data = filteredIncomes.map(income => [
-  format(parseISO(income.date), 'yyyy-MM-dd'),
-  income.description,
-  income.category?.name || 'Uncategorized',
-  income.client?.name || 'No client',
-  income.client?.company_name || '',  // ADD THIS LINE
-  income.amount.toString(),
-  (income.tax_amount || 0).toString(),
-  (income.amount + (income.tax_amount || 0)).toString(),
-  income.currency || baseCurrency,
-  (income.base_amount || income.amount).toString(),
-  income.credit_note_id ? 'Credit Note' : 'Income',
-  income.reference_number || ''
-]);
-    
+    const headers = [
+      'Date',
+      'Description',
+      'Category',
+      'Client Name',
+      'Client Email',
+      'Client Phone',
+      'Client Company',
+      'Client Address',
+      'Amount',
+      'Tax Rate (%)',
+      'Tax Amount',
+      'Total with Tax',
+      'Currency',
+      'Exchange Rate',
+      'Base Amount',
+      'Type',
+      'Reference Number',
+      'Invoice Number',
+      'Invoice ID',
+      'Credit Note ID',
+      'Tax Scheme',
+      'Is Reverse Charge',
+      'Intra EU Supply',
+      'Created At',
+      'Updated At'
+    ];
+
+    const data = filteredIncomes.map(income => [
+      format(parseISO(income.date), 'yyyy-MM-dd'),
+      income.description,
+      income.category?.name || 'Uncategorized',
+      income.client?.name || '',
+      income.client?.email || '',
+      income.client?.phone || '',
+      income.client?.company_name || '',
+      income.client?.address || '',
+      income.amount.toFixed(2),
+      (income.tax_rate || 0).toFixed(2),
+      (income.tax_amount || 0).toFixed(2),
+      (income.total_with_tax || (income.amount + (income.tax_amount || 0))).toFixed(2),
+      income.currency || baseCurrency,
+      (income.exchange_rate || 1).toString(),
+      (income.base_amount || income.amount).toFixed(2),
+      income.credit_note_id ? 'Credit Note' : 'Income',
+      income.reference_number || '',
+      income.tax_metadata?.invoice_number || '',
+      income.tax_metadata?.invoice_id || '',
+      income.credit_note_id || '',
+      income.tax_metadata?.tax_scheme || '',
+      income.tax_metadata?.is_reverse_charge ? 'Yes' : 'No',
+      income.tax_metadata?.intra_eu_supply ? 'Yes' : 'No',
+      format(parseISO(income.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      format(parseISO(income.updated_at), 'yyyy-MM-dd HH:mm:ss')
+    ]);
+
     const csvContent = [
       headers.join(','),
-      ...data.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...data.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `income-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.download = `income-export-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`;
     link.click();
   };
 

@@ -1077,28 +1077,76 @@ export const InvoiceList: React.FC = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Invoice Number', 'Client', 'Date', 'Due Date', 'Status', 'Amount', 'Currency', 'Exchange Rate'];
-    
-    const data = filteredInvoices.map(invoice => [
-      invoice.invoice_number,
-      invoice.client?.name || 'No client',
-      format(parseISO(invoice.date), 'yyyy-MM-dd'),
-      format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
-      invoice.status,
-      invoice.total.toFixed(2),
-      invoice.currency || baseCurrency,
-      (invoice.exchange_rate || 1).toString()
-    ]);
-    
+    const headers = [
+      'Invoice Number',
+      'Client Name',
+      'Client Email',
+      'Client Phone',
+      'Client Address',
+      'Date',
+      'Due Date',
+      'Sent Date',
+      'Paid Date',
+      'Status',
+      'Subtotal',
+      'Tax Rate (%)',
+      'Tax Amount',
+      'Total',
+      'Currency',
+      'Exchange Rate',
+      'Base Amount',
+      'Total Paid',
+      'Balance Due',
+      'Has Credit Notes',
+      'Total Credited',
+      'Notes',
+      'Items Count',
+      'Items Detail'
+    ];
+
+    const data = filteredInvoices.map(invoice => {
+      // Format items detail
+      const itemsDetail = invoice.items?.map(item =>
+        `${item.description} (Qty: ${item.quantity} × ${formatCurrency(item.rate, invoice.currency || baseCurrency)} = ${formatCurrency(item.amount, invoice.currency || baseCurrency)})`
+      ).join(' | ') || '';
+
+      return [
+        invoice.invoice_number,
+        invoice.client?.name || 'No client',
+        invoice.client?.email || '',
+        invoice.client?.phone || '',
+        invoice.client?.address || '',
+        format(parseISO(invoice.date), 'yyyy-MM-dd'),
+        format(parseISO(invoice.due_date), 'yyyy-MM-dd'),
+        invoice.sent_date ? format(parseISO(invoice.sent_date), 'yyyy-MM-dd') : '',
+        invoice.paid_date ? format(parseISO(invoice.paid_date), 'yyyy-MM-dd') : '',
+        invoice.status,
+        invoice.subtotal.toFixed(2),
+        invoice.tax_rate.toFixed(2),
+        (invoice.tax_amount || 0).toFixed(2),
+        invoice.total.toFixed(2),
+        invoice.currency || baseCurrency,
+        (invoice.exchange_rate || 1).toString(),
+        (invoice.base_amount || invoice.total).toFixed(2),
+        (invoice.total_paid || 0).toFixed(2),
+        (invoice.balance_due || 0).toFixed(2),
+        invoice.has_credit_notes ? 'Yes' : 'No',
+        (invoice.total_credited || 0).toFixed(2),
+        invoice.notes || '',
+        invoice.items?.length || 0,
+        itemsDetail
+      ];
+    });
+
     const csvContent = [
       headers.join(','),
-      ...data.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...data.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `invoices-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.download = `invoices-export-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`;
     link.click();
   };
 

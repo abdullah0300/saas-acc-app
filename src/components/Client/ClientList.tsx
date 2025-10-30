@@ -237,47 +237,65 @@ const pendingAmount = clientInvoices
 };
 
   const exportClients = () => {
-    // FIXED: Enhanced CSV export with more data
     const headers = [
-      'Name', 
+      'Client ID',
+      'Name',
       'Company',
-      'Email', 
-      'Phone', 
+      'Email',
+      'Phone',
+      'Phone Country Code',
+      'Address',
       `Total Revenue (${baseCurrency})`,
       `Pending Amount (${baseCurrency})`,
       `Credits Applied (${baseCurrency})`,
       'Total Invoices',
-      'Paid Invoices', 
+      'Paid Invoices',
+      'Pending Invoices',
       'Avg Payment Days',
-      'Status', 
-      'Last Activity'
+      'Status',
+      'Last Activity',
+      'Created At',
+      'Client Since (Days)'
     ];
-    
-    const data = filteredClients.map(client => [
-      client.name,
-      client.company_name || '',
-      client.email || '',
-      client.phone || '',
-      client.totalRevenue.toFixed(2),
-      client.pendingAmount.toFixed(2),
-      client.creditAmount.toFixed(2),
-      client.invoiceCount.toString(),
-      client.paidInvoices.toString(),
-      Math.round(client.avgPaymentDays).toString(),
-      client.status,
-      client.lastActivityDate ? format(parseISO(client.lastActivityDate), 'yyyy-MM-dd') : ''
-    ]);
-    
+
+    const data = filteredClients.map(client => {
+      const pendingInvoices = client.invoiceCount - client.paidInvoices;
+      const daysSinceCreated = client.created_at
+        ? Math.floor((new Date().getTime() - new Date(client.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      return [
+        client.id,
+        client.name,
+        client.company_name || '',
+        client.email || '',
+        client.phone || '',
+        client.phone_country_code || '',
+        client.address || '',
+        client.totalRevenue.toFixed(2),
+        client.pendingAmount.toFixed(2),
+        client.creditAmount.toFixed(2),
+        client.invoiceCount.toString(),
+        client.paidInvoices.toString(),
+        pendingInvoices.toString(),
+        Math.round(client.avgPaymentDays).toString(),
+        client.status,
+        client.lastActivityDate ? format(parseISO(client.lastActivityDate), 'yyyy-MM-dd') : '',
+        client.created_at ? format(parseISO(client.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
+        daysSinceCreated.toString()
+      ];
+    });
+
     const csv = [
       headers.join(','),
-      ...data.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...data.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `clients-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `clients-export-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`;
     a.click();
   };
 

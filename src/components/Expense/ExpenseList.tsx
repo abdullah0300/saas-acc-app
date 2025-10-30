@@ -392,25 +392,65 @@ const handleViewDetails = (expense: Expense) => {
 };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Description', 'Vendor', 'Category', 'Amount', 'Receipt'];
+    const headers = [
+      'Date',
+      'Description',
+      'Vendor Name',
+      'Vendor Email',
+      'Vendor Phone',
+      'Vendor Address',
+      'Vendor Tax ID',
+      'Vendor Payment Terms (Days)',
+      'Vendor Notes',
+      'Category',
+      'Amount',
+      'Tax Rate (%)',
+      'Tax Amount',
+      'Total with Tax',
+      'Currency',
+      'Exchange Rate',
+      'Base Amount',
+      'Reference Number',
+      'Has Receipt',
+      'Receipt URL',
+      'Created At',
+      'Updated At'
+    ];
+
     const data = filteredExpenses.map(expense => [
       format(parseISO(expense.date), 'yyyy-MM-dd'),
       expense.description,
-      expense.vendor || '',
+      expense.vendor || expense.vendor_detail?.name || '',
+      expense.vendor_detail?.email || '',
+      expense.vendor_detail?.phone || '',
+      expense.vendor_detail?.address || '',
+      expense.vendor_detail?.tax_id || '',
+      expense.vendor_detail?.payment_terms?.toString() || '',
+      expense.vendor_detail?.notes || '',
       expense.category?.name || 'Uncategorized',
-      expense.amount.toString(),
-      expense.receipt_url ? 'Yes' : 'No'
+      expense.amount.toFixed(2),
+      (expense.tax_rate || 0).toFixed(2),
+      (expense.tax_amount || 0).toFixed(2),
+      (expense.total_with_tax || (expense.amount + (expense.tax_amount || 0))).toFixed(2),
+      expense.currency || baseCurrency,
+      (expense.exchange_rate || 1).toString(),
+      (expense.base_amount || expense.amount).toFixed(2),
+      expense.reference_number || '',
+      expense.receipt_url ? 'Yes' : 'No',
+      expense.receipt_url || '',
+      format(parseISO(expense.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      format(parseISO(expense.updated_at), 'yyyy-MM-dd HH:mm:ss')
     ]);
-    
+
     const csvContent = [
       headers.join(','),
-      ...data.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...data.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.download = `expenses-export-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`;
     link.click();
   };
 
