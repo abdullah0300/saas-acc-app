@@ -1888,13 +1888,13 @@ export const InvoiceList: React.FC = () => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-28">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="sticky right-0 px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50 w-40">
+                  <th className="sticky right-0 px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gradient-to-l from-gray-50 via-gray-50 to-transparent z-10">
                     Actions
                   </th>
                 </tr>
@@ -1908,7 +1908,7 @@ export const InvoiceList: React.FC = () => {
                     const totalTax = calculateInvoiceTaxTotal(invoice);
                     
                     return (
-                      <tr key={invoice.id} className="hover:bg-gray-50 transition-colors group">
+                      <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
                         <td className="relative w-12 px-6 sm:w-16 sm:px-8">
                           <input
                             type="checkbox"
@@ -2006,7 +2006,7 @@ export const InvoiceList: React.FC = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap w-32">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-1">
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
                               {getStatusIcon(invoice.status)}
@@ -2024,7 +2024,7 @@ export const InvoiceList: React.FC = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap w-28">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           {isRecurring ? (
                             <div className="flex items-center text-sm">
                               <RefreshCw className={`h-4 w-4 mr-1 ${recurringInfo?.is_active ? 'text-indigo-600' : 'text-gray-400'}`} />
@@ -2036,7 +2036,7 @@ export const InvoiceList: React.FC = () => {
                             <span className="text-sm text-gray-500">One-time</span>
                           )}
                         </td>
-                        <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-white group-hover:bg-gray-50 w-40">
+                        <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-gradient-to-l from-white via-white to-transparent z-10">
                           <div className="flex items-center justify-center space-x-2">
                             <Link
                               to={`/invoices/${invoice.id}/view`}
