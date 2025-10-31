@@ -1086,8 +1086,10 @@ const averageIncome = regularIncomes.length > 0
     <span className="text-sm text-gray-400 italic">No client</span>
   )}
 </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {income.reference_number || '-'}
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="max-w-[150px] truncate" title={income.reference_number || '-'}>
+                        {income.reference_number || '-'}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right">
                       <div className="flex flex-col items-end">

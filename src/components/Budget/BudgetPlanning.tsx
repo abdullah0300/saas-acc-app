@@ -1,12 +1,12 @@
 // src/components/Budget/BudgetPlanning.tsx
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Target, 
-  TrendingUp, 
-  PiggyBank, 
-  AlertTriangle, 
-  BarChart3, 
+import {
+  Plus,
+  Target,
+  TrendingUp,
+  PiggyBank,
+  AlertTriangle,
+  BarChart3,
   DollarSign,
   Edit,
   Trash2,
@@ -18,12 +18,13 @@ import { format, startOfMonth } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useData } from '../../contexts/DataContext';
-import { 
-  createBudget, 
-  updateBudget, 
-  deleteBudget, 
-  getIncomes, 
-  getExpenses 
+import { AddCategoryModal } from '../Common/AddCategoryModal';
+import {
+  createBudget,
+  updateBudget,
+  deleteBudget,
+  getIncomes,
+  getExpenses
 } from '../../services/database';
 
 interface Budget {
@@ -77,7 +78,9 @@ export const BudgetPlanning: React.FC = () => {
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [error, setError] = useState('');
   const [chartError, setChartError] = useState(false);
-  
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [categoryTypeToAdd, setCategoryTypeToAdd] = useState<'income' | 'expense'>('expense');
+
   const [formData, setFormData] = useState({
     category_id: '',
     amount: '',
@@ -570,40 +573,85 @@ export const BudgetPlanning: React.FC = () => {
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
                       Category *
                     </label>
-                    <select
-                      value={formData.category_id}
-                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-indigo-200/50 focus:border-indigo-400 transition-all duration-200 bg-white/80 backdrop-blur-sm"
-                    >
-                      <option value="">Select category</option>
-                      {allCategories.map(category => (
-                        <option key={category.id} value={category.id}>
-                          {category.name} ({category.type})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={formData.category_id}
+                        onChange={(e) => {
+                          if (e.target.value === "new-income") {
+                            setCategoryTypeToAdd('income');
+                            setShowAddCategory(true);
+                          } else if (e.target.value === "new-expense") {
+                            setCategoryTypeToAdd('expense');
+                            setShowAddCategory(true);
+                          } else {
+                            setFormData({ ...formData, category_id: e.target.value });
+                          }
+                        }}
+                        required
+                        className="w-full px-4 py-3 pr-10 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md hover:border-indigo-300 cursor-pointer appearance-none font-medium text-gray-700"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 0.75rem center',
+                          backgroundSize: '1.25rem'
+                        }}
+                      >
+                        <option value="" className="text-gray-500">Select a category...</option>
+
+                        <optgroup label="INCOME CATEGORIES" className="font-bold text-emerald-700 bg-emerald-50">
+                          <option value="new-income" className="font-bold text-emerald-600 bg-emerald-50 py-2">
+                            ➕ Add or manage income categories
+                          </option>
+                          {categories.income.length > 0 ? (
+                            categories.income.map(category => (
+                              <option key={category.id} value={category.id} className="py-2 pl-4">
+                                {category.name}
+                              </option>
+                            ))
+                          ) : (
+                            <option disabled className="text-gray-400 italic">
+                              No income categories yet
+                            </option>
+                          )}
+                        </optgroup>
+
+                        <optgroup label="EXPENSE CATEGORIES" className="font-bold text-red-700 bg-red-50 mt-2">
+                          <option value="new-expense" className="font-bold text-red-600 bg-red-50 py-2">
+                            ➕ Add or manage expense categories
+                          </option>
+                          {categories.expense.length > 0 ? (
+                            categories.expense.map(category => (
+                              <option key={category.id} value={category.id} className="py-2 pl-4">
+                                {category.name}
+                              </option>
+                            ))
+                          ) : (
+                            <option disabled className="text-gray-400 italic">
+                              No expense categories yet
+                            </option>
+                          )}
+                        </optgroup>
+                      </select>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Select "Add or manage" to create new categories
+                    </p>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
                       Budget Amount ({baseCurrency}) *
                     </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                        {baseCurrency === 'USD' ? '$' : baseCurrency === 'EUR' ? '€' : baseCurrency}
-                      </span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.amount}
-                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                        required
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-indigo-200/50 focus:border-indigo-400 transition-all duration-200 bg-white/80 backdrop-blur-sm"
-                        placeholder="0.00"
-                      />
-                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md hover:border-indigo-300"
+                      placeholder="0.00"
+                    />
                   </div>
                   
                   <div>
@@ -627,13 +675,13 @@ export const BudgetPlanning: React.FC = () => {
                       Start Date *
                     </label>
                     <div className="relative">
-                      <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <Calendar className="absolute left-4 top-1/2 transform -translate-y-1/2 text-indigo-600 h-5 w-5" />
                       <input
                         type="date"
                         value={formData.start_date}
                         onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                         required
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-indigo-200/50 focus:border-indigo-400 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md hover:border-indigo-300"
                       />
                     </div>
                   </div>
@@ -658,6 +706,20 @@ export const BudgetPlanning: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Add Category Modal */}
+        {showAddCategory && (
+          <AddCategoryModal
+            isOpen={showAddCategory}
+            onClose={() => setShowAddCategory(false)}
+            type={categoryTypeToAdd}
+            currentCategories={categoryTypeToAdd === 'income' ? categories.income : categories.expense}
+            onCategoryAdded={(newCategory) => {
+              setFormData({ ...formData, category_id: newCategory.id });
+              setShowAddCategory(false);
+            }}
+          />
         )}
       </div>
     </div>

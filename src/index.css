@@ -20,30 +20,32 @@ code {
 
 /* Custom Scrollbar Styles */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(31, 41, 55, 0.3);
-  border-radius: 3px;
+  background: rgba(31, 41, 55, 0.5);
+  border-radius: 4px;
   margin: 8px 0;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.4);
-  border-radius: 3px;
+  background: rgba(99, 102, 241, 0.6);
+  border-radius: 4px;
   transition: background 0.2s ease;
+  border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(107, 114, 128, 0.6);
+  background: rgba(99, 102, 241, 0.8);
+  border-color: rgba(99, 102, 241, 0.5);
 }
 
 /* Firefox */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(75, 85, 99, 0.4) rgba(31, 41, 55, 0.3);
+  scrollbar-color: rgba(99, 102, 241, 0.6) rgba(31, 41, 55, 0.5);
 }
 
 /* Hide scrollbar for IE, Edge and Firefox */
