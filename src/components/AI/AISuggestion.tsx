@@ -5,7 +5,8 @@ interface AISuggestionProps {
   suggestion: {
     category?: string;
     confidence: number;
-    reason: string;
+    reason: string;   
+    
   };
   onAccept: (category: string) => void;
   onReject: () => void;
