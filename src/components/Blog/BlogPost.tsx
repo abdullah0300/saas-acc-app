@@ -33,6 +33,48 @@ export const BlogPost: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
 
+  // Function to format blog content - ensures proper HTML formatting
+  const formatBlogContent = (content: string): string => {
+    if (!content) return '';
+    
+    // Remove any existing formatting issues
+    let formatted = content.trim();
+    
+    // If content already has HTML tags (from TipTap editor)
+    if (formatted.includes('<') && formatted.includes('>')) {
+      // It's HTML from TipTap, but ensure proper formatting
+      // TipTap might wrap everything in a single <p> tag - we need to preserve structure
+      
+      // Ensure proper spacing between block elements
+      // Add spacing after closing tags that need it
+      formatted = formatted
+        .replace(/<\/p>\s*(?!<[puloh])/gi, '</p>\n\n') // Space after paragraphs
+        .replace(/<\/h[1-6]>\s*(?!<[huloh])/gi, (match) => match + '\n\n') // Space after headings
+        .replace(/<\/ul>\s*(?!<[ulohp])/gi, '</ul>\n\n') // Space after lists
+        .replace(/<\/ol>\s*(?!<[ulohp])/gi, '</ol>\n\n') // Space after ordered lists
+        .replace(/<\/blockquote>\s*(?!<[ulohp])/gi, '</blockquote>\n\n'); // Space after blockquotes
+      
+      // Ensure paragraphs that are on the same line get separated
+      formatted = formatted.replace(/<\/p><p>/gi, '</p>\n\n<p>');
+      
+      return formatted;
+    }
+    
+    // It's plain text - convert to HTML
+    // Split by double line breaks to create paragraphs
+    const paragraphs = formatted
+      .split(/\n\s*\n/) // Split on double line breaks
+      .map(p => p.trim())
+      .filter(p => p.length > 0)
+      .map(p => {
+        // Preserve single line breaks within paragraphs as <br>
+        const withBreaks = p.replace(/\n/g, '<br>');
+        return `<p>${withBreaks}</p>`;
+      });
+    
+    return paragraphs.length > 0 ? paragraphs.join('\n\n') : formatted;
+  };
+
   useEffect(() => {
     if (slug) {
       fetchBlogPost();
@@ -305,7 +347,7 @@ export const BlogPost: React.FC = () => {
                 prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-10 prose-pre:rounded-xl prose-pre:my-16
                 prose-img:rounded-2xl prose-img:shadow-2xl prose-img:my-16
                 prose-hr:border-gray-200 prose-hr:my-20"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: formatBlogContent(post.content) }}
             />
 
             {/* Tags */}
