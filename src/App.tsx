@@ -95,14 +95,16 @@ console.log('window.location.origin:', window.location.origin);
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Data is considered fresh for 5 minutes
-      staleTime: 5 * 60 * 1000,
-      // Keep data in cache for 10 minutes (gcTime in v5)
-      gcTime: 10 * 60 * 1000,
+      // Data is considered fresh for 30 minutes (reduces unnecessary queries)
+      // Note: Invoice numbers use staleTime: 0, so they always fetch fresh
+      staleTime: 30 * 60 * 1000,
+      // Keep data in cache for 30 minutes (gcTime in v5)
+      gcTime: 30 * 60 * 1000,
       // Retry failed requests 3 times
       retry: 3,
-      // Refetch on window focus
-      refetchOnWindowFocus: true,
+      // Disable refetch on window focus to prevent 60+ queries on tab switch
+      // Critical queries (like invoice numbers) override this with staleTime: 0
+      refetchOnWindowFocus: false,
     },
     mutations: {
       // Retry failed mutations once

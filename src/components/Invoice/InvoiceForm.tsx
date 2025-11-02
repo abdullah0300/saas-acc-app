@@ -879,8 +879,30 @@ const handleSaveAsTemplate = async () => {
 
   navigate('/invoices');
 },
-  onError: (error: any) => {
-    alert('Error creating invoice: ' + error.message);
+  onError: async (error: any) => {
+    // Handle unique constraint violation (invoice number conflict)
+    if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+      console.error('Invoice number conflict detected:', error);
+      
+      // Try to get a fresh number and retry once
+      try {
+        const freshNumber = await getNextInvoiceNumber(user!.id);
+        const exists = await checkInvoiceNumberExists(user!.id, freshNumber);
+        
+        if (!exists) {
+          // Update form with fresh number and show alert
+          setFormData(prev => ({ ...prev, invoice_number: freshNumber }));
+          alert(`Invoice number conflict detected. A new number has been assigned: ${freshNumber}. Please submit again.`);
+        } else {
+          alert('Invoice number conflict detected. Please refresh the page and try again.');
+        }
+      } catch (retryError) {
+        console.error('Error getting fresh number for retry:', retryError);
+        alert('Invoice number conflict detected. Please refresh the page and try again.');
+      }
+    } else {
+      alert('Error creating invoice: ' + error.message);
+    }
   }
 });
 
@@ -1123,19 +1145,33 @@ if (!isEdit) {
     );
     
     if (numberExists) {
-      console.error('Invoice number already exists:', freshInvoiceNumber);
-      alert('Invoice number generation conflict. Please try again.');
-      return;
-    }
+      console.warn('Invoice number already exists, getting new one:', freshInvoiceNumber);
+      // Retry once to get a truly fresh number
+      const retryNumber = await getNextInvoiceNumber(user!.id);
+      const retryExists = await checkInvoiceNumberExists(user!.id, retryNumber);
+      
+      if (retryExists) {
+        console.error('Retry number also exists:', retryNumber);
+        alert('Invoice number generation conflict. Please refresh the page and try again.');
+        return;
+      }
+      
+      // Use the retry number
+      formData.invoice_number = retryNumber;
+      setFormData(prev => ({ ...prev, invoice_number: retryNumber }));
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Continue with retry number
+    } else {
     
-    // Update form data with fresh number
-    formData.invoice_number = freshInvoiceNumber;
+      // Update form data with fresh number
+      formData.invoice_number = freshInvoiceNumber;
       
       // Also update the state so UI shows the new number
       setFormData(prev => ({ ...prev, invoice_number: freshInvoiceNumber }));
       
       // Small delay to ensure state update
       await new Promise(resolve => setTimeout(resolve, 100));
+    }
       
     } catch (error) {
       console.error('Error getting fresh invoice number:', error);

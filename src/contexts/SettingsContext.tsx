@@ -113,10 +113,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [userSettings?.base_currency, userSettings?.enabled_currencies]);
 
-  const loadSettings = async () => {
+  const loadSettings = async (skipLoadingIfExists = false) => {
     if (!user) return;
 
-    setLoading(true);
+    // If settings already exist and this is a refresh/refetch, don't show loading
+    if (skipLoadingIfExists && userSettings !== null) {
+      // Skip showing loading state, but still refresh in background
+    } else {
+      setLoading(true);
+    }
 
     try {
       // Get effective user ID (team owner's ID if user is team member, otherwise own ID)
@@ -221,13 +226,16 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const refreshSettings = async () => {
-    await loadSettings();
+    // When refreshing, don't show loading if settings already exist
+    await loadSettings(true);
   };
 
   const defaultTaxRate = taxRates.find(rate => rate.is_default)?.rate || 0;
   const baseCurrency = userSettings?.base_currency || 'USD';
   const currencySymbol = CURRENCY_SYMBOLS[baseCurrency] || '$';
-  const isUserSettingsReady = !loading && userSettings !== null;
+  // Only show as "not ready" if we're loading AND settings don't exist yet
+  // If settings exist, always consider ready (even if background refresh is happening)
+  const isUserSettingsReady = userSettings !== null || !loading;
 
   const getCurrencySymbol = (currency: string) => {
     return CURRENCY_SYMBOLS[currency] || currency;
