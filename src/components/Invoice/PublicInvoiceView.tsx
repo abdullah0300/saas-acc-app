@@ -607,11 +607,11 @@ export const PublicInvoiceView: React.FC = () => {
                   <p className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-2 sm:mb-3 tracking-tight break-words">
                     {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
                   </p>
-                  {invoice.currency && invoice.currency !== baseCurrency && invoice.base_amount && (
+                  {/* {invoice.currency && invoice.currency !== baseCurrency && invoice.base_amount && (
                     <p className="text-indigo-200 text-xs sm:text-sm">
                       ≈ {formatCurrency(invoice.base_amount, baseCurrency)} {baseCurrency}
                     </p>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
