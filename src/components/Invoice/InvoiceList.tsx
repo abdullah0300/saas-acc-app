@@ -995,41 +995,25 @@ export const InvoiceList: React.FC = () => {
             const publicLink = await generatePublicLink(invoice.id);
             if (!publicLink) return;
 
-            let itemsSummary = '';
-            if (fullInvoiceData?.items && fullInvoiceData.items.length > 0) {
-              itemsSummary = '\n📋 *ITEMS:*\n';
-              fullInvoiceData.items.forEach((item: any) => {
-                itemsSummary += `• ${item.description} - ${formatCurrency(item.amount, invoice.currency || baseCurrency)}\n`;
-              });
+            // Ensure link is a full URL for WhatsApp to make it clickable
+            let fullLink = publicLink;
+            if (!fullLink.startsWith('http://') && !fullLink.startsWith('https://')) {
+              fullLink = `https://${fullLink.replace(/^\/+/, '')}`;
             }
-
+            const clientName = invoice.client?.name || 'there';
+            
+            // Build message - link must be on its own line for WhatsApp to make it clickable
+            // Note: WhatsApp requires links to be on separate lines without formatting to make them clickable
             const message = encodeURIComponent(
-              `🏢 *${companyName}*\n` +
-              (companyAddress ? `📍 ${companyAddress}\n` : '') +
-              (companyPhone ? `☎️ ${companyPhone}\n` : '') +
-              `━━━━━━━━━━━━━━━━━━━━\n\n` +
-              `📄 *INVOICE*\n\n` +
-              `*To:* ${invoice.client?.name}\n` +
-              (invoice.client?.address ? `${invoice.client.address}\n` : '') +
-              `\n*Invoice #:* ${invoice.invoice_number}\n` +
-              `*Date:* ${format(parseISO(invoice.date), 'MMM dd, yyyy')}\n` +
-              `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n` +
-              itemsSummary +
-              `\n━━━━━━━━━━━━━━━━━━━━\n` +
-              `*Subtotal:* ${formatCurrency(invoice.subtotal, invoice.currency || baseCurrency)}\n` +
-              (invoice.tax_rate > 0 ? `*Tax (${invoice.tax_rate}%):* ${formatCurrency(invoice.tax_amount, invoice.currency || baseCurrency)}\n` : '') +
-              `💰 *TOTAL DUE:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
-              `━━━━━━━━━━━━━━━━━━━━\n\n` +
-              `📱 *View Full Invoice:*\n` +
-              `${publicLink}\n\n` +
-              `💳 *Payment Options:*\n` +
-              `• Bank Transfer\n` +
-              `• Credit/Debit Card\n` +
-              `• PayPal\n` +
-              (settingsData?.payment_instructions ?
-                `\n📝 *Payment Instructions:*\n${settingsData.payment_instructions}\n\n` : '\n') +
-              `Thank you for your business! 🙏\n\n` +
-              `_Please save this number to receive future updates._`
+              `Hello *${clientName}*,\n\n` +
+              `You have a new invoice from ${companyName}.\n\n` +
+              `*Invoice Number:* ${invoice.invoice_number}\n` +
+              `*Amount Due:* ${formatCurrency(invoice.total, invoice.currency || baseCurrency)}\n` +
+              `*Due Date:* ${format(parseISO(invoice.due_date), 'MMM dd, yyyy')}\n\n` +
+              `Thank you for your business!\n\n` +
+              `*Please view your invoice online:*\n\n` +
+              `${fullLink}\n\n` +
+              `Powered by SmartCFO`
             );
 
             window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');

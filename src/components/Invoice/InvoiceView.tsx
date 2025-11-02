@@ -588,14 +588,25 @@ const isUK = invoice.currency === 'GBP' &&
 
         // Fallback to wa.me link
 
+        // Ensure link is a full URL for WhatsApp to make it clickable
+        let fullLink = link;
+        if (!fullLink.startsWith('http://') && !fullLink.startsWith('https://')) {
+          fullLink = `https://${fullLink.replace(/^\/+/, '')}`;
+        }
+        const clientName = invoice?.client?.name || 'there';
+        
+        // Build message - link must be on its own line for WhatsApp to make it clickable
+        // Note: WhatsApp requires links to be on separate lines without formatting to make them clickable
         const message = encodeURIComponent(
-          `Hello! Here's your invoice ${invoice?.invoice_number} from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
-          `Amount: ${formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}\n` +
-          `Due Date: ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
-          `📱 *View Full Invoice:*\n` +
-          `${link}\n\n` +
-          `💳 Payment methods available.\n\n` +
-          `Thank you for your business!`
+          `Hello *${clientName}*,\n\n` +
+          `You have a new invoice from ${profile?.company_name || invoiceSettings?.company_name || 'our company'}.\n\n` +
+          `*Invoice Number:* ${invoice?.invoice_number}\n` +
+          `*Amount Due:* ${formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}\n` +
+          `*Due Date:* ${invoice?.due_date ? format(parseISO(invoice.due_date), 'MMM dd, yyyy') : 'N/A'}\n\n` +
+          `Thank you for your business!\n\n` +
+          `*Please view your invoice online:*\n\n` +
+          `${fullLink}\n\n` +
+          `Powered by SmartCFO`
         );
 
         const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=${message}`;
