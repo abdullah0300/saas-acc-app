@@ -663,7 +663,10 @@ const averageIncome = regularIncomes.length > 0
             )}
             {clientFilter && (
               <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium">
-                👤 {clientFilter === 'no-client' ? 'No Client' : clients.find(client => client.id === clientFilter)?.name || 'Client'}
+                👤 {clientFilter === 'no-client' ? 'No Client' : (() => {
+                  const client = clients.find(client => client.id === clientFilter);
+                  return client ? `${client.name}${client.company_name ? ` (${client.company_name})` : ''}` : 'Client';
+                })()}
               </span>
             )}
           </div>
@@ -743,11 +746,16 @@ const averageIncome = regularIncomes.length > 0
                   </button>
                 </div>
               )}
-              {clientFilter && (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+            {clientFilter && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
                   <Users className="h-3 w-3" />
                   <span className="font-semibold">Client:</span>
-                  <span>{clients.find(c => c.id === clientFilter)?.name}</span>
+                  <span>
+                    {(() => {
+                      const client = clients.find(c => c.id === clientFilter);
+                      return client ? `${client.name}${client.company_name ? ` (${client.company_name})` : ''}` : '';
+                    })()}
+                  </span>
                   <button
                     onClick={() => setClientFilter('')}
                     className="ml-1 hover:bg-green-200 rounded-full p-0.5"
@@ -1068,7 +1076,7 @@ const averageIncome = regularIncomes.length > 0
                         {income.category?.name || 'Uncategorized'}
                       </span>
                     </td>
-                    {/* Client Column - ADD THIS */}
+                    {/* Client Column */}
 <td className="px-6 py-4 whitespace-nowrap">
   {income.client ? (
     <div className="flex items-center">
@@ -1077,8 +1085,8 @@ const averageIncome = regularIncomes.length > 0
       </div>
       <div>
         <div className="text-sm font-medium text-gray-900">{income.client.name}</div>
-        {income.client.email && (
-          <div className="text-xs text-gray-500">{income.client.email}</div>
+        {income.client.company_name && (
+          <div className="text-xs text-gray-400 mt-0.5">{income.client.company_name}</div>
         )}
       </div>
     </div>

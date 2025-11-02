@@ -408,7 +408,8 @@ export const InvoiceList: React.FC = () => {
     if (searchTerm) {
       filtered = filtered.filter(invoice =>
         invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (invoice.client?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (invoice.client?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (invoice.client?.company_name || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -1567,7 +1568,12 @@ export const InvoiceList: React.FC = () => {
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">
                   <Users className="h-3 w-3" />
                   <span className="font-medium">Client:</span>
-                  <span>{uniqueClients.find(c => c.id === clientFilter)?.name}</span>
+                  <span>
+                    {(() => {
+                      const client = uniqueClients.find(c => c.id === clientFilter);
+                      return client ? `${client.name}${client.company_name ? ` (${client.company_name})` : ''}` : '';
+                    })()}
+                  </span>
                   <button
                     onClick={() => setClientFilter('all')}
                     className="ml-1 hover:bg-indigo-200 rounded-full p-0.5"
@@ -1774,7 +1780,7 @@ export const InvoiceList: React.FC = () => {
                   <option value="all">All Clients</option>
                   {uniqueClients.map(client => (
                     <option key={client.id} value={client.id}>
-                      {client.name}
+                      {client.name}{client.company_name ? ` (${client.company_name})` : ''}
                     </option>
                   ))}
                 </select>
@@ -1972,8 +1978,8 @@ export const InvoiceList: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{invoice.client?.name || 'No client'}</div>
-                          {invoice.client?.email && (
-                            <div className="text-xs text-gray-500">{invoice.client.email}</div>
+                          {invoice.client?.company_name && (
+                            <div className="text-xs text-gray-400 mt-0.5">{invoice.client.company_name}</div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
