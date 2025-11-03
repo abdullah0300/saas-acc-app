@@ -393,7 +393,7 @@ export const LandingPage: React.FC = () => {
                 className="group px-8 py-4 gradient-bg text-white rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-300"
               >
                 <span className="flex items-center justify-center gap-2">
-                  Start 30-Day Free Trial
+                  Start 60-Day Free Trial
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" />
                 </span>
                 <span className="block text-xs font-normal mt-1 opacity-90">No credit card required</span>
@@ -800,7 +800,7 @@ export const LandingPage: React.FC = () => {
           <div className="text-center mt-12">
             <div className="inline-flex items-center gap-2 text-gray-600">
               <Shield className="w-5 h-5 text-green-600" />
-              <span>30-day free trial • No credit card required • Cancel anytime</span>
+              <span>60-day free trial • No credit card required • Cancel anytime</span>
             </div>
           </div>
         </div>
@@ -906,7 +906,7 @@ export const LandingPage: React.FC = () => {
               >
                 <span className="flex items-center justify-center gap-2">
                   <Rocket className="w-5 h-5" />
-                  Start Your 30-Day Free Trial
+                  Start Your 60-Day Free Trial
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" />
                 </span>
               </motion.button>

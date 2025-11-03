@@ -282,7 +282,7 @@ export const Register: React.FC = () => {
             <p className="mt-2 text-gray-600">
               {inviteDetails 
                 ? `You've been invited to join ${inviteDetails.teamName} as a ${inviteDetails.role}`
-                : "Start your free 30-day trial"
+                : "Start your free 60-day trial"
               }
             </p>
           </div>

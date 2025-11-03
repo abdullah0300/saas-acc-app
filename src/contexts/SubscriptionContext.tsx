@@ -149,7 +149,7 @@ const showAnticipationModal = (type: 'usage' | 'feature' | 'trial', context?: an
       // If no subscription exists, create a trial (only for owners, not team members)
       if (!data && effectiveUserId === user.id) {
         const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + 30);
+        trialEnd.setDate(trialEnd.getDate() + 60);
 
         const { data: newSub, error: createError } = await supabase
           .from('subscriptions')

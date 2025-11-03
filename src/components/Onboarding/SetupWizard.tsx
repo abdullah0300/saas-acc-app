@@ -25,7 +25,6 @@ import {
 const SETUP_STEPS = [
   { id: 'business', title: 'Business Details', description: 'Tell us about your business' },
   { id: 'location', title: 'Location & Currency', description: 'Set your country and currency' },
-  { id: 'preferences', title: 'Preferences', description: 'Configure your settings' },
   { id: 'plan', title: 'Choose Plan', description: 'Select your subscription plan' }
 ];
 
@@ -43,23 +42,23 @@ interface Plan {
 }
 
 const PLANS: Plan[] = [
-  {
-    id: 'simple_start',
-    name: 'Simple Start',
-    monthlyPrice: 5,
-    yearlyPrice: 50,
-    icon: Rocket,
-    popular: true,
-    features: [
-      'AI-Powered Categorization',
-      '20 Monthly Invoices',
-      'Income & Expense Tracking',
-      'Smart Financial Reports',
-      'Client Management',
-      'Email Support'
-    ],
-    highlighted: ['AI-Powered Categorization', 'Smart Financial Reports']
-  },
+  // {
+  //   id: 'simple_start',
+  //   name: 'Simple Start',
+  //   monthlyPrice: 5,
+  //   yearlyPrice: 50,
+  //   icon: Rocket,
+  //   popular: true,
+  //   features: [
+  //     'AI-Powered Categorization',
+  //     '20 Monthly Invoices',
+  //     'Income & Expense Tracking',
+  //     'Smart Financial Reports',
+  //     'Client Management',
+  //     'Email Support'
+  //   ],
+  //   highlighted: ['AI-Powered Categorization', 'Smart Financial Reports']
+  // },
   {
     id: 'plus',
     name: 'Plus',
@@ -94,13 +93,14 @@ export const SetupWizard: React.FC = () => {
   const [formData, setFormData] = useState({
     industry: '',
     businessSize: '',
+    businessAge: '',
     companyName: '',
     country: '',
     state: '',
     currency: 'USD',
     dateFormat: 'MM/DD/YYYY',
     taxRate: 0,
-    plan: 'simple_start',
+    plan: '', // Start with no plan selected - user must click to select
     interval: 'monthly' as 'monthly' | 'yearly',
   });
 
@@ -215,9 +215,9 @@ export const SetupWizard: React.FC = () => {
           plan: formData.plan,
           interval: formData.interval,
           status: 'trialing',
-          trial_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+          trial_end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days
           current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          current_period_end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id',
@@ -307,10 +307,11 @@ export const SetupWizard: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Company Name (Optional)
+                Company Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                required
                 value={formData.companyName}
                 onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -319,39 +320,25 @@ export const SetupWizard: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                What industry are you in?
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                What industry are you in? <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  'Consulting',
-                  'E-commerce',
-                  'Software/SaaS',
-                  'Healthcare',
-                  'Construction',
-                  'Marketing',
-                  'Education',
-                  'Other'
-                ].map((industry) => (
-                  <button
-                    key={industry}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, industry }))}
-                    className={`p-3 text-left border rounded-lg transition-colors ${
-                      formData.industry === industry
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    {industry}
-                  </button>
-                ))}
-              </div>
+              <input
+                type="text"
+                required
+                value={formData.industry}
+                onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="e.g., Photographer in New York"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Please describe your business type and location (e.g., "Photographer in New York", "Software Development in London")
+              </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Business size
+                Business Size <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-1 gap-3">
                 {[
@@ -375,6 +362,33 @@ export const SetupWizard: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                How long has your business been operating? <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { value: 'startup', label: 'Just starting (0-6 months)' },
+                  { value: 'new', label: 'New business (6 months - 2 years)' },
+                  { value: 'established', label: 'Established (2-5 years)' },
+                  { value: 'mature', label: 'Mature business (5+ years)' }
+                ].map((age) => (
+                  <button
+                    key={age.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, businessAge: age.value }))}
+                    className={`p-3 text-left border rounded-lg transition-colors ${
+                      formData.businessAge === age.value
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {age.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         );
 
@@ -389,7 +403,7 @@ export const SetupWizard: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Country
+                Country <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.country}
@@ -411,12 +425,13 @@ export const SetupWizard: React.FC = () => {
             {hasStates && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  State/Province
+                  State/Province <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.state}
                   onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
                 >
                   <option value="">Select state/province</option>
                   {selectedCountry?.states?.map((state) => (
@@ -427,103 +442,38 @@ export const SetupWizard: React.FC = () => {
                 </select>
               </div>
             )}
-
-            {selectedCountry && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="font-medium text-green-900 mb-3">Automatic Settings</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-green-700">Currency:</span>
-                    <span className="font-medium text-green-900">{formData.currency}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-700">Date Format:</span>
-                    <span className="font-medium text-green-900">{formData.dateFormat}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-700">Default Tax Rate:</span>
-                    <span className="font-medium text-green-900">{formData.taxRate}%</span>
-                  </div>
-                  {selectedCountry.taxName && (
-                    <div className="flex justify-between">
-                      <span className="text-green-700">Tax Name:</span>
-                      <span className="font-medium text-green-900">{selectedCountry.taxName}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         );
 
-      case 2: // Preferences
+      case 2: // Plan Selection
         return (
           <div className="space-y-6">
-            <div className="text-center mb-8">
-              <Calendar className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Set your preferences</h2>
-              <p className="text-gray-600">Customize how you want to work</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Base Currency
-              </label>
-              <input
-                type="text"
-                value={formData.currency}
-                disabled
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Based on your country selection. You can add more currencies later.
+            {/* Prominent 60-Day Trial Banner */}
+            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 border border-indigo-200 rounded-2xl p-6 mb-6 text-center shadow-sm">
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Calendar className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    60-Day Free Trial
+                  </h3>
+                </div>
+              </div>
+              <p className="text-indigo-700 font-medium">
+                Start your journey risk-free! No credit card required.
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date Format
-              </label>
-              <select
-                value={formData.dateFormat}
-                onChange={(e) => setFormData(prev => ({ ...prev, dateFormat: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="MM/DD/YYYY">MM/DD/YYYY (US Format)</option>
-                <option value="DD/MM/YYYY">DD/MM/YYYY (UK Format)</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO Format)</option>
-              </select>
-            </div>
-
-            {formData.taxRate > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Default Tax Rate (%)
-                </label>
-                <input
-                  type="number"
-                  value={formData.taxRate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  This will be your default {selectedCountry?.taxName || 'tax'} rate for invoices.
-                </p>
-              </div>
-            )}
-          </div>
-        );
-
-      case 3: // Plan Selection
-        return (
-          <div className="space-y-6">
             <div className="text-center mb-8">
               <Star className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your plan</h2>
-              <p className="text-gray-600">Start with a 30-day free trial</p>
+              <p className="text-gray-600 mb-1">
+                60-day free trial included with every plan
+              </p>
+              <p className="text-sm text-red-500 font-medium">
+                * Please select a plan to continue
+              </p>
             </div>
 
             {/* Billing Toggle */}
@@ -554,25 +504,46 @@ export const SetupWizard: React.FC = () => {
             </div>
 
             {/* Plans */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {PLANS.map((plan) => {
+            <div className="flex justify-center">
+              <div className="w-full max-w-md">
+                {PLANS.map((plan) => {
                 const IconComponent = plan.icon;
                 const price = formData.interval === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
                 const originalPrice = formData.interval === 'yearly' ? plan.originalYearlyPrice : plan.originalMonthlyPrice;
                 const monthlyEquivalent = formData.interval === 'yearly' ? plan.yearlyPrice / 12 : plan.monthlyPrice;
                 const hasDiscount = !!originalPrice;
 
+                const isSelected = formData.plan === plan.id;
+
                 return (
                   <div
                     key={plan.id}
-                    className={`relative p-6 border-2 rounded-xl transition-all cursor-pointer ${
-                      formData.plan === plan.id
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    } ${plan.popular ? 'ring-2 ring-indigo-500 ring-opacity-20' : ''}`}
+                    className={`relative p-6 border-2 rounded-xl transition-all cursor-pointer transform ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-[1.02] ring-2 ring-indigo-200'
+                        : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
+                    }`}
                     onClick={() => setFormData(prev => ({ ...prev, plan: plan.id }))}
                   >
-                    {plan.popular && (
+                    {/* Selection Indicator */}
+                    {isSelected && (
+                      <div className="absolute top-4 right-4">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
+                          <Check className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Click to Select Indicator */}
+                    {!isSelected && (
+                      <div className="absolute top-4 right-4">
+                        <div className="w-8 h-8 border-2 border-gray-300 rounded-full flex items-center justify-center bg-white">
+                          <div className="w-3 h-3 border-2 border-gray-400 rounded-full"></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {plan.popular && !isSelected && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                         <span className="bg-indigo-500 text-white text-xs font-medium px-3 py-1 rounded-full">
                           Most Popular
@@ -580,18 +551,28 @@ export const SetupWizard: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="text-center mb-4">
-<div className="h-8 w-8 mx-auto mb-2 text-indigo-600 flex items-center justify-center">
-                        <IconComponent  />
+                    {isSelected && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-medium px-3 py-1 rounded-full shadow-md">
+                          Selected
+                        </span>
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+                    )}
+
+                    <div className="text-center mb-4">
+                      <div className="h-8 w-8 mx-auto mb-2 text-indigo-600 flex items-center justify-center">
+                        <IconComponent />
+                      </div>
+                      <h3 className={`text-lg font-semibold ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                        {plan.name}
+                      </h3>
                       <div className="mt-2">
                         {hasDiscount && (
                           <div className="text-lg text-gray-400 line-through mb-1">
                             ${originalPrice}
                           </div>
                         )}
-                        <span className="text-3xl font-bold text-gray-900">
+                        <span className={`text-3xl font-bold ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
                           ${price}
                         </span>
                         <span className="text-gray-500">
@@ -615,12 +596,12 @@ export const SetupWizard: React.FC = () => {
                         <li key={index} className="flex items-start gap-2">
                           <Check className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
                             plan.highlighted?.includes(feature) 
-                              ? 'text-indigo-600' 
+                              ? isSelected ? 'text-indigo-600' : 'text-indigo-500'
                               : 'text-green-500'
                           }`} />
                           <span className={`text-sm ${
                             plan.highlighted?.includes(feature) 
-                              ? 'text-indigo-700 font-medium' 
+                              ? isSelected ? 'text-indigo-800 font-medium' : 'text-indigo-700 font-medium'
                               : 'text-gray-600'
                           }`}>
                             {feature}
@@ -629,12 +610,22 @@ export const SetupWizard: React.FC = () => {
                       ))}
                     </ul>
 
-                    <div className="text-center">
-                      <span className="text-xs text-gray-500">30-day free trial included</span>
+                    {/* Prominent Trial Badge */}
+                    <div className="text-center mt-6 pt-4 border-t border-gray-200">
+                      <div className={`inline-flex items-center gap-2 ${
+                        isSelected 
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600' 
+                          : 'bg-gray-100'
+                      } text-white px-4 py-2.5 rounded-xl shadow-md transition-colors`}>
+                        <Calendar className="h-5 w-5" />
+                        <span className="font-semibold text-sm">60-Day Free Trial</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">No credit card required • Cancel anytime</p>
                     </div>
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
         );
@@ -733,7 +724,12 @@ export const SetupWizard: React.FC = () => {
           <button
             type="button"
             onClick={handleNext}
-            disabled={loading || (currentStep === 1 && !formData.country)}
+            disabled={
+              loading ||
+              (currentStep === 0 && (!formData.companyName || !formData.industry || !formData.businessSize || !formData.businessAge)) ||
+              (currentStep === 1 && (!formData.country || (hasStates && !formData.state))) ||
+              (currentStep === 2 && !formData.plan)
+            }
             className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (

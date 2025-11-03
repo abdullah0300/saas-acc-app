@@ -648,7 +648,7 @@ export const LandingPageAwwrd: React.FC = () => {
                 >
                   <span className="flex items-center justify-center gap-2">
                     <span className="text-sm sm:text-base">
-                      Start 30-Day Free Trial
+                      Start 60-Day Free Trial
                     </span>
                     <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
@@ -958,65 +958,8 @@ export const LandingPageAwwrd: React.FC = () => {
               </p>
             </motion.div>
 
-            <div className="grid md:grid-cols-2 gap-6 sm:gap-8 max-w-5xl mx-auto">
-              {/* Basic Plan */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -10, scale: 1.02 }}
-                className="relative bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl"
-              >
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                      Simple Start
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600">
-                      Perfect for freelancers
-                    </p>
-                  </div>
-                  <span className="px-2 sm:px-3 py-1 bg-green-500/10 text-green-600 text-[10px] sm:text-xs rounded-full font-semibold border border-green-500/30">
-                    POPULAR
-                  </span>
-                </div>
-
-                <div className="mb-6 sm:mb-8">
-                  <span className="text-4xl sm:text-5xl md:text-6xl font-black text-gray-900">
-                    $5
-                  </span>
-                  <span className="text-gray-600 ml-2 text-sm sm:text-base">
-                    /month
-                  </span>
-                </div>
-
-                <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                  {[
-                    "AI-Powered categorization",
-                    "20 monthly invoices",
-                    "Income & expense tracking",
-                    "Smart financial reports",
-                    "Client management",
-                    "Email support",
-                  ].map((item, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center gap-2 sm:gap-3 text-sm sm:text-base text-gray-700"
-                    >
-                      <Check className="w-4 sm:w-5 h-4 sm:h-5 text-green-500 flex-shrink-0" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={() => navigate("/register")}
-                  className="w-full py-3 sm:py-4 gradient-bg text-white rounded-full font-bold text-base sm:text-lg hover:shadow-lg transition-all"
-                >
-                  Start Free Trial
-                </button>
-              </motion.div>
-
+            <div className="flex justify-center">
+              <div className="max-w-3xl w-full">
               {/* Plus Plan */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -1024,49 +967,65 @@ export const LandingPageAwwrd: React.FC = () => {
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 }}
                 whileHover={{ y: -10, scale: 1.02 }}
-                className="relative bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-purple-500 shadow-2xl"
+                className="relative bg-white rounded-2xl sm:rounded-3xl p-8 sm:p-10 border-2 border-purple-500 shadow-2xl"
               >
                 <div className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2">
                   <span className="px-4 sm:px-6 py-1.5 sm:py-2 gradient-bg text-white text-xs sm:text-sm rounded-full font-bold shadow-xl">
-                    🚀 BEST VALUE
+                    60 Days Free Trial
                   </span>
                 </div>
 
-                <div className="flex justify-between items-start mb-6 mt-2 sm:mt-4">
+                <div className="grid md:grid-cols-2 gap-8 items-start">
+                  {/* Left side - Price and basic info */}
                   <div>
-                    <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                      Plus
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600">
-                      For growing businesses
-                    </p>
-                  </div>
-                  <Rocket className="w-6 sm:w-8 h-6 sm:h-8 text-purple-400" />
-                </div>
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                          Plus
+                        </h3>
+                        <p className="text-sm sm:text-base text-gray-600">
+                          For growing businesses
+                        </p>
+                      </div>
+                      <Rocket className="w-6 sm:w-8 h-6 sm:h-8 text-purple-400" />
+                    </div>
 
-                <div className="mb-2">
-                  <div className="text-lg sm:text-xl md:text-2xl text-gray-400 line-through mb-1">
-                    $25/month
+                    <div className="mb-6">
+                      <div className="text-lg sm:text-xl md:text-2xl text-gray-400 line-through mb-1">
+                        $25/month
+                      </div>
+                      <div>
+                        <span className="text-4xl sm:text-5xl md:text-6xl font-black text-gray-900">
+                          $12
+                        </span>
+                        <span className="text-gray-600 ml-2 text-sm sm:text-base">
+                          /month
+                        </span>
+                      </div>
+                      <div className="mt-3 inline-block px-3 sm:px-4 py-1 sm:py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-full text-xs sm:text-sm font-bold border border-green-500/30">
+                        Special Launch - Save 52%
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => navigate("/register")}
+                      className="w-full py-3 sm:py-4 gradient-bg text-white rounded-full font-bold text-base sm:text-lg shadow-xl shadow-purple-500/50 hover:shadow-2xl transition-all"
+                    >
+                      Start Free Trial
+                    </button>
                   </div>
+
+                  {/* Right side - Features */}
                   <div>
-                    <span className="text-4xl sm:text-5xl md:text-6xl font-black text-gray-900">
-                      $12
-                    </span>
-                    <span className="text-gray-600 ml-2 text-sm sm:text-base">
-                      /month
-                    </span>
-                  </div>
-                  <div className="mt-3 inline-block px-3 sm:px-4 py-1 sm:py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-full text-xs sm:text-sm font-bold border border-green-500/30">
-                    Special Launch - Save 52%
-                  </div>
-                </div>
-
-                <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 mt-6 sm:mt-8">
+                <ul className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                   {[
-                    { text: "Everything in Simple Start", highlight: false },
+                    { text: "AI-Powered categorization", highlight: false },
                     { text: "Unlimited invoices", highlight: true },
                     { text: "5 team members", highlight: false },
                     { text: "Advanced AI insights", highlight: true },
+                    { text: "Income & expense tracking", highlight: false },
+                    { text: "Smart financial reports", highlight: false },
+                    { text: "Client management", highlight: false },
                     { text: "Priority support", highlight: false },
                     { text: "Custom invoice branding", highlight: false },
                     { text: "Budget tracking", highlight: false },
@@ -1082,21 +1041,17 @@ export const LandingPageAwwrd: React.FC = () => {
                     </li>
                   ))}
                 </ul>
-
-                <button
-                  onClick={() => navigate("/register")}
-                  className="w-full py-3 sm:py-4 gradient-bg text-white rounded-full font-bold text-base sm:text-lg shadow-xl shadow-purple-500/50 hover:shadow-2xl transition-all"
-                >
-                  Start Free Trial
-                </button>
+                  </div>
+                </div>
               </motion.div>
+              </div>
             </div>
 
             <div className="text-center mt-8 sm:mt-12 px-4">
               <div className="inline-flex items-center gap-2 text-xs sm:text-sm text-gray-400">
                 <Shield className="w-4 sm:w-5 h-4 sm:h-5 text-green-400" />
                 <span className="text-center">
-                  30-day free trial • No credit card required • Cancel anytime
+                  60-day free trial • No credit card required • Cancel anytime
                 </span>
               </div>
             </div>

@@ -19,11 +19,11 @@ export const TrialExpiredModal: React.FC<TrialExpiredModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" />
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" />
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+        <div className="relative transform overflow-hidden rounded-2xl bg-white/95 backdrop-blur-lg px-4 pb-4 pt-5 text-left shadow-2xl border border-white/60 transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
           {/* Warning Icon */}
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
             <AlertTriangle className="h-10 w-10 text-red-600" />
@@ -37,7 +37,7 @@ export const TrialExpiredModal: React.FC<TrialExpiredModalProps> = ({
 
             <div className="mt-4">
               <p className="text-lg text-gray-600">
-                Your 30-day free trial of SmartCFO has ended.
+                Your 60-day free trial of SmartCFO has ended.
               </p>
               <p className="mt-2 text-gray-600">
                 You selected the{" "}

@@ -65,7 +65,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
     description: 'Perfect for freelancers and solopreneurs',
     monthlyPrice: 5,
     yearlyPrice: 48, // 20% discount
-    trialDays: 30,  
+    trialDays: 60,  
     limits: {
       users: 1,
       monthlyInvoices: 20, // CHANGED FROM 50 TO 20
@@ -114,7 +114,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, PlanConfig> = {
     yearlyPrice: 120, // PROMOTIONAL PRICE
     originalMonthlyPrice: 25,
     originalYearlyPrice: 240,
-    trialDays: 30,
+    trialDays: 60,
     limits: {
       users: 5, // unlimited users
       monthlyInvoices: -1, // unlimited
@@ -195,8 +195,8 @@ export const STRIPE_PRICE_IDS = {
     yearly: 'price_1RcoIWGO7FUbyUUTE4NsZ1Kk'
   },
   plus: {
-    monthly: 'price_1RoAIJGO7FUbyUUTJ3j20InB',  // ✅ NEW
-    yearly: 'price_1RoAIyGO7FUbyUUTvCuhXEid'   // ✅ NEW
+    monthly: 'price_1SPTPNGDwRPjsS1SiHjqlbx5',  // ✅ NEW
+    yearly: 'price_1SPTbvGDwRPjsS1SjAS1KelP'   // ✅ NEW
   }
 };
 

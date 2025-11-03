@@ -190,7 +190,7 @@ const exampleBlogContent = `
 </p>
 
 <p style="font-size: 18px; line-height: 1.7; margin-bottom: 20px;">
-  <strong>Ready to streamline your accounting?</strong> Try SmartCFO today and see how easy managing your business finances can be. Start your <em>30-day free trial</em> and take control of your financial future.
+  <strong>Ready to streamline your accounting?</strong> Try SmartCFO today and see how easy managing your business finances can be. Start your <em>60-day free trial</em> and take control of your financial future.
 </p>
 `;
 

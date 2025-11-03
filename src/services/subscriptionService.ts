@@ -40,9 +40,9 @@ class SubscriptionService {
               plan: 'simple_start',
               interval: 'monthly',
               status: 'active',
-              trial_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              trial_end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
               current_period_start: new Date().toISOString(),
-              current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+              current_period_end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
             }])
             .select()
             .single();

@@ -123,7 +123,8 @@ export const SubscriptionPlans: React.FC = () => {
     }
   };
 
-  const plans = Object.values(SUBSCRIPTION_PLANS);
+  // Filter out simple_start plan - only show Plus plan
+  const plans = Object.values(SUBSCRIPTION_PLANS).filter(plan => plan.id !== 'simple_start');
   const currentTrialDays = trialDaysLeft();
 
   // Plan icons
@@ -276,7 +277,8 @@ export const SubscriptionPlans: React.FC = () => {
       </div>
 
       {/* Plans grid */}
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="flex justify-center">
+        <div className="grid md:grid-cols-1 gap-8 max-w-md w-full">
         {plans.map((plan) => {
           const Icon = getPlanIcon(plan.id);
           const trialExpired = subscription?.trial_end
@@ -433,6 +435,7 @@ export const SubscriptionPlans: React.FC = () => {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Additional info */}

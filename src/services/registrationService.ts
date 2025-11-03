@@ -286,9 +286,9 @@ export class RegistrationService {
         plan: data.plan,
         interval: data.interval,
         status: 'trialing',
-        trial_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        trial_end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days
         current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        current_period_end: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };

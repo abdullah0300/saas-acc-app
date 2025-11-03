@@ -522,7 +522,7 @@ export const BlogManagerDashboard: React.FC = () => {
 
 <p style="font-size: 18px; line-height: 1.7; margin-bottom: 20px;">Effective accounting isn't just about compliance—it's about making informed decisions that drive your business forward. By implementing these tips and leveraging modern accounting tools, you'll have a clear picture of your financial health and be better positioned for growth.</p>
 
-<p style="font-size: 18px; line-height: 1.7; margin-bottom: 20px;"><strong>Ready to streamline your accounting?</strong> Try SmartCFO today and see how easy managing your business finances can be. Start your <em>30-day free trial</em> and take control of your financial future.</p>`;
+<p style="font-size: 18px; line-height: 1.7; margin-bottom: 20px;"><strong>Ready to streamline your accounting?</strong> Try SmartCFO today and see how easy managing your business finances can be. Start your <em>60-day free trial</em> and take control of your financial future.</p>`;
 
     try {
       setLoading(true);
