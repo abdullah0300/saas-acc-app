@@ -524,7 +524,7 @@ export const TermsOfService: React.FC = () => {
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="space-y-2 text-gray-700">
-                    <p><strong>Support:</strong> support@smartcfo.webcraftio.com</p>
+                    <p><strong>Support:</strong> info@smartcfo.webcraftio.com</p>
                   </div>
                 </div>
               </div>

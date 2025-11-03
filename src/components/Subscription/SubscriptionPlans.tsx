@@ -449,7 +449,7 @@ export const SubscriptionPlans: React.FC = () => {
         <p className="text-sm text-gray-600 mt-4">
           Need help choosing?{" "}
           <a
-            href="mailto:support@smartcfo.webcraftio.com"
+            href="mailto:info@smartcfo.webcraftio.com"
             className="text-blue-600 hover:underline"
           >
             Contact our sales team

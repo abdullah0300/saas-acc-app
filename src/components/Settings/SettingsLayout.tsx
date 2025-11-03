@@ -23,12 +23,14 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { useTeamPermissions } from "../../hooks/useTeamPermissions";
+import { useContactSupport } from "../../contexts/ContactSupportContext";
 
 export const SettingsLayout: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subscription } = useData();
   const { isOwner, isPlatformAdmin } = useTeamPermissions();
+  const { openContactSupport } = useContactSupport();
 
   // Check if we're on a specific settings page (mobile)
   const currentPath = window.location.pathname;
@@ -242,12 +244,12 @@ export const SettingsLayout: React.FC = () => {
             <p className="text-sm text-gray-600 mb-3">
               Check out our documentation or contact support.
             </p>
-            <a
-              href="mailto:support@smartcfo.webcraftio.com"
+            <button
+              onClick={openContactSupport}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
               Contact Support →
-            </a>
+            </button>
           </div>
 
           {/* Mobile Help Section */}
@@ -264,12 +266,12 @@ export const SettingsLayout: React.FC = () => {
               <p className="text-sm text-gray-600 mb-4 leading-relaxed">
                 Check out our documentation or contact support for assistance.
               </p>
-              <a
-                href="mailto:support@smartcfo.webcraftio.com"
+              <button
+                onClick={openContactSupport}
                 className="inline-flex items-center justify-center w-full px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors duration-200 active:scale-95"
               >
                 Contact Support
-              </a>
+              </button>
             </div>
           </div>
         </aside>

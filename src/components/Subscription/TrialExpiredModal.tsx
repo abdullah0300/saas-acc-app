@@ -2,6 +2,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CreditCard, X } from "lucide-react";
+import { useContactSupport } from "../../contexts/ContactSupportContext";
 
 interface TrialExpiredModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export const TrialExpiredModal: React.FC<TrialExpiredModalProps> = ({
   planName,
 }) => {
   const navigate = useNavigate();
+  const { openContactSupport } = useContactSupport();
 
   if (!isOpen) return null;
 
@@ -84,7 +86,7 @@ export const TrialExpiredModal: React.FC<TrialExpiredModalProps> = ({
 
           {/* Help text */}
           <p className="mt-4 text-center text-xs text-gray-500">
-            Need help? Contact us at support@smartcfo.webcraftio.com
+            Need help? <button onClick={openContactSupport} className="text-blue-600 hover:text-blue-700 underline">Contact Support</button>
           </p>
         </div>
       </div>

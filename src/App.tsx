@@ -85,6 +85,7 @@ import { BlogPost } from './components/Blog/BlogPost';
 import SEOManagerDashboard from './components/Admin/SEOManager/SEOManagerDashboard';
 import BlogManagerDashboard from './components/Admin/BlogManager/BlogManagerDashboard';
 import { SitemapPage } from './components/Sitemap/SitemapPage';
+import { ContactSupportProvider } from './contexts/ContactSupportContext';
 
 // Debug: Log environment variables
 console.log('🔧 App.tsx Environment Debug:');
@@ -118,7 +119,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <AuthProvider>
-          <AppRoutes />
+          <ContactSupportProvider>
+            <AppRoutes />
+          </ContactSupportProvider>
         </AuthProvider>
       </Router>
       

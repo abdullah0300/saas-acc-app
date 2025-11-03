@@ -4,12 +4,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { stripeService } from "../../services/stripeService";
 import { useSubscription } from "../../contexts/SubscriptionContext";
+import { useContactSupport } from "../../contexts/ContactSupportContext";
 
 export const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const { refreshSubscription } = useSubscription();
+  const { openContactSupport } = useContactSupport();
 
   const [verifying, setVerifying] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +90,12 @@ export const PaymentSuccess: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Verification Issue
           </h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 mb-2">{error}</p>
+          <p className="text-sm text-gray-500 mb-6">
+            <button onClick={openContactSupport} className="text-blue-600 hover:text-blue-700 underline">
+              Contact Support
+            </button> if you need assistance.
+          </p>
           <button
             onClick={() => navigate("/dashboard")}
             className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

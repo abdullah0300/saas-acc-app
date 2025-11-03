@@ -285,7 +285,7 @@ export const PrivacyPolicy: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">How to Exercise Your Rights</h3>
                   <p className="text-gray-700">
-                    To exercise any of these rights, contact us at support@smartcfo.webcraftio.com or use
+                    To exercise any of these rights, contact us at info@smartcfo.webcraftio.com or use
                     the data export/deletion tools in your account settings. We will respond
                     within 30 days of receiving your request.
                   </p>
@@ -361,7 +361,7 @@ export const PrivacyPolicy: React.FC = () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="space-y-2 text-gray-700">
                     
-                    <p><strong>Support:</strong> support@smartcfo.webcraftio.com</p>
+                    <p><strong>Support:</strong> info@smartcfo.webcraftio.com</p>
                   </div>
                 </div>
               </div>
