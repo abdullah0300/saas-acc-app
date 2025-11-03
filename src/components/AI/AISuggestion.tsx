@@ -7,7 +7,7 @@ interface AISuggestionProps {
     confidence: number;
     reason: string;   
     
-  };
+  };    
   onAccept: (category: string) => void;
   onReject: () => void;
   loading?: boolean;
