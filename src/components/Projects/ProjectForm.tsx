@@ -147,14 +147,14 @@ export const ProjectForm: React.FC = () => {
   };
 
   const colorOptions = [
-    { value: '#6366F1', label: 'Indigo' },
-    { value: '#8B5CF6', label: 'Purple' },
-    { value: '#EC4899', label: 'Pink' },
-    { value: '#10B981', label: 'Green' },
-    { value: '#F59E0B', label: 'Amber' },
-    { value: '#EF4444', label: 'Red' },
-    { value: '#3B82F6', label: 'Blue' },
-    { value: '#14B8A6', label: 'Teal' }
+    { value: '#6366F1', label: 'Indigo', class: 'project-color-btn-indigo' },
+    { value: '#8B5CF6', label: 'Purple', class: 'project-color-btn-purple' },
+    { value: '#EC4899', label: 'Pink', class: 'project-color-btn-pink' },
+    { value: '#10B981', label: 'Green', class: 'project-color-btn-green' },
+    { value: '#F59E0B', label: 'Amber', class: 'project-color-btn-amber' },
+    { value: '#EF4444', label: 'Red', class: 'project-color-btn-red' },
+    { value: '#3B82F6', label: 'Blue', class: 'project-color-btn-blue' },
+    { value: '#14B8A6', label: 'Teal', class: 'project-color-btn-teal' }
   ];
 
   if (loading) {
@@ -288,12 +288,11 @@ export const ProjectForm: React.FC = () => {
                       key={color.value}
                       type="button"
                       onClick={() => setFormData({ ...formData, color: color.value })}
-                      className={`w-12 h-12 rounded-xl transition-all ${
+                      className={`w-12 h-12 rounded-xl transition-all ${color.class} ${
                         formData.color === color.value
                           ? 'ring-4 ring-purple-300 scale-110'
                           : 'hover:scale-105'
                       }`}
-                      style={{ backgroundColor: color.value }}
                       title={color.label}
                     />
                   ))}

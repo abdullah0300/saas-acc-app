@@ -116,3 +116,36 @@ code {
 #export-dropdown-portal::-webkit-scrollbar-thumb:hover {
   background: rgba(156, 163, 175, 0.6);
 }
+
+/* Project Color Buttons - Unique classes to prevent conflicts */
+.project-color-btn-indigo {
+  background-color: #6366F1 !important;
+}
+
+.project-color-btn-purple {
+  background-color: #8B5CF6 !important;
+}
+
+.project-color-btn-pink {
+  background-color: #EC4899 !important;
+}
+
+.project-color-btn-green {
+  background-color: #10B981 !important;
+}
+
+.project-color-btn-amber {
+  background-color: #F59E0B !important;
+}
+
+.project-color-btn-red {
+  background-color: #EF4444 !important;
+}
+
+.project-color-btn-blue {
+  background-color: #3B82F6 !important;
+}
+
+.project-color-btn-teal {
+  background-color: #14B8A6 !important;
+}

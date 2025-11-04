@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Briefcase, TrendingUp, TrendingDown, Calendar, Users, X, ChevronDown, Copy } from 'lucide-react';
+import { Plus, Search, Briefcase, TrendingUp, TrendingDown, Calendar, Users, X, ChevronDown, Copy, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
-import { getProjects, updateProject, duplicateProject } from '../../services/database';
+import { getProjects, updateProject, duplicateProject, deleteProject } from '../../services/database';
 import type { Project } from '../../services/database';
 
 // Budget Progress Component for Project Cards
@@ -151,6 +151,23 @@ export const ProjectsList: React.FC = () => {
     setDuplicateModalOpen(true);
   };
 
+  const handleDelete = async (e: React.MouseEvent, projectId: string, projectName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!window.confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteProject(projectId);
+      await loadProjects();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      alert('Failed to delete project. Please try again.');
+    }
+  };
+
   const confirmDuplicate = async () => {
     if (!user || !projectToDuplicate) return;
 
@@ -284,7 +301,14 @@ export const ProjectsList: React.FC = () => {
                   <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-purple-200 transform hover:scale-[1.02]">
                     {/* Card Header with Gradient */}
                     <div
-                      className={`p-6 bg-gradient-to-r ${getStatusColor(project.status)} text-white relative overflow-hidden`}
+                      className={`p-6 text-white relative overflow-hidden ${
+                        project.color 
+                          ? '' 
+                          : `bg-gradient-to-r ${getStatusColor(project.status)}`
+                      }`}
+                      style={project.color ? {
+                        background: `linear-gradient(to right, ${project.color}, ${project.color}dd)`
+                      } : undefined}
                     >
                       {/* Background Pattern */}
                       <div className="absolute inset-0 opacity-10">
@@ -308,6 +332,15 @@ export const ProjectsList: React.FC = () => {
 
                           {/* Actions */}
                           <div className="flex items-center gap-2 flex-shrink-0 relative z-10">
+                            {/* Delete Button */}
+                            <button
+                              onClick={(e) => handleDelete(e, project.id, project.name)}
+                              className="p-2 bg-white/20 hover:bg-red-500/30 rounded-lg transition-colors"
+                              title="Delete project"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+
                             {/* Duplicate Button */}
                             <button
                               onClick={(e) => handleDuplicate(e, project.id, project.name)}
@@ -418,6 +451,31 @@ export const ProjectsList: React.FC = () => {
                           </div>
                         </div>
                       </div>
+
+                      {/* Remaining from Client */}
+                      {project.budget_amount && project.budget_amount > 0 && (() => {
+                        const budgetCurrency = project.budget_currency || baseCurrency;
+                        const budgetAmount = project.budget_amount || 0;
+                        let budgetInBaseCurrency = budgetAmount;
+                        
+                        if (budgetCurrency !== baseCurrency && exchangeRates?.[budgetCurrency]) {
+                          budgetInBaseCurrency = budgetAmount / exchangeRates[budgetCurrency];
+                        }
+                        
+                        const remainingFromClient = budgetInBaseCurrency - stats.total_income;
+                        
+                        return (
+                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                            <div className="text-xs text-blue-600 font-medium mb-1">Remaining from Client</div>
+                            <div className={`text-lg font-bold ${remainingFromClient > 0 ? 'text-blue-700' : 'text-green-700'}`}>
+                              {formatCurrency(remainingFromClient, baseCurrency)}
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">
+                              Budget: {formatCurrency(budgetAmount, budgetCurrency)}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Budget Progress (if budget exists) */}
                       {project.budget_amount && project.budget_amount > 0 && (

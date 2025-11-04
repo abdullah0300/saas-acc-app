@@ -240,7 +240,14 @@ export const ProjectDetail: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Project Header with Gradient */}
           <div
-            className={`p-8 bg-gradient-to-r ${getStatusColor(project.status)} text-white relative overflow-hidden`}
+            className={`p-8 text-white relative overflow-hidden ${
+              project.color 
+                ? '' 
+                : `bg-gradient-to-r ${getStatusColor(project.status)}`
+            }`}
+            style={project.color ? {
+              background: `linear-gradient(to right, ${project.color}, ${project.color}dd)`
+            } : undefined}
           >
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-10">
@@ -333,7 +340,7 @@ export const ProjectDetail: React.FC = () => {
 
           {/* Stats Cards */}
           <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               {/* Profit */}
               <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
                 <div className="flex items-center justify-between mb-2">
@@ -393,6 +400,34 @@ export const ProjectDetail: React.FC = () => {
                   {stats.paid_invoice_count} of {stats.invoice_count} paid
                 </div>
               </div>
+
+              {/* Remaining from Client */}
+              {project.budget_amount && project.budget_amount > 0 && (() => {
+                const budgetCurrency = project.budget_currency || baseCurrency;
+                const budgetAmount = project.budget_amount || 0;
+                let budgetInBaseCurrency = budgetAmount;
+                
+                if (budgetCurrency !== baseCurrency && exchangeRates?.[budgetCurrency]) {
+                  budgetInBaseCurrency = budgetAmount / exchangeRates[budgetCurrency];
+                }
+                
+                const remainingFromClient = budgetInBaseCurrency - stats.total_income;
+                
+                return (
+                  <div className="bg-amber-50 rounded-xl p-6 border border-amber-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-amber-600">Remaining from Client</span>
+                      <DollarSign className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div className={`text-2xl font-bold ${remainingFromClient > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                      {formatCurrency(remainingFromClient, baseCurrency)}
+                    </div>
+                    <div className="text-sm text-amber-600 mt-1">
+                      Budget: {formatCurrency(budgetAmount, budgetCurrency)}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
