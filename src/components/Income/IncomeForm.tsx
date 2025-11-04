@@ -521,7 +521,7 @@ if (!isUserSettingsReady) {
                 <option value="">Select a client (optional)</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
-                    {client.name}
+                    {client.name}{client.company_name ? ` (${client.company_name})` : ''}
                   </option>
                 ))}
               </select>
