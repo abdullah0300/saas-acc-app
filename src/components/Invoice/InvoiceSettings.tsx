@@ -172,8 +172,13 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      
+      {/* Modal */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative transform overflow-hidden rounded-2xl bg-white/95 backdrop-blur-lg w-full max-w-4xl max-h-[90vh] shadow-2xl border border-white/60 transition-all">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Invoice Settings</h2>
           <button
@@ -579,6 +584,7 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
             <Save className="h-4 w-4 mr-2" />
             {loading ? 'Saving...' : 'Save Settings'}
           </button>
+        </div>
         </div>
       </div>
     </div>

@@ -690,6 +690,7 @@ const handleSaveAsTemplate = async () => {
     const client = await createClient({
       user_id: effectiveUserId || user.id,
       name: newClientData.name.trim(),
+      company_name: newClientData.company_name || undefined,
       email: newClientData.email || undefined,
       phone: newClientData.phone || undefined,
       phone_country_code: newClientData.phone_country_code,
@@ -1992,17 +1993,24 @@ if (!isUserSettingsReady) {
       )}
       {/* Invoice Settings Modal - ADD THIS HERE */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <InvoiceSettings onClose={() => setShowSettings(false)} />
-          </div>
-        </div>
+        <InvoiceSettings onClose={() => setShowSettings(false)} />
       )}
       
       {/* Client Creation Modal */}
       {showClientModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full">
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" 
+            onClick={() => {
+              setShowClientModal(false);
+              setNewClientData({ name: '', company_name: '', email: '', phone: '', phone_country_code: '+1', address: '' });
+            }} 
+          />
+          
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative transform overflow-hidden rounded-2xl bg-white/95 backdrop-blur-lg max-w-md w-full shadow-2xl border border-white/60 transition-all">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Add New Client</h3>
@@ -2121,6 +2129,7 @@ if (!isUserSettingsReady) {
               >
                 {isAddingClient ? 'Creating...' : 'Create Client'}
               </button>
+            </div>
             </div>
           </div>
         </div>
