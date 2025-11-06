@@ -41,7 +41,11 @@ const BudgetProgress: React.FC<{
     budgetInBaseCurrency = budgetAmount / exchangeRates[budgetCurrency];
   }
 
-  const percentageUsed = budgetInBaseCurrency > 0 ? (stats.total_expenses / budgetInBaseCurrency) * 100 : 0;
+  // Calculate remaining budget (in base currency for accurate comparison)
+  // Remaining Budget = Budget - Expenses
+  const expensesInBase = stats.total_expenses || 0;
+  const remainingBudget = budgetInBaseCurrency - expensesInBase;
+  const percentageUsed = budgetInBaseCurrency > 0 ? (expensesInBase / budgetInBaseCurrency) * 100 : 0;
 
   return (
     <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -50,38 +54,58 @@ const BudgetProgress: React.FC<{
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600">Expenses</span>
           <span className="font-semibold text-gray-900">
-            {formatCurrency(stats.total_expenses, baseCurrency)}
+            {formatCurrency(expensesInBase, baseCurrency)}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600">Budget</span>
           <span className="font-semibold text-gray-900">
             {formatCurrency(budgetAmount, budgetCurrency)}
+            {budgetCurrency !== baseCurrency && (
+              <span className="text-xs text-gray-500 ml-1">
+                ({formatCurrency(budgetInBaseCurrency, baseCurrency)})
+              </span>
+            )}
           </span>
         </div>
-        {budgetCurrency !== baseCurrency && (
-          <div className="text-xs text-gray-500 text-right">
-            ({percentageUsed.toFixed(1)}% used)
-          </div>
-        )}
+        <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-200">
+          <span className="text-gray-600 font-medium">Remaining Budget</span>
+          <span className={`font-semibold ${remainingBudget >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(remainingBudget, baseCurrency)}
+          </span>
+        </div>
         <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
           <div
             className={`h-3 rounded-full transition-all duration-300 ${
-              percentageUsed > 90
+              percentageUsed > 100
+                ? 'bg-gradient-to-r from-red-500 to-red-600'
+                : percentageUsed > 90
                 ? 'bg-gradient-to-r from-red-500 to-red-600'
                 : percentageUsed > 75
                 ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
                 : 'bg-gradient-to-r from-green-500 to-emerald-600'
             }`}
             style={{
-              width: `${Math.min(100, percentageUsed)}%`
+              width: `${Math.min(100, Math.max(0, percentageUsed))}%`
             }}
           />
         </div>
-        {percentageUsed > 90 && (
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>{percentageUsed.toFixed(1)}% used</span>
+          {percentageUsed > 100 && (
+            <span className="text-red-600 font-medium">
+              {Math.abs(percentageUsed - 100).toFixed(1)}% over budget
+            </span>
+          )}
+        </div>
+        {(percentageUsed > 90 || percentageUsed > 100) && (
           <div className="flex items-start gap-2 mt-2 p-2 bg-red-50 rounded-lg">
             <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-red-800">Budget limit exceeded or nearly reached</p>
+            <p className="text-xs text-red-800">
+              {percentageUsed > 100 
+                ? 'Budget exceeded! Please review expenses.' 
+                : 'Budget limit nearly reached'}
+            </p>
           </div>
         )}
       </div>
@@ -340,7 +364,7 @@ export const ProjectDetail: React.FC = () => {
 
           {/* Stats Cards */}
           <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Profit */}
               <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
                 <div className="flex items-center justify-between mb-2">
@@ -359,10 +383,10 @@ export const ProjectDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Revenue */}
+              {/* Income */}
               <div className="bg-green-50 rounded-xl p-6 border border-green-100">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-green-600">Revenue</span>
+                  <span className="text-sm font-medium text-green-600">Income</span>
                   <DollarSign className="h-5 w-5 text-green-600" />
                 </div>
                 <div className="text-2xl font-bold text-green-700">
@@ -384,20 +408,6 @@ export const ProjectDetail: React.FC = () => {
                 </div>
                 <div className="text-sm text-red-600 mt-1">
                   {stats.expense_count} transaction{stats.expense_count !== 1 ? 's' : ''}
-                </div>
-              </div>
-
-              {/* Invoices */}
-              <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-blue-600">Invoices</span>
-                  <FileText className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="text-2xl font-bold text-blue-700">
-                  {formatCurrency(stats.invoice_total, baseCurrency)}
-                </div>
-                <div className="text-sm text-blue-600 mt-1">
-                  {stats.paid_invoice_count} of {stats.invoice_count} paid
                 </div>
               </div>
 

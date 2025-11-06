@@ -138,14 +138,35 @@ export const getIncomes = async (userId: string, startDate?: string, endDate?: s
     .eq('user_id', effectiveUserId)
     .order('date', { ascending: false });
 
-  if (startDate) {
-    query = query.gte('date', startDate);
-  }
-  if (endDate) {
-    query = query.lte('date', endDate);
+  // For exact date matches (single date), use .eq() instead of .gte()/.lte()
+  // This is more accurate and follows Supabase best practices
+  if (startDate && endDate && startDate === endDate) {
+    // Extract just the date part (YYYY-MM-DD) to handle any timezone/time components
+    const dateOnly = startDate.split('T')[0].split(' ')[0];
+    query = query.eq('date', dateOnly);
+  } else {
+    // For date ranges, use .gte() and .lte()
+    if (startDate) {
+      const dateOnly = startDate.split('T')[0].split(' ')[0];
+      query = query.gte('date', dateOnly);
+    }
+    if (endDate) {
+      const dateOnly = endDate.split('T')[0].split(' ')[0];
+      query = query.lte('date', dateOnly);
+    }
   }
 
   const { data, error } = await query;
+  
+  // Debug logging for date queries
+  if (startDate || endDate) {
+    console.log('[getIncomes] Query params - startDate:', startDate, 'endDate:', endDate);
+    console.log('[getIncomes] Query result - count:', data?.length || 0, 'error:', error);
+    if (data && data.length > 0) {
+      console.log('[getIncomes] Sample dates from results:', data.slice(0, 3).map((inc: any) => ({ id: inc.id, date: inc.date, description: inc.description })));
+    }
+  }
+  
   if (error) throw error;
   return data as Income[];
 };
@@ -589,31 +610,87 @@ export const createInvoice = async (
     );
   }
   
-  // Use atomic creation - DON'T pass invoice_number, it will be generated
+  // Clean invoice data - remove fields that will be generated/set
   const invoiceData = { ...invoice };
-  delete invoiceData.invoice_number; // Remove if exists
+  delete invoiceData.invoice_number; // Will be generated
+  delete invoiceData.status; // Will be set to 'draft' in direct insert
   
-  const { data, error } = await supabase
-    .rpc('create_invoice_atomic', {
-      p_invoice: {
-        ...invoiceData,
-        user_id: effectiveUserId
-      },
-      p_items: items.map(item => ({
-        description: item.description,
-        quantity: item.quantity || 1,
-        rate: item.rate || 0,
-        amount: item.amount || 0,
-        tax_rate: item.tax_rate || 0,
-        tax_amount: item.tax_amount || 0,
-        net_amount: item.net_amount || item.amount || 0,
-        gross_amount: item.gross_amount || ((item.amount || 0) + (item.tax_amount || 0))
-      }))
-    });
+  // Get next invoice number
+  const invoiceNumber = await getNextInvoiceNumber(userId);
   
-  if (error) {
-    console.error('Invoice creation error:', error);
-    throw error;
+  // Direct insert (same as InvoiceForm) - avoids RPC function enum issues
+  const { data: newInvoice, error: insertError } = await supabase
+    .from('invoices')
+    .insert({
+      ...invoiceData,
+      user_id: effectiveUserId,
+      invoice_number: invoiceNumber,
+      status: 'draft', // Direct insert accepts string, database handles enum conversion
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select(`
+      *,
+      client:clients(*),
+      items:invoice_items(*)
+    `)
+    .single();
+  
+  if (insertError) {
+    console.error('Invoice creation error:', insertError);
+    throw insertError;
+  }
+  
+  // Insert invoice items if provided
+  if (items && items.length > 0) {
+    const invoiceItems = items.map(item => ({
+      invoice_id: newInvoice.id,
+      description: item.description,
+      quantity: item.quantity || 1,
+      rate: item.rate || 0,
+      amount: item.amount || 0,
+      tax_rate: item.tax_rate || 0,
+      tax_amount: item.tax_amount || 0,
+      net_amount: item.net_amount || item.amount || 0,
+      gross_amount: item.gross_amount || ((item.amount || 0) + (item.tax_amount || 0))
+    }));
+    
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .insert(invoiceItems);
+    
+    if (itemsError) {
+      // If items fail, try to clean up the invoice
+      await supabase.from('invoices').delete().eq('id', newInvoice.id);
+      throw itemsError;
+    }
+    
+    // Fetch the complete invoice with items
+    const { data: completeInvoice, error: fetchError } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        client:clients(*),
+        items:invoice_items(*)
+      `)
+      .eq('id', newInvoice.id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    // Check usage warning (keep existing code)
+    const currentUsage = limitCheck.usage + 1;
+    const usagePercentage = (currentUsage / limitCheck.limit) * 100;
+    if (usagePercentage >= 80 && usagePercentage < 100) {
+      window.dispatchEvent(new CustomEvent('invoiceCreated', { 
+        detail: { 
+          usage: currentUsage, 
+          limit: limitCheck.limit 
+        } 
+      }));
+    }
+    
+    return completeInvoice as Invoice;
   }
   
   // Check usage warning (keep existing code)
@@ -628,7 +705,7 @@ export const createInvoice = async (
     }));
   }
   
-  return data as Invoice;
+  return newInvoice as Invoice;
 };
 
 export const updateInvoice = async (id: string, updates: any, items?: any[]) => {

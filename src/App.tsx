@@ -86,6 +86,7 @@ import SEOManagerDashboard from './components/Admin/SEOManager/SEOManagerDashboa
 import BlogManagerDashboard from './components/Admin/BlogManager/BlogManagerDashboard';
 import { SitemapPage } from './components/Sitemap/SitemapPage';
 import { ContactSupportProvider } from './contexts/ContactSupportContext';
+import { AIChatWidget } from './components/AI/AIChatWidget';
 
 // Debug: Log environment variables
 console.log('🔧 App.tsx Environment Debug:');
@@ -117,13 +118,14 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <AuthProvider>
-          <ContactSupportProvider>
-            <AppRoutes />
-          </ContactSupportProvider>
-        </AuthProvider>
-      </Router>
+              <Router>
+          <AuthProvider>
+            <ContactSupportProvider>
+              <AppRoutes />
+              <AIChatWidget />
+            </ContactSupportProvider>
+          </AuthProvider>
+        </Router>
       
       {/* React Query DevTools - only in development */}
       {process.env.NODE_ENV === 'development' && (

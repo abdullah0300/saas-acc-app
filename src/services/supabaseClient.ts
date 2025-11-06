@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
-    debug: process.env.NODE_ENV === 'development'
+    debug: false
   }
 });
 
@@ -25,6 +25,6 @@ export const supabaseRecovery = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'implicit',
-    debug: process.env.NODE_ENV === 'development'
+    debug: false
   }
 });
