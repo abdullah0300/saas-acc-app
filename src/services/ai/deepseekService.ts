@@ -211,7 +211,6 @@ const buildSystemPrompt = async (userId: string): Promise<string> => {
 # User Context
 - Base Currency: ${userSettings.base_currency || 'USD'}
 - Country: ${userSettings.country || 'US'}
-- Business Name: ${userSettings.business_name || 'User'}
 - Default Tax Rate: ${invoiceSettings.default_tax_rate || 0}%
 `;
 
@@ -271,7 +270,7 @@ const executeToolCall = async (
 /**
  * Main chat function
  */
-export const chatWithDeepSeek = async (
+export const sendMessageToDeepSeek = async (
   messages: ChatMessage[],
   userId: string,
   conversationId: string
@@ -320,7 +319,7 @@ export const chatWithDeepSeek = async (
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       console.log('[DeepSeek] Tool calls detected:', assistantMessage.tool_calls.length);
 
-      const toolResults = [];
+      const toolResults: { toolName: string; result: any }[] = [];
 
       // Execute each tool call
       for (const toolCall of assistantMessage.tool_calls) {
