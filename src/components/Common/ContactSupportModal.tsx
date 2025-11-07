@@ -1,7 +1,6 @@
 // src/components/Common/ContactSupportModal.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { X, Mail, MessageCircle } from "lucide-react";
-import { LiveChatPopup } from "./LiveChatPopup";
 
 interface ContactSupportModalProps {
   isOpen: boolean;
@@ -13,15 +12,16 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
   onClose,
 }) => {
   const supportEmail = "info@smartcfo.webcraftio.com";
-  const [showChatPopup, setShowChatPopup] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      // Initialize Tawk.to if not already loaded
+      if (window.Tawk_API) {
+        // Tawk.to is already loaded
+      }
     } else {
       document.body.style.overflow = "unset";
-      // Close chat popup if contact modal closes
-      setShowChatPopup(false);
     }
 
     return () => {
@@ -30,20 +30,18 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
   }, [isOpen]);
 
   const handleChatClick = () => {
-    // Close contact modal and open chat popup
+    if (window.Tawk_API) {
+      // Show widget first, then maximize it
+      window.Tawk_API.showWidget();
+      window.Tawk_API.maximize();
+    }
     onClose();
-    setShowChatPopup(true);
   };
 
-  const handleCloseChatPopup = () => {
-    setShowChatPopup(false);
-  };
+  if (!isOpen) return null;
 
   return (
-    <>
-      {/* Contact Support Modal */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
@@ -117,11 +115,20 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
         </div>
       </div>
     </div>
-      )}
-
-      {/* Live Chat Popup */}
-      <LiveChatPopup isOpen={showChatPopup} onClose={handleCloseChatPopup} />
-    </>
   );
 };
+
+// Extend Window interface for Tawk.to
+declare global {
+  interface Window {
+    Tawk_API?: {
+      maximize: () => void;
+      minimize: () => void;
+      toggle: () => void;
+      showWidget: () => void;
+      hideWidget: () => void;
+      [key: string]: any;
+    };
+  }
+}
 

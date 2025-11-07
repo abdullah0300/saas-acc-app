@@ -41,21 +41,9 @@
   <!--Start of Tawk.to Script-->
   <script type="text/javascript">
     var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-    // Hide widget by default and prevent any notifications/icons
+    // Hide widget by default - will be shown when user clicks "Start Live Chat"
     Tawk_API.onLoad = function(){
       Tawk_API.hideWidget();
-      // Disable all notifications and badges
-      if (Tawk_API.setAttributes) {
-        Tawk_API.setAttributes({
-          hideWidget: true,
-          widgetPosition: 'br'
-        });
-      }
-    };
-    // Prevent widget from showing automatically
-    Tawk_API.visitor = {
-      name: '',
-      email: ''
     };
     (function(){
       var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
@@ -67,26 +55,6 @@
     })();
   </script>
   <!--End of Tawk.to Script-->
-  
-  <!-- Global CSS to always hide Tawk widget by default -->
-  <style id="tawk-global-hide">
-    /* Hide all Tawk elements globally - will be overridden in popup */
-    #tawkchat-container,
-    #tawkchat-container *,
-    iframe[id*="tawk"],
-    iframe[src*="tawk.to"],
-    div[id*="tawk"],
-    div[class*="tawk"],
-    div[id*="tawkchat"],
-    div[class*="tawkchat"] {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-      position: fixed !important;
-      z-index: -1 !important;
-    }
-  </style>
 </head>
 
 <body>
