@@ -1,7 +1,7 @@
 /**
  * Budget-specific AI Instructions
  * Rules for handling budget operations
- */
+ */   
 
 export const budgetInstructions = `
 # Budget Management
