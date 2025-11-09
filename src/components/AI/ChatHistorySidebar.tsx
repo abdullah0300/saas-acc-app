@@ -112,7 +112,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             className="w-full flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            <span>New Chat</span>
+            <span>New</span>
           </button>
         </div>
 

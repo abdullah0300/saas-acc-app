@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient';
 
-export type PendingActionType = 'expense' | 'income' | 'invoice' | 'query' | 'project' | 'client';
+export type PendingActionType = 'expense' | 'income' | 'invoice' | 'query' | 'project' | 'client' | 'budget';
 
 export interface PendingAction {
   id: string;

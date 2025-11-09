@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageCircle, X, Send, Loader2, RefreshCw, Menu, Minimize2, Maximize2, MessageSquare, Trash2, Plus, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { getUserConversation, addMessage, getConversationHistory, type ChatMessage, createConversation, updateConversationStatus, getConversation, getUserConversations, getConversationTitle, deleteConversation, type ChatConversation } from '../../services/ai/chatConversationService';
 import { sendMessageToDeepSeek } from '../../services/ai/deepseekService';
 import { checkCredits, useCredit as consumeCredit, getCreditsRemaining } from '../../services/ai/creditsService';
 import { getLatestPendingAction } from '../../services/ai/pendingActionsService';
-import { getUserSettings } from '../../services/ai/userSettingsService';
-import { supabase } from '../../services/supabaseClient';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
 import { AIPreviewCard } from './AIPreviewCard';
@@ -16,6 +15,18 @@ import { formatDistanceToNow } from 'date-fns';
 
 export const AIChatWidget: React.FC = () => {
   const { user } = useAuth();
+  // Now safely inside SettingsProvider - always has access to exchange rates
+  const { exchangeRates } = useSettings();
+
+  // Log exchange rates availability for debugging
+  useEffect(() => {
+    console.log('[AIChatWidget] ✓ Exchange rates loaded:', Object.keys(exchangeRates).length, 'currencies');
+    if (Object.keys(exchangeRates).length > 0) {
+      console.log('[AIChatWidget] Available currencies:', Object.keys(exchangeRates).join(', '));
+    } else {
+      console.log('[AIChatWidget] No exchange rates loaded yet (might still be fetching)');
+    }
+  }, [exchangeRates]);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -23,7 +34,6 @@ export const AIChatWidget: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [creditsRemaining, setCreditsRemaining] = useState<number>(0);
   const [creditsLoading, setCreditsLoading] = useState(true);
-  const [userContext, setUserContext] = useState<Record<string, any>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Chat history - integrated in popup
@@ -89,7 +99,6 @@ export const AIChatWidget: React.FC = () => {
     if (user && isOpen) {
       loadActiveConversation();
       loadCredits();
-      loadUserContext();
       loadConversations();
     }
   }, [user, isOpen]);
@@ -108,54 +117,6 @@ export const AIChatWidget: React.FC = () => {
     }
   };
 
-  // Load user context (currency, onboarding details) for AI
-  const loadUserContext = async () => {
-    if (!user) return;
-
-    try {
-      const userSettings = await getUserSettings(user.id);
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_name')
-        .eq('id', user.id)
-        .single();
-
-      const { data: aiContext } = await supabase
-        .from('ai_user_context')
-        .select('business_type, location, business_stage, monthly_revenue_range, patterns_json, preferences_json')
-        .eq('user_id', user.id)
-        .single();
-
-      const context: Record<string, any> = {
-        base_currency: userSettings.base_currency || 'USD',
-        enabled_currencies: userSettings.enabled_currencies || [userSettings.base_currency || 'USD'],
-        country: userSettings.country || null,
-        date_format: userSettings.date_format || 'YYYY-MM-DD',
-        company_name: profile?.company_name || null,
-      };
-
-      if (aiContext) {
-        context.business_type = aiContext.business_type || null;
-        context.location = aiContext.location || null;
-        context.business_stage = aiContext.business_stage || null;
-        context.monthly_revenue_range = aiContext.monthly_revenue_range || null;
-        if (aiContext.patterns_json) {
-          context.business_patterns = aiContext.patterns_json;
-        }
-        if (aiContext.preferences_json) {
-          context.business_preferences = aiContext.preferences_json;
-        }
-      }
-
-      setUserContext(context);
-    } catch (error) {
-      console.error('Error loading user context:', error);
-      setUserContext({
-        base_currency: 'USD',
-        enabled_currencies: ['USD'],
-      });
-    }
-  };
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -274,12 +235,13 @@ export const AIChatWidget: React.FC = () => {
       const conversation = await getConversation(currentConversationId);
       const history = getConversationHistory(conversation, 20);
 
+      console.log('[AIChatWidget] Sending message to AI with exchange rates:', Object.keys(exchangeRates));
+
       const response = await sendMessageToDeepSeek(
-        message.trim(),
         history,
         user.id,
         currentConversationId,
-        userContext
+        exchangeRates
       );
 
       const aiMessage: ChatMessage = {
@@ -403,8 +365,6 @@ export const AIChatWidget: React.FC = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
-    
-    loadActiveConversation();
   };
 
   // Premium animations
@@ -680,7 +640,7 @@ export const AIChatWidget: React.FC = () => {
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg"
                       >
                         <Plus className="h-4 w-4" />
-                        New Chat
+                        New
                       </button>
                     </div>
 
