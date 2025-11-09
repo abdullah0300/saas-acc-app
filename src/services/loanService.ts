@@ -6,6 +6,7 @@ import {
   Loan,
   LoanPayment,
   AmortizationEntry,
+  LoanSchedule,
   LoanSummary,
   PaymentFrequency
 } from '../types';
@@ -226,6 +227,7 @@ export const findNextPayment = (
   schedule: AmortizationEntry[],
   paidPayments: LoanPayment[]
 ): AmortizationEntry | null => {
+  const today = new Date();
   const paidPaymentNumbers = new Set(
     paidPayments.filter(p => p.status === 'paid').map(p => p.payment_number)
   );

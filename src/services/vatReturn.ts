@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { checkLimitedCostTrader } from '../utils/vatCalculations';
+import { calculateVATByScheme, checkLimitedCostTrader } from '../utils/vatCalculations';
 
 interface VATReturnBoxes {
   box1: number;
@@ -140,6 +140,7 @@ const calculateFlatRateReturn = async (
   const box1 = (grossTurnover * flatRate) / 100;
   
   // No input VAT reclaim on Flat Rate (except capital goods over £2000)
+  const box4 = 0;
   
   return {
     box1: Math.round(box1 * 100) / 100,

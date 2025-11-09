@@ -85,7 +85,7 @@ export const processEmailQueue = async () => {
           .eq('id', emailRecord.id);
 
         // Call edge function to send email
-        const { error } = await supabase.functions.invoke('send-notification-email', {
+        const { data, error } = await supabase.functions.invoke('send-notification-email', {
           body: { notification_id: emailRecord.notification_id }
         });
 
