@@ -487,7 +487,7 @@ export const getSEOScoreLabel = (
   return { label: 'Critical', color: 'red', emoji: '❌' };
 };
 
-export default {
+const seoValidation = {
   validateTitle,
   validateDescription,
   validateKeywords,
@@ -497,3 +497,5 @@ export default {
   validateAllSEO,
   getSEOScoreLabel,
 };
+
+export default seoValidation;
