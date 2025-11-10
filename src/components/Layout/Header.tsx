@@ -7,6 +7,7 @@ import { useData } from '../../contexts/DataContext';
 import { NotificationBell } from '../Notifications/NotificationBell';
 import { getProfile } from '../../services/database';
 import { supabase } from '../../services/supabaseClient';
+import { BetaBadge } from '../Common/BetaBadge';
 
 interface ProfileData {
   id: string;
@@ -153,10 +154,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </button>
         
         {/* Mobile Logo */}
-        <div className="flex items-center lg:hidden">
-          <img 
-            src="/logo.png" 
-            alt="Logo" 
+        <div className="flex items-center gap-2 lg:hidden">
+          <img
+            src="/logo.png"
+            alt="Logo"
             className="h-8 w-auto"
             onError={(e) => {
               // Fallback if logo doesn't exist
@@ -165,6 +166,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             }}
           />
           <div className="hidden text-xl font-bold text-blue-600">SmartCFO</div>
+          <BetaBadge size="small" variant="gradient" />
         </div>
         
         {/* Mobile: Futuristic Header Design */}
