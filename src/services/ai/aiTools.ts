@@ -2,7 +2,7 @@
  * AI Tools - Wrappers for database functions
  * These tools are available for the AI to call when needed
  */
-
+ 
 import {
   createInvoice,
   getInvoices,
