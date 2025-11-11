@@ -1,9 +1,27 @@
 /**
- * DeepSeek API Service - Clean Architecture
- * Handles AI chat functionality with modular tool structure
+ * DeepSeek API Service
+ * Handles communication with DeepSeek API for AI chat functionality
  */
 
 import { supabase } from '../supabaseClient';
+import { getSystemKnowledge } from '../../config/aiSystemKnowledge';
+import {
+  parseDateQueryTool,
+  createInvoiceTool,
+  getInvoicesTool,
+  createExpenseTool,
+  getExpensesTool,
+  createIncomeTool,
+  updateIncomeTool,
+  getIncomeTool,
+  getClientsTool,
+  getCategoriesTool,
+  getProjectsTool,
+  calculateMonthlyIncomeTool,
+  searchClientTool,
+  createClientTool,
+  createCategoryTool,
+} from './aiTools';
 import type { ChatMessage } from './chatConversationService';
 
 // Import shared tools
@@ -43,23 +61,30 @@ import { reportInstructions } from './instructions/report';
 import { getUserSettings, getInvoiceSettings } from './userSettingsService';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-const DEEPSEEK_MODEL = 'deepseek-chat';
+const DEEPSEEK_MODEL = 'deepseek-chat'; // or 'deepseek-chat' depending on available models
 
 /**
- * Get DeepSeek API key
+ * Get DeepSeek API key from Supabase secrets
  */
 const getDeepSeekApiKey = async (): Promise<string> => {
   try {
+    // Get API key from Supabase Edge Function or environment
+    // Since we're in the frontend, we'll need to call an edge function
+    // For now, let's use a direct approach - you'll need to set up an edge function
+    // that returns the API key securely
+    
+    // Alternative: Store in environment variable (less secure but simpler)
     const apiKey = process.env.REACT_APP_DEEPSEEK_API_KEY;
-
+    
     if (!apiKey) {
+      // Try to get from Supabase edge function
       const { data, error } = await supabase.functions.invoke('get-deepseek-key');
       if (error || !data?.key) {
         throw new Error('DeepSeek API key not found');
       }
       return data.key;
     }
-
+    
     return apiKey;
   } catch (error) {
     console.error('Error getting DeepSeek API key:', error);
@@ -68,23 +93,21 @@ const getDeepSeekApiKey = async (): Promise<string> => {
 };
 
 /**
- * Tool definitions for DeepSeek API
- * Simple, clean descriptions without enforcement language
+ * Define available tools for the AI
  */
 const getToolsDefinition = () => {
   return [
-    // Date parsing tool
     {
       type: 'function',
       function: {
         name: 'parseDateQueryTool',
-        description: 'Parses natural language dates into YYYY-MM-DD format. Use this when user mentions dates like "today", "November 5", "last month", "this year". Returns start_date and end_date for date ranges.',
+        description: 'CRITICAL: This tool MUST be called FIRST whenever user mentions dates, date ranges, or time-related queries. It parses natural language dates and returns standardized YYYY-MM-DD format. IMPORTANT: After calling this tool and getting start_date and end_date, you MUST IMMEDIATELY call the appropriate get tool (getIncomeTool, getExpensesTool, or getInvoicesTool) with those dates. Do NOT respond to the user with just text - you MUST call the get tool to actually fetch the data. Examples: "Nov 5" → "2025-11-05", "November 5, 2024" → "2024-11-05", "last 7 days" → date range, "this week" → date range, "october" → "2025-10-01 to 2025-10-31", etc. IMPORTANT: Extract ONLY the date part from user query. For example, if user says "show me income on 9 november", extract just "9 november" and pass it as dateQuery. Flow: Step 1) Call parseDateQueryTool, Step 2) IMMEDIATELY call getIncomeTool/getExpensesTool/getInvoicesTool with the returned start_date and end_date.',
         parameters: {
           type: 'object',
           properties: {
-            dateQuery: {
-              type: 'string',
-              description: 'The date expression from the user. Examples: "November 5", "today", "last month", "this year", "october"',
+            dateQuery: { 
+              type: 'string', 
+              description: 'EXTRACT AND PASS ONLY THE DATE PART from user query. Examples: If user says "show me income on 9 november", extract "9 november" and pass it. If user says "all of october", extract "october" or "all of october" and pass it. Can be: specific dates ("Nov 5", "November 5, 2025", "9 november"), relative dates ("today", "yesterday", "last 7 days"), date ranges ("from Nov 1 to Nov 5"), month-only ("october", "all of october", "october 2024"), or any natural language date expression. If user query contains no date, you can still call this with empty string to get current date info.' 
             },
           },
           required: ['dateQuery'],
@@ -155,6 +178,74 @@ const getToolsDefinition = () => {
         },
       },
     },
+    {
+      type: 'function',
+      function: {
+        name: 'getExpensesTool',
+        description: 'Get expenses with optional filters',
+        parameters: {
+          type: 'object',
+          properties: {
+            category_id: { type: 'string' },
+            start_date: { type: 'string' },
+            end_date: { type: 'string' },
+            month: { type: 'string' },
+            project_id: { type: 'string' },
+          },
+        },
+      },
+    },
+                    {
+                  type: 'function',
+                  function: {
+                    name: 'createIncomeTool',
+                    description: 'Create a new income record. This saves it as a pending action for user preview. CRITICAL: You MUST ask for client_name unless user explicitly provides it or explicitly says "no client needed". Do NOT skip asking for client.',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        amount: { type: 'number' },
+                        description: { type: 'string' },
+                        date: { type: 'string', description: 'Date (YYYY-MM-DD format, or relative like "yesterday", "today", "tomorrow" - will be auto-converted. If year is missing, current year will be used)' },
+                        category_id: { type: 'string', description: 'Income category ID (optional)' },
+                        category_name: { type: 'string', description: 'Income category name (optional, e.g., "Web Development", "Consulting", "Services") - will be resolved to category_id automatically' },
+                        client_id: { type: 'string', description: 'Client ID (optional but recommended - ask for client unless user explicitly says "no client needed")' },
+                        client_name: { type: 'string', description: 'Client name (optional but recommended - ask for client unless user explicitly says "no client needed") - will be resolved to client_id automatically. Try to extract client names from natural language descriptions (e.g., "sell nexterix a design" → client: "nexterix", description: "a design")' },
+                        project_id: { type: 'string', description: 'Project ID (optional)' },
+                        reference_number: { type: 'string', description: 'Reference number (optional)' },
+                        tax_rate: { type: 'number', description: 'Tax rate percentage (optional, defaults to user\'s default tax rate)' },
+                        tax_amount: { type: 'number', description: 'Tax amount (optional, will be calculated from tax_rate and amount if not provided)' },
+                        currency: { type: 'string', description: 'Currency code (optional, defaults to user\'s base currency)' },
+                      },
+                      required: ['amount', 'description', 'date'],
+                    },
+                  },
+                },
+                {
+                  type: 'function',
+                  function: {
+                    name: 'updateIncomeTool',
+                    description: 'Update an existing income record. Uses the same client and category matching logic as createIncomeTool - checks both name and company_name for clients, handles multiple matches, and performs fuzzy matching. If client_name or category_name is provided and not found, returns an error with suggestions or offer to create.',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        income_id: { type: 'string', description: 'Income record ID to update' },
+                        amount: { type: 'number', description: 'Amount (optional)' },
+                        description: { type: 'string', description: 'Description (optional)' },
+                        date: { type: 'string', description: 'Date (YYYY-MM-DD format, or relative like "yesterday", "today" - optional)' },
+                        category_id: { type: 'string', description: 'Category ID (optional)' },
+                        category_name: { type: 'string', description: 'Category name (optional, will be resolved to category_id)' },
+                        client_id: { type: 'string', description: 'Client ID (optional)' },
+                        client_name: { type: 'string', description: 'Client name (optional, will be resolved to client_id)' },
+                        project_id: { type: 'string', description: 'Project ID (optional)' },
+                        reference_number: { type: 'string', description: 'Reference number (optional)' },
+                        tax_rate: { type: 'number', description: 'Tax rate percentage (optional)' },
+                        tax_amount: { type: 'number', description: 'Tax amount (optional)' },
+                        currency: { type: 'string', description: 'Currency code (optional)' },
+                      },
+                      required: ['income_id'],
+                    },
+                  },
+                },
     {
       type: 'function',
       function: {
@@ -425,11 +516,50 @@ const getToolsDefinition = () => {
       type: 'function',
       function: {
         name: 'getClientsTool',
-        description: 'Retrieves all clients for the user.',
+        description: 'Get all clients from the clients table. This queries the clients table directly - use this to get ALL clients, including those with no income/invoice records. Do NOT extract clients from income/invoice records - always use this tool to get clients from the clients table. Returns all clients for the user.',
         parameters: {
           type: 'object',
           properties: {},
-          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getCategoriesTool',
+        description: 'Get all categories. Use this to match category names when filtering income/expenses.',
+        parameters: {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['income', 'expense'], description: 'Filter by category type (optional)' },
+          },
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getProjectsTool',
+        description: 'Get all projects. Use this to match project names when filtering income/expenses/invoices.',
+        parameters: {
+          type: 'object',
+          properties: {
+            status: { type: 'string', enum: ['active', 'completed', 'on_hold', 'cancelled', 'all'], description: 'Filter by project status (optional, defaults to all)' },
+          },
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'searchClientTool',
+        description: 'Search for a client by name (fuzzy match)',
+        parameters: {
+          type: 'object',
+          properties: {
+            searchTerm: { type: 'string' },
+          },
+          required: ['searchTerm'],
         },
       },
     },
@@ -437,14 +567,15 @@ const getToolsDefinition = () => {
       type: 'function',
       function: {
         name: 'createClientTool',
-        description: 'Creates a new client. Checks for duplicates before creating.',
+        description: 'Create a new client. Checks if client already exists first. Use this when user wants to create a client that doesn\'t exist in the system.',
         parameters: {
           type: 'object',
           properties: {
-            name: { type: 'string', description: 'Client name' },
+            name: { type: 'string', description: 'Client name (required)' },
             company_name: { type: 'string', description: 'Company name (optional)' },
             email: { type: 'string', description: 'Email address (optional)' },
             phone: { type: 'string', description: 'Phone number (optional)' },
+            phone_country_code: { type: 'string', description: 'Phone country code (optional, defaults to +1)' },
             address: { type: 'string', description: 'Address (optional)' },
           },
           required: ['name'],
@@ -757,7 +888,7 @@ const parseTextBasedToolCalls = (content: string): Array<{ name: string; argumen
  */
 const executeToolCall = async (
   toolName: string,
-  args: any,
+  toolArguments: any,
   userId: string,
   conversationId: string,
   exchangeRates: Record<string, number> = {}
@@ -768,7 +899,6 @@ const executeToolCall = async (
   try {
     let result: any;
     switch (toolName) {
-      // Date tool
       case 'parseDateQueryTool':
         result = await parseDateQueryTool(args.dateQuery);
         break;
@@ -860,12 +990,19 @@ const executeToolCall = async (
       // Client tools
       case 'getClientsTool':
         return await getClientsTool(userId);
-      case 'createClientTool':
-        return await createClientTool(userId, args);
-
-      // Category tools
+      
       case 'getCategoriesTool':
-        return await getCategoriesTool(userId, args.type);
+        return await getCategoriesTool(userId, toolArguments?.type);
+      
+      case 'getProjectsTool':
+        return await getProjectsTool(userId, toolArguments?.status);
+      
+      case 'searchClientTool':
+        return await searchClientTool(userId, toolArguments.searchTerm);
+      
+      case 'createClientTool':
+        return await createClientTool(userId, toolArguments);
+      
       case 'createCategoryTool':
         return await createCategoryTool(userId, args);
 
@@ -898,16 +1035,17 @@ const executeToolCall = async (
     console.log(`[DeepSeek] Tool result:`, JSON.stringify(result, null, 2));
     return result;
   } catch (error: any) {
-    console.error(`[DeepSeek] Tool execution error:`, error);
-    return { error: error.message || 'Tool execution failed' };
+    console.error(`Error executing tool ${toolName}:`, error);
+    return { error: error.message };
   }
 };
 
 /**
- * Main chat function
+ * Send a message to DeepSeek API and get response
  */
-export const chatWithDeepSeek = async (
-  messages: ChatMessage[],
+export const sendMessageToDeepSeek = async (
+  userMessage: string,
+  conversationHistory: ChatMessage[],
   userId: string,
   conversationId: string,
   exchangeRates: Record<string, number> = {}
@@ -930,11 +1068,13 @@ export const chatWithDeepSeek = async (
         role: msg.role === 'user' ? 'user' : 'assistant',
         content: msg.content,
       })),
+      {
+        role: 'user',
+        content: userMessage,
+      },
     ];
 
-    console.log('[DeepSeek] Sending request...');
-
-    // Call DeepSeek API
+    // Make API call to DeepSeek
     const response = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
@@ -943,17 +1083,16 @@ export const chatWithDeepSeek = async (
       },
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
-        messages: apiMessages,
+        messages: messages,
         tools: getToolsDefinition(),
         tool_choice: 'auto', // Explicitly enable tool calling
         temperature: 0.7,
-        max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`DeepSeek API error: ${response.status} - ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
@@ -1169,10 +1308,10 @@ export const chatWithDeepSeek = async (
 
     // No tool calls - return response directly
     return {
-      content: assistantMessage.content || 'I can help you manage your income records!',
+      content: choice.message.content || '',
     };
   } catch (error: any) {
-    console.error('[DeepSeek] Error:', error);
+    console.error('Error sending message to DeepSeek:', error);
     throw error;
   }
 };

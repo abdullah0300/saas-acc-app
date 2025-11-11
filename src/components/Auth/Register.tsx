@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { registrationService } from "../../services/registrationService";
 import { supabase } from "../../services/supabaseClient";
 import { TeamJoinFlow } from "./TeamJoinFlow";
+import { BetaBadge } from "../Common/BetaBadge";
 import {
   AlertCircle,
   ArrowRight,
@@ -276,11 +277,14 @@ export const Register: React.FC = () => {
             <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
               <img src="https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717" alt="SmartCFO" className="h-8 w-8" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">
-              {inviteDetails ? `Join ${inviteDetails.teamName}` : "Create your account"}
-            </h2>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h2 className="text-3xl font-bold text-gray-900">
+                {inviteDetails ? `Join ${inviteDetails.teamName}` : "Create your account"}
+              </h2>
+              <BetaBadge size="medium" variant="subtle" />
+            </div>
             <p className="mt-2 text-gray-600">
-              {inviteDetails 
+              {inviteDetails
                 ? `You've been invited to join ${inviteDetails.teamName} as a ${inviteDetails.role}`
                 : "Start your free 60-day trial"
               }
