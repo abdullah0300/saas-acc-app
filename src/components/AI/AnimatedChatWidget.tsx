@@ -39,6 +39,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
   const [showUserMessage, setShowUserMessage] = useState(true);
   const [showAssistantMessage, setShowAssistantMessage] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isMinimized, setIsMinimized] = useState(() => {
     // Check if user previously minimized the widget
     return localStorage.getItem('aiWidgetMinimized') === 'true';
@@ -47,8 +48,13 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
   const [position, setPosition] = useState(() => {
     // Load saved position or use default
     const saved = localStorage.getItem('aiWidgetPosition');
-    if (saved) {
+    const isMobileView = window.innerWidth < 768;
+    if (!isMobileView && saved) {
       return JSON.parse(saved);
+    }
+    // Mobile: center horizontally at bottom
+    if (isMobileView) {
+      return { x: 16, y: window.innerHeight - 380 };
     }
     return { x: window.innerWidth - 244, y: window.innerHeight - 200 }; // 220px width + 24px margin
   });
@@ -91,8 +97,9 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
     };
   }, [currentIndex]);
 
-  // Handle drag functionality
+  // Handle drag functionality (disabled on mobile)
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isMobile) return; // Disable dragging on mobile
     if ((e.target as HTMLElement).closest('button')) return; // Don't drag when clicking buttons
     setIsDragging(true);
     dragStartPos.current = {
@@ -135,43 +142,58 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
     };
   }, [isDragging, position]);
 
-  // Handle window resize
+  // Handle window resize and mobile detection
   useEffect(() => {
     const handleResize = () => {
-      setPosition((prev: { x: number; y: number }) => ({
-        x: Math.min(prev.x, window.innerWidth - 220),
-        y: Math.min(prev.y, window.innerHeight - 180),
-      }));
+      const isMobileView = window.innerWidth < 768;
+      setIsMobile(isMobileView);
+
+      if (isMobileView) {
+        // On mobile, position at bottom with proper margins
+        setPosition({
+          x: 16,
+          y: isMinimized ? window.innerHeight - 100 : window.innerHeight - 380,
+        });
+      } else {
+        setPosition((prev: { x: number; y: number }) => ({
+          x: Math.min(prev.x, window.innerWidth - 220),
+          y: Math.min(prev.y, window.innerHeight - 180),
+        }));
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isMinimized]);
 
   const handleMinimize = () => {
     setIsMinimized(true);
     localStorage.setItem('aiWidgetMinimized', 'true');
 
-    // Move to bottom right corner when minimized
-    const newPosition = {
-      x: window.innerWidth - 80, // 60px width + 20px margin
-      y: window.innerHeight - 100, // 80px height + 20px margin
-    };
+    // Mobile: position at bottom right with smaller margin
+    // Desktop: bottom right corner
+    const newPosition = isMobile
+      ? { x: window.innerWidth - 76, y: window.innerHeight - 100 }
+      : { x: window.innerWidth - 80, y: window.innerHeight - 100 };
     setPosition(newPosition);
-    localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
+    if (!isMobile) {
+      localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
+    }
   };
 
   const handleExpand = () => {
     setIsMinimized(false);
     localStorage.setItem('aiWidgetMinimized', 'false');
 
-    // Keep widget in bottom right corner when expanded (adjusted for larger size)
-    const newPosition = {
-      x: window.innerWidth - 280, // 260px width + 20px margin
-      y: window.innerHeight - 420, // approximate expanded height + margin
-    };
+    // Mobile: full width with margins, positioned at bottom
+    // Desktop: bottom right corner
+    const newPosition = isMobile
+      ? { x: 16, y: window.innerHeight - 380 }
+      : { x: window.innerWidth - 280, y: window.innerHeight - 420 };
     setPosition(newPosition);
-    localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
+    if (!isMobile) {
+      localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
+    }
   };
 
   const currentConversation = conversations[currentIndex];
@@ -184,11 +206,12 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
         left: `${position.x}px`,
         top: `${position.y}px`,
         cursor: isDragging ? 'grabbing' : 'default',
-        width: isMinimized ? '60px' : '260px',
+        width: isMinimized ? '60px' : (isMobile ? 'calc(100% - 32px)' : '260px'),
+        maxWidth: isMobile ? '100%' : '260px',
         transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => !isMobile && setIsHovered(true)}
+      onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
       {isMinimized ? (
         // Minimized Tab View
@@ -315,7 +338,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
         )}
 
         {/* Animated Messages - Compact, show only one at a time */}
-        <div className="relative space-y-3 min-h-[70px] mb-3 pt-6">
+        <div className={`relative space-y-3 mb-3 pt-6 ${isMobile ? 'min-h-[60px]' : 'min-h-[70px]'}`}>
           {/* Show only assistant message with typing indicator if user message would show */}
           {showAssistantMessage ? (
             <div
@@ -326,7 +349,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
               <div className="flex items-start gap-2 max-w-full">
                 {/* SmartCFO Logo - Modern style */}
                 <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 relative transition-transform duration-300 hover:scale-110"
+                  className={`${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-xl flex items-center justify-center flex-shrink-0 relative transition-transform duration-300 hover:scale-110`}
                   style={{
                     background: 'linear-gradient(to bottom right, rgb(59, 130, 246), rgb(147, 51, 234))',
                     boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
@@ -339,7 +362,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                   />
                 </div>
                 <div
-                  className="rounded-2xl px-3.5 py-2.5 relative flex-1 transition-all duration-300 hover:shadow-lg"
+                  className={`rounded-2xl ${isMobile ? 'px-3 py-2' : 'px-3.5 py-2.5'} relative flex-1 transition-all duration-300 hover:shadow-lg`}
                   style={{
                     background: 'linear-gradient(135deg, rgba(249, 250, 251, 0.95) 0%, rgba(243, 244, 246, 0.9) 100%)',
                     backdropFilter: 'blur(30px) saturate(180%)',
@@ -348,7 +371,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                     boxShadow: '0 4px 16px rgba(100, 116, 139, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                   }}
                 >
-                  <p className="text-xs text-slate-700 font-medium leading-relaxed">{currentConversation.assistant}</p>
+                  <p className={`${isMobile ? 'text-[11px]' : 'text-xs'} text-slate-700 font-medium leading-relaxed`}>{currentConversation.assistant}</p>
                 </div>
               </div>
             </div>
@@ -357,7 +380,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
             <div className="flex justify-start" style={{ animation: 'fadeInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
               <div className="flex items-start gap-2">
                 <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 relative"
+                  className={`${isMobile ? 'w-7 h-7' : 'w-8 h-8'} rounded-xl flex items-center justify-center flex-shrink-0 relative`}
                   style={{
                     background: 'linear-gradient(to bottom right, rgb(59, 130, 246), rgb(147, 51, 234))',
                     boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
@@ -370,7 +393,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                   />
                 </div>
                 <div
-                  className="rounded-2xl px-4 py-2.5"
+                  className={`rounded-2xl ${isMobile ? 'px-3 py-2' : 'px-4 py-2.5'}`}
                   style={{
                     background: 'linear-gradient(135deg, rgba(249, 250, 251, 0.95) 0%, rgba(243, 244, 246, 0.9) 100%)',
                     backdropFilter: 'blur(30px) saturate(180%)',
@@ -381,7 +404,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                 >
                   <div className="flex gap-1.5 items-center">
                     <div
-                      className="w-2 h-2 rounded-full"
+                      className={`${isMobile ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full`}
                       style={{
                         background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 100%)',
                         animation: 'typingBounce 1.4s ease-in-out infinite',
@@ -390,7 +413,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                       }}
                     />
                     <div
-                      className="w-2 h-2 rounded-full"
+                      className={`${isMobile ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full`}
                       style={{
                         background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 100%)',
                         animation: 'typingBounce 1.4s ease-in-out infinite',
@@ -399,7 +422,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                       }}
                     />
                     <div
-                      className="w-2 h-2 rounded-full"
+                      className={`${isMobile ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full`}
                       style={{
                         background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 100%)',
                         animation: 'typingBounce 1.4s ease-in-out infinite',
