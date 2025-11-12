@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { AIChatWidget } from '../AI/AIChatWidget';
 
 export const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -24,11 +25,14 @@ export const Layout: React.FC = () => {
         
         <main className="p-4 md:p-6">
           <Outlet />
-          
+
         {/* Bottom padding for content */}
 <div className="h-20 block sm:hidden" />
         </main>
       </div>
+
+      {/* AI Chat Widget - only available to authenticated users inside SettingsProvider */}
+      <AIChatWidget />
     </div>
   );
 };

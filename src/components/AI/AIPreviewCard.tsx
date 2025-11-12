@@ -3,6 +3,7 @@ import { Check, X, Loader2, FileText, DollarSign, TrendingUp, Calendar, User, Ta
 import { confirmPendingAction, cancelPendingAction } from '../../services/ai/pendingActionsService';
 import { executePendingAction } from '../../services/ai/aiTools';
 import { getUserSettings } from '../../services/ai/userSettingsService';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface AIPreviewCardProps {
   pendingAction: any;
@@ -17,9 +18,10 @@ export const AIPreviewCard: React.FC<AIPreviewCardProps> = ({
   conversationId,
   userId,
 }) => {
+  const { exchangeRates, baseCurrency: settingsBaseCurrency } = useSettings();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [baseCurrency, setBaseCurrency] = useState<string>('USD');
+  const [baseCurrency, setBaseCurrency] = useState<string>(settingsBaseCurrency || 'USD');
 
   // Load base currency from user settings
   useEffect(() => {
@@ -290,7 +292,12 @@ export const AIPreviewCard: React.FC<AIPreviewCardProps> = ({
                   <User className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-500 mb-0.5">Client</p>
-                    <p className="text-sm font-medium text-gray-900">{data.client_name}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {data.client_name}
+                      {data.client_company_name && (
+                        <span className="text-gray-600"> ({data.client_company_name})</span>
+                      )}
+                    </p>
                   </div>
                 </div>
               )}
@@ -339,10 +346,12 @@ export const AIPreviewCard: React.FC<AIPreviewCardProps> = ({
     try {
       // Confirm the pending action
       await confirmPendingAction(pendingAction.id);
-      
-      // Execute the action
-      const result = await executePendingAction(userId, pendingAction);
-      
+
+      console.log('[AIPreviewCard] Executing action with', Object.keys(exchangeRates).length, 'exchange rates');
+
+      // Execute the action with cached exchange rates
+      const result = await executePendingAction(userId, pendingAction, exchangeRates);
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to execute action');
       }

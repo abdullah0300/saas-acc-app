@@ -49,6 +49,9 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+// Export the context for optional access (e.g., outside provider)
+export { SettingsContext };
+
 export const useSettings = () => {
   const context = useContext(SettingsContext);
   if (!context) {

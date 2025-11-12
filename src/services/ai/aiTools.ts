@@ -18,10 +18,13 @@ import {
   createCategory,
   checkCategoryExists,
   getProjects,
+  createProject,
+  createBudget,
 } from '../database';
 import { createPendingAction } from './pendingActionsService';
 import { getSystemKnowledge } from '../../config/aiSystemKnowledge';
 import { getUserSettings, getInvoiceSettings, getExchangeRate, parseRelativeDate, getCurrentDate } from './userSettingsService';
+import { getTaxRatesTool, searchTaxRateByPercentage, createTaxRateTool } from './tools/shared/taxTools';
 import type { Client, Category } from '../../types';
 
 // Note: We'll need to import project functions if they exist
@@ -768,6 +771,9 @@ export const createIncomeTool = async (
   }
 ): Promise<{ success: boolean; pending_action_id?: string; error?: string }> => {
   try {
+    console.log('[createIncomeTool] ========== FUNCTION CALLED ==========');
+    console.log('[createIncomeTool] Parameters received:', JSON.stringify(data, null, 2));
+
     // Get user settings for currency and tax
     const userSettings = await getUserSettings(userId);
     const invoiceSettings = await getInvoiceSettings(userId);
@@ -809,16 +815,18 @@ export const createIncomeTool = async (
     // If client_name is provided, it's treated as required - must find or return error
     let clientId = data.client_id;
     let clientName = data.client_name;
+    let clientCompanyName: string | undefined;
     if (!clientId && clientName) {
       const clients = await getClients(userId);
       const { exactMatch, similarClients } = matchClient(clients, clientName);
-      
+
       if (exactMatch) {
         clientId = exactMatch.id;
         clientName = exactMatch.name;
+        clientCompanyName = exactMatch.company_name || undefined;
       } else if (similarClients.length > 0) {
         // Multiple matches or similar matches found
-        const clientList = similarClients.map(c => 
+        const clientList = similarClients.map(c =>
           `- ${c.name}${c.company_name ? ` (${c.company_name})` : ''}`
         ).join('\n');
         return {
@@ -834,8 +842,47 @@ export const createIncomeTool = async (
       }
     }
 
-    // Determine tax rate: use provided rate, or invoice_settings default, or 0
-    const taxRate = data.tax_rate ?? invoiceSettings.default_tax_rate ?? 0;
+    // Validate and determine tax rate
+    // If user specified a custom tax_rate, validate it exists in their tax_rates
+    let taxRate = data.tax_rate ?? invoiceSettings.default_tax_rate ?? 0;
+    let taxRateName: string | undefined;
+
+    console.log('[createIncomeTool] Tax validation check:', {
+      provided_tax_rate: data.tax_rate,
+      will_validate: data.tax_rate !== undefined && data.tax_rate !== null && data.tax_rate > 0
+    });
+
+    if (data.tax_rate !== undefined && data.tax_rate !== null && data.tax_rate > 0) {
+      // User specified a custom tax rate - validate it exists
+      console.log('[createIncomeTool] Validating tax rate:', data.tax_rate);
+      const { exactMatch, similarRates } = await searchTaxRateByPercentage(userId, data.tax_rate);
+      console.log('[createIncomeTool] Tax validation result:', { exactMatch, similarRatesCount: similarRates.length });
+
+      if (exactMatch) {
+        // Tax rate exists, use it
+        taxRate = exactMatch.rate;
+        taxRateName = exactMatch.name;
+      } else if (similarRates.length > 0) {
+        // Similar tax rates found (within 0.5%)
+        const rateList = similarRates.map(r => `- ${r.name} (${r.rate}%)`).join('\n');
+        return {
+          success: false,
+          error: `I found ${similarRates.length} similar tax rate${similarRates.length > 1 ? 's' : ''} but no exact match for ${data.tax_rate}%:\n\n${rateList}\n\nWhich one did you mean? Or should I create a new ${data.tax_rate}% tax rate?`
+        };
+      } else {
+        // Tax rate doesn't exist
+        return {
+          success: false,
+          error: `You don't have a ${data.tax_rate}% tax rate set up yet. Would you like me to create it?`
+        };
+      }
+    } else if (taxRate > 0) {
+      // Using default tax rate - try to find its name for preview
+      const { exactMatch } = await searchTaxRateByPercentage(userId, taxRate);
+      if (exactMatch) {
+        taxRateName = exactMatch.name;
+      }
+    }
     
     // Calculate tax amount if not provided
     let taxAmount = data.tax_amount;
@@ -860,9 +907,11 @@ export const createIncomeTool = async (
         category_name: categoryName, // Store category name for preview
         client_id: clientId,
         client_name: clientName, // Store client name for preview
+        client_company_name: clientCompanyName, // Store company name for preview
         project_id: data.project_id,
         reference_number: data.reference_number,
         tax_rate: taxRate,
+        tax_rate_name: taxRateName, // Store tax rate name for preview
         tax_amount: taxAmount,
         currency: currency,
       }
@@ -1423,7 +1472,8 @@ export const createCategoryTool = async (
  */
 export const executePendingAction = async (
   userId: string,
-  pendingAction: any
+  pendingAction: any,
+  exchangeRates: Record<string, number> = {}
 ): Promise<{ success: boolean; result?: any; error?: string }> => {
   try {
     const { action_type, action_data } = pendingAction;
@@ -1505,28 +1555,57 @@ export const executePendingAction = async (
       }
 
       case 'expense': {
+        // Exchange rate and base amounts already calculated in createExpenseTool
+        // Just use the stored values from action_data
+        const taxRate = action_data.tax_rate ?? null;
+        const taxAmount = action_data.tax_amount ?? 0;
+        const netAmount = action_data.amount || 0;
+        const exchangeRate = action_data.exchange_rate || 1;
+        const baseAmount = action_data.base_amount || netAmount;
+        const baseTaxAmount = taxAmount / exchangeRate;
+
         const result = await createExpense({
           user_id: userId,
-          amount: action_data.amount,
-          category_id: action_data.category_id,
+          amount: netAmount, // NET amount (excluding tax)
           description: action_data.description,
           date: action_data.date,
-          vendor: action_data.vendor,
-          project_id: action_data.project_id,
+          category_id: action_data.category_id || null,
+          vendor: action_data.vendor_name || null,
+          vendor_id: action_data.vendor_id || null,
+          reference_number: action_data.reference_number || null,
+          currency: currency,
+          exchange_rate: exchangeRate,
+          base_amount: baseAmount,
+          tax_rate: taxRate,
+          tax_amount: taxAmount || null,
+          base_tax_amount: baseTaxAmount,
+          tax_point_date: action_data.date,
         } as any);
         return { success: true, result };
       }
 
       case 'income': {
         // Calculate exchange rate and base amounts (matching IncomeForm logic)
-        const exchangeRate = currency !== baseCurrency
-          ? await getExchangeRate(userId, currency, baseCurrency)
-          : 1;
+        let exchangeRate = 1;
+
+        if (currency !== baseCurrency) {
+          console.log('[executePendingAction] Getting exchange rate for', currency, 'to', baseCurrency);
+
+          // Try cached rate first
+          if (exchangeRates && exchangeRates[currency]) {
+            exchangeRate = exchangeRates[currency];
+            console.log('[executePendingAction] ✓ Using CACHED exchange rate:', exchangeRate);
+          } else {
+            console.warn('[executePendingAction] ⚠ Cached rate NOT available, fetching from edge function...');
+            exchangeRate = await getExchangeRate(userId, currency, baseCurrency);
+            console.log('[executePendingAction] Fetched exchange rate:', exchangeRate);
+          }
+        }
 
         // Get tax rate and tax amount from action_data (already calculated in createIncomeTool)
         const taxRate = action_data.tax_rate ?? null;
         const taxAmount = action_data.tax_amount ?? 0;
-        
+
         // Calculate base amounts (NET amount in base currency)
         // amount is NET (excluding VAT), matching IncomeForm behavior
         const netAmount = action_data.amount || 0;
@@ -1549,6 +1628,35 @@ export const executePendingAction = async (
           tax_amount: taxAmount || null,
           reference_number: action_data.reference_number || null,
         } as any);
+        return { success: true, result };
+      }
+
+      case 'budget': {
+        // Budget creation - simple, no currency or tax calculation needed
+        const result = await createBudget({
+          user_id: userId,
+          category_id: action_data.category_id,
+          amount: action_data.amount,
+          period: action_data.period,
+          start_date: action_data.start_date,
+        });
+        return { success: true, result };
+      }
+
+      case 'project': {
+        // Project creation - no currency or tax, but has client, budget, timeline
+        const result = await createProject({
+          user_id: userId,
+          name: action_data.name,
+          description: action_data.description,
+          client_id: action_data.client_id,
+          status: action_data.status || 'active',
+          start_date: action_data.start_date,
+          end_date: action_data.end_date,
+          budget_amount: action_data.budget_amount,
+          budget_currency: action_data.budget_currency,
+          color: action_data.color || '#6366F1',
+        });
         return { success: true, result };
       }
 
