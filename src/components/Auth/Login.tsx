@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase, supabaseRecovery } from "../../services/supabaseClient";
+import { BetaBadge } from "../Common/BetaBadge";
 
 import {
   Mail,
@@ -192,7 +193,10 @@ const handleForgotPassword = async (e: React.FormEvent) => {
             <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
               <img src="https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717" className="h-8 w-8 text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
+              <BetaBadge size="medium" variant="subtle" />
+            </div>
             <p className="mt-2 text-gray-600">
               Sign in to manage your finances
             </p>

@@ -12,6 +12,7 @@ import {
   Variants,
 } from "framer-motion";
 import { SEOHead } from "../SEO";
+import { BetaBadge } from "../Common/BetaBadge";
 import { supabase } from "../../services/supabaseClient";
 import {
   Brain,
@@ -434,9 +435,12 @@ export const LandingPageAwwrd: React.FC = () => {
                     alt="SmartCFO"
                   />
                 </div>
-                <span className="text-lg font-bold text-gray-900 hidden sm:block">
-                  SmartCFO
-                </span>
+                <div className="hidden sm:flex items-center gap-2">
+                  <span className="text-lg font-bold text-gray-900">
+                    SmartCFO
+                  </span>
+                  <BetaBadge size="small" variant="gradient" />
+                </div>
               </motion.div>
 
               {/* Desktop Navigation */}
@@ -1147,9 +1151,12 @@ export const LandingPageAwwrd: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <span className="text-xl font-black text-gray-900">
-                        SmartCFO
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-black text-gray-900">
+                          SmartCFO
+                        </span>
+                        <BetaBadge size="small" variant="subtle" />
+                      </div>
                       <span className="block text-xs text-purple-600">
                         AI Financial Brain
                       </span>

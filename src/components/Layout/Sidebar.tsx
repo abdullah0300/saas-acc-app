@@ -25,6 +25,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { getProfile } from "../../services/database";
 import { User } from "../../types";
+import { BetaBadge } from "../Common/BetaBadge";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -207,9 +208,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 transition-all duration-200 ease-out">
                       <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
                     </div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-all duration-200 ease-out animate-in fade-in slide-in-from-left-2">
-                      SmartCFO
-                    </h1>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-all duration-200 ease-out animate-in fade-in slide-in-from-left-2">
+                          SmartCFO
+                        </h1>
+                        <BetaBadge size="small" variant="gradient" />
+                      </div>
+                    </div>
                   </div>
                   <button
                     onClick={toggleCollapse}
@@ -227,9 +233,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                     <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
                   </div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                    SmartCFO
-                  </h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      SmartCFO
+                    </h1>
+                    <BetaBadge size="small" variant="gradient" />
+                  </div>
                 </div>
                 <button
                   onClick={onToggle}
