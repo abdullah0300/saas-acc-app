@@ -386,13 +386,7 @@ export const LandingPageAwwrd: React.FC = () => {
                 priceValidUntil: "2025-12-31",
                 availability: "https://schema.org/InStock",
               },
-              aggregateRating: {
-                "@type": "AggregateRating",
-                ratingValue: "4.9",
-                ratingCount: "10000",
-                bestRating: "5",
-                worstRating: "1",
-              },
+              // Removed aggregateRating - will add when we have real user reviews
               featureList: [
                 "AI-powered insights",
                 "Automated invoicing",
@@ -680,13 +674,13 @@ export const LandingPageAwwrd: React.FC = () => {
                 className="grid grid-cols-3 gap-4 sm:gap-8 max-w-2xl mx-auto"
               >
                 {[
-                  { value: "10,000+", label: "Businesses", icon: Award },
-                  { value: "15 hrs", label: "Saved Weekly", icon: Coffee },
-                  { value: "4.9★", label: "User Rating", icon: Star },
+                  { value: "Beta", label: "Now Live", icon: Rocket },
+                  { value: "AI-Powered", label: "Automation", icon: Brain },
+                  { value: "60 Days", label: "Free Trial", icon: Star },
                 ].map((metric, index) => (
                   <div key={index} className="text-center">
                     <metric.icon className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-purple-600" />
-                    <div className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
                       {metric.value}
                     </div>
                     <div className="text-xs sm:text-sm text-gray-600">
@@ -716,7 +710,7 @@ export const LandingPageAwwrd: React.FC = () => {
           <StickyFeatureSection
             index={0}
             title="Smart Invoicing"
-            subtitle="Get Paid 40% Faster"
+            subtitle="Get Paid Faster"
             description="Create beautiful invoices in seconds. AI predicts the best payment terms and sends intelligent reminders."
             icon={FileText}
             image="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&h=800&fit=crop"
@@ -744,8 +738,8 @@ export const LandingPageAwwrd: React.FC = () => {
               },
             ]}
             stats={[
-              { value: "40%", label: "Faster payments" },
-              { value: "99.2%", label: "Accuracy rate" },
+              { value: "Lightning", label: "Fast invoicing" },
+              { value: "AI-Driven", label: "Smart tracking" },
             ]}
           />
 
@@ -781,8 +775,8 @@ export const LandingPageAwwrd: React.FC = () => {
               },
             ]}
             stats={[
-              { value: "15hrs", label: "Saved per week" },
-              { value: "94%", label: "Prediction accuracy" },
+              { value: "Save Time", label: "Every week" },
+              { value: "Smart AI", label: "Predictions" },
             ]}
           />
 
@@ -818,8 +812,8 @@ export const LandingPageAwwrd: React.FC = () => {
               },
             ]}
             stats={[
-              { value: "100%", label: "Automated" },
-              { value: "0", label: "Manual entry" },
+              { value: "Fully", label: "Automated" },
+              { value: "Zero", label: "Manual work" },
             ]}
           />
 
@@ -855,8 +849,8 @@ export const LandingPageAwwrd: React.FC = () => {
               },
             ]}
             stats={[
-              { value: "98.5%", label: "Collection rate" },
-              { value: "60%", label: "Less churn" },
+              { value: "High", label: "Success rate" },
+              { value: "Reduced", label: "Customer churn" },
             ]}
           />
 
@@ -892,7 +886,7 @@ export const LandingPageAwwrd: React.FC = () => {
               },
             ]}
             stats={[
-              { value: "50+", label: "Report types" },
+              { value: "Multiple", label: "Report types" },
               { value: "Real-time", label: "Updates" },
             ]}
           />
@@ -929,8 +923,45 @@ export const LandingPageAwwrd: React.FC = () => {
               },
             ]}
             stats={[
-              { value: "Unlimited", label: "Team members" },
-              { value: "256-bit", label: "Encryption" },
+              { value: "Up to 5", label: "Team members" },
+              { value: "Secure", label: "Encryption" },
+            ]}
+          />
+
+          {/* Feature 7 - Project Management */}
+          <StickyFeatureSection
+            index={6}
+            title="Project Management"
+            subtitle="Track Every Detail, Hit Every Deadline"
+            description="Manage client projects from start to finish. Track budgets, milestones, time, and profitability all in one place."
+            icon={Briefcase}
+            image="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=800&fit=crop"
+            gradient="from-cyan-600 via-blue-700 to-indigo-800"
+            features={[
+              {
+                icon: Target,
+                text: "Milestones & goals tracking",
+                color: "text-green-400",
+              },
+              {
+                icon: Clock,
+                text: "Built-in time tracking",
+                color: "text-blue-400",
+              },
+              {
+                icon: DollarSign,
+                text: "Budget monitoring & alerts",
+                color: "text-yellow-400",
+              },
+              {
+                icon: FileText,
+                text: "Files, notes & documentation",
+                color: "text-purple-400",
+              },
+            ]}
+            stats={[
+              { value: "Organized", label: "Project tracking" },
+              { value: "Budget", label: "Control" },
             ]}
           />
         </div>
@@ -995,6 +1026,7 @@ export const LandingPageAwwrd: React.FC = () => {
                     </div>
 
                     <div className="mb-6">
+                      {/* Launch pricing - will increase to $25/month after launch period */}
                       <div className="text-lg sm:text-xl md:text-2xl text-gray-400 line-through mb-1">
                         $25/month
                       </div>
@@ -1034,7 +1066,6 @@ export const LandingPageAwwrd: React.FC = () => {
                     { text: "Custom invoice branding", highlight: false },
                     { text: "Budget tracking", highlight: false },
                     { text: "Stripe payment integration", highlight: true },
-                    { text: "API access", highlight: false },
                   ].map((item, i) => (
                     <li
                       key={i}
@@ -1254,7 +1285,7 @@ export const LandingPageAwwrd: React.FC = () => {
               {/* Bottom */}
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>© 2024 SmartCFO</span>
+                  <span>© 2025 SmartCFO</span>
                   <span className="hidden md:block">•</span>
                   <span className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-green-500" />

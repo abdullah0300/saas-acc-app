@@ -476,14 +476,14 @@ const pendingAmount = clientInvoices
                 {/* Client Header */}
                 <div className="p-6 pb-4">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="w-14 h-14 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg flex-shrink-0">
                         {client.name.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                          <h3 className="font-semibold text-gray-900 text-lg">{client.name}</h3>
+                      <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-lg truncate" title={client.name}>{client.name}</h3>
                           {client.company_name && (
-                            <p className="text-sm text-gray-600">{client.company_name}</p>
+                            <p className="text-sm text-gray-600 truncate" title={client.company_name}>{client.company_name}</p>
                           )}
                           <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(client.status)}`}>
                           {getStatusIcon(client.status)}
@@ -491,9 +491,9 @@ const pendingAmount = clientInvoices
                         </span>
                       </div>
                     </div>
-                    
+
                     {/* Actions Menu */}
-                    <div className="relative">
+                    <div className="relative flex-shrink-0">
                       <button
                         onClick={() => setSelectedClient(selectedClient === client.id ? null : client.id)}
                         className="p-2 text-gray-400 hover:text-gray-600 transition-colors"

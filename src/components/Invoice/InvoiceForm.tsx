@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Settings, Save, X, AlertCircle } from 'lucide-react';
+import { Settings, Save, X, AlertCircle, Search, ChevronDown } from 'lucide-react';
 import { Plus, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { InvoiceSettings } from './InvoiceSettings';
 import { InvoicePaymentSettings } from './InvoicePaymentSettings';
@@ -157,6 +157,8 @@ useEffect(() => {
     address: ''
   });
   const [isAddingClient, setIsAddingClient] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
 
   // Template state
   const [templates, setTemplates] = useState<any[]>([]);
@@ -1494,19 +1496,104 @@ if (!isUserSettingsReady) {
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <select
-                    value={formData.client_id}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    disabled={isEdit && !!invoiceData?.invoice.payment_locked_at}
-                  >
-                    <option value="">Select a client (optional)</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}{client.company_name ? ` (${client.company_name})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex-1 relative">
+                    {/* Searchable Client Dropdown */}
+                    <div className="relative">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={clientSearchTerm}
+                          onChange={(e) => {
+                            setClientSearchTerm(e.target.value);
+                            setShowClientDropdown(true);
+                          }}
+                          onFocus={() => setShowClientDropdown(true)}
+                          placeholder={
+                            formData.client_id
+                              ? clients.find(c => c.id === formData.client_id)?.name +
+                                (clients.find(c => c.id === formData.client_id)?.company_name
+                                  ? ` (${clients.find(c => c.id === formData.client_id)?.company_name})`
+                                  : '')
+                              : "Search client (optional)"
+                          }
+                          className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          disabled={isEdit && !!invoiceData?.invoice.payment_locked_at}
+                        />
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      </div>
+
+                      {/* Dropdown */}
+                      {showClientDropdown && !invoiceData?.invoice.payment_locked_at && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => {
+                              setShowClientDropdown(false);
+                              setClientSearchTerm('');
+                            }}
+                          />
+                          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            {/* Clear selection option */}
+                            {formData.client_id && (
+                              <div
+                                onClick={() => {
+                                  setFormData({ ...formData, client_id: '' });
+                                  setShowClientDropdown(false);
+                                  setClientSearchTerm('');
+                                }}
+                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                              >
+                                <span className="text-gray-500 italic">Clear selection</span>
+                              </div>
+                            )}
+
+                            {/* Filtered clients */}
+                            {clients
+                              .filter(client => {
+                                const searchLower = clientSearchTerm.toLowerCase();
+                                return (
+                                  client.name.toLowerCase().includes(searchLower) ||
+                                  (client.company_name && client.company_name.toLowerCase().includes(searchLower))
+                                );
+                              })
+                              .map((client) => (
+                                <div
+                                  key={client.id}
+                                  onClick={() => {
+                                    setFormData({ ...formData, client_id: client.id });
+                                    setShowClientDropdown(false);
+                                    setClientSearchTerm('');
+                                  }}
+                                  className={`px-3 py-2 hover:bg-blue-50 cursor-pointer ${
+                                    formData.client_id === client.id ? 'bg-blue-50 font-medium' : ''
+                                  }`}
+                                >
+                                  <div className="text-sm text-gray-900">{client.name}</div>
+                                  {client.company_name && (
+                                    <div className="text-xs text-gray-500 mt-0.5">{client.company_name}</div>
+                                  )}
+                                </div>
+                              ))}
+
+                            {/* No results */}
+                            {clients.filter(client => {
+                              const searchLower = clientSearchTerm.toLowerCase();
+                              return (
+                                client.name.toLowerCase().includes(searchLower) ||
+                                (client.company_name && client.company_name.toLowerCase().includes(searchLower))
+                              );
+                            }).length === 0 && (
+                              <div className="px-3 py-2 text-sm text-gray-500 italic text-center">
+                                No clients found
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setShowClientModal(true)}

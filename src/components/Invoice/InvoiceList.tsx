@@ -1946,8 +1946,15 @@ export const InvoiceList: React.FC = () => {
                     const totalTax = calculateInvoiceTaxTotal(invoice);
                     
                     return (
-                      <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="relative w-12 px-6 sm:w-16 sm:px-8">
+                      <tr
+                        key={invoice.id}
+                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/invoices/${invoice.id}/view`)}
+                      >
+                        <td
+                          className="relative w-12 px-6 sm:w-16 sm:px-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <input
                             type="checkbox"
                             className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
@@ -1976,10 +1983,14 @@ export const InvoiceList: React.FC = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{invoice.client?.name || 'No client'}</div>
+                        <td className="px-6 py-4 max-w-xs">
+                          <div className="text-sm text-gray-900 truncate" title={invoice.client?.name || 'No client'}>
+                            {invoice.client?.name || 'No client'}
+                          </div>
                           {invoice.client?.company_name && (
-                            <div className="text-xs text-gray-400 mt-0.5">{invoice.client.company_name}</div>
+                            <div className="text-xs text-gray-400 mt-0.5 truncate" title={invoice.client.company_name}>
+                              {invoice.client.company_name}
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -2074,7 +2085,7 @@ export const InvoiceList: React.FC = () => {
                             <span className="text-sm text-gray-500">One-time</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center space-x-2">
                             <Link
                               to={`/invoices/${invoice.id}/view`}

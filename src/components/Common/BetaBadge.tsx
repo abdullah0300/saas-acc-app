@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface BetaBadgeProps {
-  size?: 'small' | 'medium' | 'large';
+  size?: 'tiny' | 'small' | 'medium' | 'large';
   variant?: 'gradient' | 'outline' | 'subtle';
   className?: string;
 }
@@ -13,6 +13,7 @@ export const BetaBadge: React.FC<BetaBadgeProps> = ({
   className = ''
 }) => {
   const sizeClasses = {
+    tiny: 'px-1.5 py-0.5 text-[8px]',
     small: 'px-2 py-0.5 text-[10px]',
     medium: 'px-2.5 py-1 text-xs',
     large: 'px-3 py-1.5 text-sm'

@@ -208,12 +208,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 transition-all duration-200 ease-out">
                       <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
                     </div>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-all duration-200 ease-out animate-in fade-in slide-in-from-left-2">
-                          SmartCFO
-                        </h1>
-                        <BetaBadge size="small" variant="gradient" />
+                    <div className="flex flex-col gap-0.5">
+                      <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-all duration-200 ease-out animate-in fade-in slide-in-from-left-2">
+                        SmartCFO
+                      </h1>
+                      <div className="animate-in fade-in slide-in-from-left-2">
+                        <BetaBadge size="tiny" variant="gradient" />
                       </div>
                     </div>
                   </div>
@@ -233,11 +233,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                     <img src="/smartcfo logo bg.png" className="text-white font-bold text-xl"/>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-0.5">
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                       SmartCFO
                     </h1>
-                    <BetaBadge size="small" variant="gradient" />
+                    <BetaBadge size="tiny" variant="gradient" />
                   </div>
                 </div>
                 <button

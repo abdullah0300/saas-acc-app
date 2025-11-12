@@ -29,7 +29,9 @@ import {
   Chrome,
   Facebook,
   Linkedin,
-  AlertCircle
+  AlertCircle,
+  Menu,
+  X
 } from "lucide-react";
 
 export const Login: React.FC = () => {
@@ -190,12 +192,14 @@ const handleForgotPassword = async (e: React.FormEvent) => {
         <div className="w-full max-w-md relative">
           {/* Logo and Title */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
-              <img src="https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717" className="h-8 w-8 text-white" />
-            </div>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
+            <div className="inline-flex items-center justify-center gap-2 mb-4">
+              <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg">
+                <img src="https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717" className="h-8 w-8 text-white" />
+              </div>
               <BetaBadge size="medium" variant="subtle" />
+            </div>
+            <div className="mb-2">
+              <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
             </div>
             <p className="mt-2 text-gray-600">
               Sign in to manage your finances
@@ -448,15 +452,15 @@ const handleForgotPassword = async (e: React.FormEvent) => {
           <div className="mt-8 flex justify-center items-center gap-6 text-sm text-gray-500">
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-green-500" />
-              <span>Secure</span>
+              <span>Bank-level Security</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>GDPR Compliant</span>
+              <span>Data Protected</span>
             </div>
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-green-500" />
-              <span>Trusted by 10k+ businesses</span>
+              <Sparkles className="h-4 w-4 text-green-500" />
+              <span>AI-Powered</span>
             </div>
           </div>
         </div>
