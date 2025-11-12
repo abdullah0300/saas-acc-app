@@ -247,7 +247,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
       ) : (
         // Full Widget View
         <div
-          className="relative rounded-[24px] p-4 overflow-hidden transition-all duration-700 ease-out"
+          className={`relative ${isMobile ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} overflow-hidden transition-all duration-700 ease-out`}
           onMouseDown={handleMouseDown}
           style={{
             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 50%, rgba(241, 245, 249, 0.98) 100%)',
@@ -262,15 +262,18 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
         >
           {/* Close & Drag Header */}
           <div className="absolute top-2 right-2 left-2 flex items-center justify-between px-1 z-10">
-            <div
-              className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-slate-100/50 transition-all duration-300"
-              title="Drag to move"
-              style={{
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              <GripVertical className="h-3.5 w-3.5 text-slate-400" />
-            </div>
+            {!isMobile && (
+              <div
+                className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-slate-100/50 transition-all duration-300"
+                title="Drag to move"
+                style={{
+                  backdropFilter: 'blur(10px)',
+                }}
+              >
+                <GripVertical className="h-3.5 w-3.5 text-slate-400" />
+              </div>
+            )}
+            {isMobile && <div />}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -439,7 +442,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
 
         {/* Call to Action */}
         <div
-          className="flex items-center justify-between pt-3 relative"
+          className={`flex items-center justify-between ${isMobile ? 'pt-2' : 'pt-3'} relative`}
           style={{
             borderTop: '1.5px solid rgba(226, 232, 240, 0.6)',
           }}
@@ -451,19 +454,19 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                 filter: 'drop-shadow(0 2px 4px rgba(139, 92, 246, 0.3))',
               }}
             >
-              <Sparkles className="h-4 w-4 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
+              <Sparkles className={`${isMobile ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-purple-500`} style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
             </div>
             <span
-              className="text-xs font-semibold text-slate-600 truncate transition-all duration-300 tracking-tight"
+              className={`${isMobile ? 'text-[11px]' : 'text-xs'} font-semibold text-slate-600 truncate transition-all duration-300 tracking-tight`}
               style={{
                 textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',
               }}
             >
-              {isHovered ? "Talk to AI for Smart Accounting" : currentConversation.feature}
+              {!isMobile && isHovered ? "Talk to AI for Smart Accounting" : currentConversation.feature}
             </span>
           </div>
           <button
-            className="relative px-3.5 py-1.5 rounded-lg text-xs font-medium flex-shrink-0 ml-2 transition-all duration-300 overflow-hidden group"
+            className={`relative ${isMobile ? 'px-3 py-1' : 'px-3.5 py-1.5'} rounded-lg ${isMobile ? 'text-[11px]' : 'text-xs'} font-medium flex-shrink-0 ml-2 transition-all duration-300 overflow-hidden group`}
             style={{
               background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%)',
               boxShadow: isHovered
