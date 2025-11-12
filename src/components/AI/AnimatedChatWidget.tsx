@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X, GripVertical } from 'lucide-react';
 
 interface Conversation {
   user: string;
@@ -39,9 +39,25 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
   const [showUserMessage, setShowUserMessage] = useState(true);
   const [showAssistantMessage, setShowAssistantMessage] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    // Check if user previously minimized the widget
+    return localStorage.getItem('aiWidgetMinimized') === 'true';
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState(() => {
+    // Load saved position or use default
+    const saved = localStorage.getItem('aiWidgetPosition');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return { x: window.innerWidth - 244, y: window.innerHeight - 200 }; // 220px width + 24px margin
+  });
+
   const cycleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const assistantTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const widgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Reset states when conversation changes
@@ -75,206 +91,347 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
     };
   }, [currentIndex]);
 
+  // Handle drag functionality
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return; // Don't drag when clicking buttons
+    setIsDragging(true);
+    dragStartPos.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newX = e.clientX - dragStartPos.current.x;
+      const newY = e.clientY - dragStartPos.current.y;
+
+      // Constrain to viewport
+      const maxX = window.innerWidth - 220; // widget width
+      const maxY = window.innerHeight - 180; // approximate widget height
+
+      const constrainedPosition = {
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY)),
+      };
+
+      setPosition(constrainedPosition);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      // Save position to localStorage
+      localStorage.setItem('aiWidgetPosition', JSON.stringify(position));
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, position]);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition((prev: { x: number; y: number }) => ({
+        x: Math.min(prev.x, window.innerWidth - 220),
+        y: Math.min(prev.y, window.innerHeight - 180),
+      }));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleMinimize = () => {
+    setIsMinimized(true);
+    localStorage.setItem('aiWidgetMinimized', 'true');
+
+    // Move to bottom right corner when minimized
+    const newPosition = {
+      x: window.innerWidth - 80, // 60px width + 20px margin
+      y: window.innerHeight - 100, // 80px height + 20px margin
+    };
+    setPosition(newPosition);
+    localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
+  };
+
+  const handleExpand = () => {
+    setIsMinimized(false);
+    localStorage.setItem('aiWidgetMinimized', 'false');
+
+    // Keep widget in bottom right corner when expanded (adjusted for larger size)
+    const newPosition = {
+      x: window.innerWidth - 280, // 260px width + 20px margin
+      y: window.innerHeight - 420, // approximate expanded height + margin
+    };
+    setPosition(newPosition);
+    localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
+  };
+
   const currentConversation = conversations[currentIndex];
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 w-[300px] select-none"
+      ref={widgetRef}
+      className="fixed z-50 select-none"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        cursor: isDragging ? 'grabbing' : 'default',
+        width: isMinimized ? '60px' : '260px',
+        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Main Chat Widget */}
-      <div
-        className="relative rounded-[28px] p-4 cursor-pointer overflow-hidden transition-all duration-500 ease-out"
-        onClick={onOpen}
-        style={{
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.05) 100%)',
-          backdropFilter: 'blur(24px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-          border: isHovered ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.18)',
-          boxShadow: isHovered
-            ? '0 25px 70px rgba(139, 92, 246, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 40px rgba(139, 92, 246, 0.2)'
-            : '0 20px 60px rgba(139, 92, 246, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-          transform: isHovered ? 'scale(1.02) translateY(-2px)' : 'scale(1)',
-        }}
-      >
-        {/* Animated gradient background - Always visible */}
-        <div 
-          className="absolute inset-0 transition-opacity duration-500 pointer-events-none"
+      {isMinimized ? (
+        // Minimized Tab View
+        <div
+          className="relative rounded-2xl p-3 overflow-hidden cursor-pointer transition-all duration-500 ease-out hover:scale-105"
+          onClick={handleExpand}
+          onMouseDown={handleMouseDown}
           style={{
-            opacity: isHovered ? 1.2 : 1,
-            background: 'radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 40%, transparent 70%)',
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 50%, rgba(241, 245, 249, 0.98) 100%)',
+            backdropFilter: 'blur(40px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+            border: '1.5px solid rgba(203, 213, 225, 0.5)',
+            boxShadow: '0 15px 40px rgba(100, 116, 139, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          }}
+        >
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(to bottom right, rgb(59, 130, 246), rgb(147, 51, 234))',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              }}
+            >
+              <img
+                src="/smartcfo logo bg.png"
+                alt="SmartCFO"
+                className="w-full h-full object-contain p-1.5"
+              />
+            </div>
+            <Sparkles className="h-4 w-4 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
+          </div>
+        </div>
+      ) : (
+        // Full Widget View
+        <div
+          className="relative rounded-[24px] p-4 overflow-hidden transition-all duration-700 ease-out"
+          onMouseDown={handleMouseDown}
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 50%, rgba(241, 245, 249, 0.98) 100%)',
+            backdropFilter: 'blur(40px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+            border: isHovered ? '1.5px solid rgba(203, 213, 225, 0.6)' : '1.5px solid rgba(203, 213, 225, 0.4)',
+            boxShadow: isHovered
+              ? '0 25px 60px rgba(100, 116, 139, 0.35), 0 15px 35px rgba(148, 163, 184, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+              : '0 20px 45px rgba(100, 116, 139, 0.25), 0 10px 25px rgba(148, 163, 184, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+            transform: isDragging ? 'scale(0.97) rotate(-1deg)' : isHovered ? 'scale(1.02) translateY(-4px)' : 'scale(1)',
+          }}
+        >
+          {/* Close & Drag Header */}
+          <div className="absolute top-2 right-2 left-2 flex items-center justify-between px-1 z-10">
+            <div
+              className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg hover:bg-slate-100/50 transition-all duration-300"
+              title="Drag to move"
+              style={{
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <GripVertical className="h-3.5 w-3.5 text-slate-400" />
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMinimize();
+              }}
+              className="p-1.5 rounded-lg hover:bg-slate-100/50 hover:rotate-90 transition-all duration-300 group"
+              title="Minimize widget"
+              style={{
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <X className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600" />
+            </button>
+          </div>
+
+        {/* Animated gradient orbs */}
+        <div
+          className="absolute top-0 right-0 w-32 h-32 rounded-full transition-opacity duration-700 pointer-events-none"
+          style={{
+            opacity: isHovered ? 0.25 : 0.15,
+            background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
+            filter: 'blur(40px)',
+            animation: 'float 6s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute bottom-0 left-0 w-24 h-24 rounded-full transition-opacity duration-700 pointer-events-none"
+          style={{
+            opacity: isHovered ? 0.25 : 0.15,
+            background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
+            filter: 'blur(35px)',
+            animation: 'float 8s ease-in-out infinite reverse',
           }}
         />
 
-        {/* Shine effect - Always visible */}
-        <div 
-          className="absolute inset-0 transition-opacity duration-500 pointer-events-none"
+        {/* Premium shine effect */}
+        <div
+          className="absolute inset-0 transition-all duration-700 pointer-events-none overflow-hidden rounded-[24px]"
           style={{
-            opacity: isHovered ? 0.5 : 0.3,
-            background: 'linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)',
+            opacity: isHovered ? 0.4 : 0.25,
           }}
-        />
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: '-50%',
+              left: '-50%',
+              width: '200%',
+              height: '200%',
+              background: 'linear-gradient(45deg, transparent 30%, rgba(203, 213, 225, 0.3) 50%, transparent 70%)',
+              animation: isHovered ? 'shine 2s ease-in-out infinite' : 'none',
+            }}
+          />
+        </div>
 
         {/* Hover glow effect */}
         {isHovered && (
-          <div 
-            className="absolute inset-0 pointer-events-none"
+          <div
+            className="absolute inset-0 pointer-events-none rounded-[24px]"
             style={{
-              background: 'radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, transparent 70%)',
-              animation: 'pulseGlow 2s ease-in-out infinite',
+              background: 'radial-gradient(circle at center, rgba(139, 92, 246, 0.08) 0%, transparent 70%)',
+              animation: 'pulseGlow 3s ease-in-out infinite',
             }}
           />
         )}
 
-        {/* Animated Messages */}
-        <div className="relative space-y-2.5 min-h-[95px] mb-3">
-          {/* User Message */}
-          {showUserMessage && (
-            <div
-              key={`user-${currentIndex}`}
-              className="flex justify-end"
-              style={{ animation: 'fadeInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
-            >
-              <div 
-                className="rounded-[20px] px-4 py-2.5 max-w-[80%] relative"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.75) 100%)',
-                  backdropFilter: 'blur(24px) saturate(200%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-                  border: '1px solid rgba(255, 255, 255, 0.4)',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
-                }}
-              >
-                <p className="text-xs text-gray-900 font-semibold leading-relaxed tracking-tight">{currentConversation.user}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Assistant Message */}
-          {showAssistantMessage && (
+        {/* Animated Messages - Compact, show only one at a time */}
+        <div className="relative space-y-3 min-h-[70px] mb-3 pt-6">
+          {/* Show only assistant message with typing indicator if user message would show */}
+          {showAssistantMessage ? (
             <div
               key={`assistant-${currentIndex}`}
               className="flex justify-start"
-              style={{ animation: 'fadeInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
+              style={{ animation: 'fadeInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}
             >
-              <div className="flex items-start gap-2 max-w-[80%]">
-                {/* SmartCFO Logo - Premium */}
-                <div 
-                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 relative"
+              <div className="flex items-start gap-2 max-w-full">
+                {/* SmartCFO Logo - Modern style */}
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 relative transition-transform duration-300 hover:scale-110"
                   style={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    background: 'linear-gradient(to bottom right, rgb(59, 130, 246), rgb(147, 51, 234))',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
                   }}
                 >
-                  <img 
-                    src="/smartcfo logo bg.png" 
-                    alt="SmartCFO" 
+                  <img
+                    src="/smartcfo logo bg.png"
+                    alt="SmartCFO"
                     className="w-full h-full object-contain p-1"
                   />
-                  {/* Glow effect */}
-                  <div 
-                    className="absolute inset-0 rounded-full opacity-50"
-                    style={{
-                      background: 'radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%)',
-                    }}
-                  />
                 </div>
-                <div 
-                  className="rounded-[20px] px-4 py-2.5 relative"
+                <div
+                  className="rounded-2xl px-3.5 py-2.5 relative flex-1 transition-all duration-300 hover:shadow-lg"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.75) 100%)',
-                    backdropFilter: 'blur(24px) saturate(200%)',
-                    WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-                    border: '1px solid rgba(255, 255, 255, 0.4)',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                    background: 'linear-gradient(135deg, rgba(249, 250, 251, 0.95) 0%, rgba(243, 244, 246, 0.9) 100%)',
+                    backdropFilter: 'blur(30px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+                    border: '1.5px solid rgba(229, 231, 235, 0.8)',
+                    boxShadow: '0 4px 16px rgba(100, 116, 139, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                   }}
                 >
-                  <p className="text-xs text-gray-900 font-medium leading-relaxed tracking-tight">{currentConversation.assistant}</p>
+                  <p className="text-xs text-slate-700 font-medium leading-relaxed">{currentConversation.assistant}</p>
                 </div>
               </div>
             </div>
-          )}
-
-          {/* Typing Indicator */}
-          {showUserMessage && !showAssistantMessage && (
+          ) : showUserMessage ? (
+            // Typing Indicator (show when user message appears, before assistant responds)
             <div className="flex justify-start" style={{ animation: 'fadeInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
               <div className="flex items-start gap-2">
-                <div 
-                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 relative"
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 relative"
                   style={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    background: 'linear-gradient(to bottom right, rgb(59, 130, 246), rgb(147, 51, 234))',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
                   }}
                 >
-                  <img 
-                    src="/smartcfo logo bg.png" 
-                    alt="SmartCFO" 
+                  <img
+                    src="/smartcfo logo bg.png"
+                    alt="SmartCFO"
                     className="w-full h-full object-contain p-1"
                   />
                 </div>
-                <div 
-                  className="rounded-[20px] px-4 py-2.5"
+                <div
+                  className="rounded-2xl px-4 py-2.5"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.75) 100%)',
-                    backdropFilter: 'blur(24px) saturate(200%)',
-                    WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-                    border: '1px solid rgba(255, 255, 255, 0.4)',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+                    background: 'linear-gradient(135deg, rgba(249, 250, 251, 0.95) 0%, rgba(243, 244, 246, 0.9) 100%)',
+                    backdropFilter: 'blur(30px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+                    border: '1.5px solid rgba(229, 231, 235, 0.8)',
+                    boxShadow: '0 4px 16px rgba(100, 116, 139, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
                   }}
                 >
                   <div className="flex gap-1.5 items-center">
-                    <div 
-                      className="w-2 h-2 rounded-full" 
-                      style={{ 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 100%)',
                         animation: 'typingBounce 1.4s ease-in-out infinite',
                         animationDelay: '0ms',
-                      }} 
+                        boxShadow: '0 2px 6px rgba(139, 92, 246, 0.3)',
+                      }}
                     />
-                    <div 
-                      className="w-2 h-2 rounded-full" 
-                      style={{ 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 100%)',
                         animation: 'typingBounce 1.4s ease-in-out infinite',
                         animationDelay: '200ms',
-                      }} 
+                        boxShadow: '0 2px 6px rgba(139, 92, 246, 0.3)',
+                      }}
                     />
-                    <div 
-                      className="w-2 h-2 rounded-full" 
-                      style={{ 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.8) 0%, rgba(99, 102, 241, 0.8) 100%)',
                         animation: 'typingBounce 1.4s ease-in-out infinite',
                         animationDelay: '400ms',
-                      }} 
+                        boxShadow: '0 2px 6px rgba(139, 92, 246, 0.3)',
+                      }}
                     />
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Call to Action */}
-        <div 
-          className="flex items-center justify-between pt-2.5 relative"
+        <div
+          className="flex items-center justify-between pt-3 relative"
           style={{
-            borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+            borderTop: '1.5px solid rgba(226, 232, 240, 0.6)',
           }}
         >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div 
-              className="flex-shrink-0"
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div
+              className="flex-shrink-0 relative"
               style={{
                 filter: 'drop-shadow(0 2px 4px rgba(139, 92, 246, 0.3))',
               }}
             >
-              <Sparkles className="h-3.5 w-3.5 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
+              <Sparkles className="h-4 w-4 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
             </div>
-            <span 
-              className="text-xs font-normal text-gray-700 truncate transition-all duration-300 tracking-tight"
+            <span
+              className="text-xs font-semibold text-slate-600 truncate transition-all duration-300 tracking-tight"
               style={{
                 textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',
               }}
@@ -283,63 +440,70 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
             </span>
           </div>
           <button
-            className="relative px-4 py-1.5 rounded-full text-xs font-bold text-white flex-shrink-0 ml-2 transition-all duration-300 overflow-hidden group"
+            className="relative px-3.5 py-1.5 rounded-lg text-xs font-medium flex-shrink-0 ml-2 transition-all duration-300 overflow-hidden group"
             style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: isHovered 
-                ? '0 10px 28px rgba(102, 126, 234, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4)'
-                : '0 4px 12px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              transform: isHovered ? 'scale(1.08)' : 'scale(1)',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%)',
+              boxShadow: isHovered
+                ? '0 4px 12px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
+                : '0 2px 8px rgba(59, 130, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+              border: '1.5px solid rgba(59, 130, 246, 0.3)',
+              transform: isHovered ? 'scale(1.03) translateY(-1px)' : 'scale(1)',
             }}
             onClick={(e) => {
               e.stopPropagation();
               onOpen();
             }}
           >
-            <span className="relative z-10">Chat</span>
+            <span className="relative z-10 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Chat Now
+            </span>
             {/* Button shine effect */}
-            <div 
-              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            <div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               style={{
-                background: 'linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%)',
+                background: 'linear-gradient(135deg, transparent 0%, rgba(59, 130, 246, 0.1) 50%, transparent 100%)',
               }}
             />
           </button>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Premium CSS Animations */}
       <style>{`
         @keyframes fadeInRight {
           from {
             opacity: 0;
-            transform: translateX(12px) scale(0.96);
+            transform: translateX(20px) scale(0.94);
+            filter: blur(4px);
           }
           to {
             opacity: 1;
             transform: translateX(0) scale(1);
+            filter: blur(0);
           }
         }
-        
+
         @keyframes fadeInLeft {
           from {
             opacity: 0;
-            transform: translateX(-12px) scale(0.96);
+            transform: translateX(-20px) scale(0.94);
+            filter: blur(4px);
           }
           to {
             opacity: 1;
             transform: translateX(0) scale(1);
+            filter: blur(0);
           }
         }
 
         @keyframes typingBounce {
           0%, 60%, 100% {
             transform: translateY(0) scale(1);
-            opacity: 0.7;
+            opacity: 0.8;
           }
           30% {
-            transform: translateY(-8px) scale(1.1);
+            transform: translateY(-10px) scale(1.15);
             opacity: 1;
           }
         }
@@ -347,22 +511,43 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
         @keyframes sparkle {
           0%, 100% {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) rotate(0deg);
           }
           50% {
-            opacity: 0.6;
-            transform: scale(1.1);
+            opacity: 0.7;
+            transform: scale(1.2) rotate(10deg);
           }
         }
 
         @keyframes pulseGlow {
           0%, 100% {
-            opacity: 0.3;
+            opacity: 0.4;
             transform: scale(1);
           }
           50% {
-            opacity: 0.6;
-            transform: scale(1.05);
+            opacity: 0.7;
+            transform: scale(1.08);
+          }
+        }
+
+        @keyframes float {
+          0%, 100% {
+            transform: translate(0, 0) scale(1);
+          }
+          33% {
+            transform: translate(10px, -10px) scale(1.05);
+          }
+          66% {
+            transform: translate(-10px, 10px) scale(0.95);
+          }
+        }
+
+        @keyframes shine {
+          0% {
+            transform: translateX(-100%) translateY(-100%) rotate(45deg);
+          }
+          100% {
+            transform: translateX(100%) translateY(100%) rotate(45deg);
           }
         }
       `}</style>
