@@ -466,7 +466,7 @@ export const AIChatWidget: React.FC = () => {
     <>
       {/* Animated Chat Widget */}
       {/* UNCOMMENT THE LINE BELOW TO ENABLE THE ANIMATED CHAT WIDGET */}
-      {/* {!isOpen && <AnimatedChatWidget onOpen={handleOpen} />} */}
+     {!isOpen && <AnimatedChatWidget onOpen={handleOpen} />} 
 
       {/* Chat Popup */}
       {isOpen && (
