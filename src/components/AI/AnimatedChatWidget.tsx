@@ -204,58 +204,9 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
       onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
       {isMinimized ? (
-        // Minimized Tab View with Mitosis/Cell Division Animation
+        // Minimized Tab View - Simple Button
         <div className="relative">
-          {/* Separated Droplet - Floats up after pinching off */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              bottom: '70px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              animation: 'dropletSeparateAndFloat 4s ease-in-out infinite',
-            }}
-          >
-            {/* Text Bubble (formed from separated droplet) */}
-            <div
-              className="relative px-4 py-2 rounded-2xl whitespace-nowrap"
-              style={{
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(147, 51, 234, 0.95) 100%)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                boxShadow: '0 8px 32px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                border: '1.5px solid rgba(255, 255, 255, 0.2)',
-                animation: 'dropletGrowToBubble 4s ease-in-out infinite',
-              }}
-            >
-              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" />
-                Chat with AI
-              </span>
-            </div>
-          </div>
-
-          {/* Connection Neck - Thins as droplet separates */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              bottom: '62px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              animation: 'neckPinchOff 4s ease-in-out infinite',
-            }}
-          >
-            <div
-              style={{
-                width: '4px',
-                height: '12px',
-                background: 'linear-gradient(to bottom, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.6))',
-                filter: 'blur(1px)',
-              }}
-            />
-          </div>
-
-          {/* Main Button with Bulge Effect */}
+          {/* Main Button */}
           <div
             className="relative rounded-2xl p-3 cursor-pointer transition-all duration-500 ease-out hover:scale-105"
             onClick={handleExpand}
@@ -266,34 +217,8 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
               WebkitBackdropFilter: 'blur(40px) saturate(200%)',
               border: '1.5px solid rgba(203, 213, 225, 0.5)',
               boxShadow: '0 15px 40px rgba(100, 116, 139, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-              animation: 'buttonBulge 4s ease-in-out infinite',
             }}
           >
-            {/* Bulging Droplet Formation on Button Top */}
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                top: '-8px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                animation: 'bulgeFormation 4s ease-in-out infinite',
-              }}
-            >
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
-                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(147, 51, 234, 0.9) 100%)',
-                  backdropFilter: 'blur(15px)',
-                  WebkitBackdropFilter: 'blur(15px)',
-                  boxShadow: '0 4px 16px rgba(59, 130, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  filter: 'drop-shadow(0 2px 8px rgba(59, 130, 246, 0.4))',
-                }}
-              />
-            </div>
-
             <div className="flex flex-col items-center gap-2">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -308,7 +233,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                   className="w-full h-full object-contain p-1.5"
                 />
               </div>
-              <Sparkles className="h-4 w-4 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
+              <Sparkles className="h-4 w-4 text-purple-500" />
             </div>
           </div>
         </div>
@@ -642,173 +567,6 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
           }
           100% {
             transform: translateX(100%) translateY(100%) rotate(45deg);
-          }
-        }
-
-        /* Mitosis/Cell Division Animations */
-
-        @keyframes buttonBulge {
-          0%, 100% {
-            transform: scale(1);
-            border-radius: 16px;
-          }
-          15% {
-            transform: scale(1, 1.05) translateY(-2px);
-            border-radius: 16px 16px 14px 14px;
-          }
-          25% {
-            transform: scale(1, 1.08) translateY(-4px);
-            border-radius: 18px 18px 14px 14px;
-          }
-          35% {
-            transform: scale(1, 1.03) translateY(-1px);
-            border-radius: 16px 16px 15px 15px;
-          }
-          45%, 90% {
-            transform: scale(1) translateY(0);
-            border-radius: 16px;
-          }
-        }
-
-        @keyframes bulgeFormation {
-          0%, 8% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(8px) scale(0.1);
-            border-radius: 50%;
-          }
-          15% {
-            opacity: 0.6;
-            transform: translateX(-50%) translateY(4px) scale(0.4);
-            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-          }
-          25% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0px) scale(0.8);
-            border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
-          }
-          30% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-2px) scale(1);
-            border-radius: 50% 50% 50% 50% / 80% 80% 20% 20%;
-          }
-          35% {
-            opacity: 0.8;
-            transform: translateX(-50%) translateY(-4px) scale(0.7);
-            border-radius: 50%;
-          }
-          40% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-6px) scale(0.3);
-          }
-          45%, 100% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(8px) scale(0.1);
-          }
-        }
-
-        @keyframes neckPinchOff {
-          0%, 20% {
-            opacity: 0;
-            transform: translateX(-50%) scaleX(1) scaleY(0);
-            height: 0px;
-          }
-          25% {
-            opacity: 0.7;
-            transform: translateX(-50%) scaleX(1) scaleY(1);
-            height: 12px;
-          }
-          28% {
-            opacity: 0.8;
-            transform: translateX(-50%) scaleX(0.8) scaleY(1.1);
-            height: 14px;
-          }
-          32% {
-            opacity: 0.6;
-            transform: translateX(-50%) scaleX(0.4) scaleY(1.2);
-            height: 10px;
-          }
-          35% {
-            opacity: 0.3;
-            transform: translateX(-50%) scaleX(0.15) scaleY(0.8);
-            height: 6px;
-          }
-          38% {
-            opacity: 0;
-            transform: translateX(-50%) scaleX(0.05) scaleY(0.3);
-            height: 2px;
-          }
-          40%, 100% {
-            opacity: 0;
-            transform: translateX(-50%) scaleX(0) scaleY(0);
-            height: 0px;
-          }
-        }
-
-        @keyframes dropletSeparateAndFloat {
-          0%, 32% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(10px) scale(0.2);
-          }
-          35% {
-            opacity: 0.7;
-            transform: translateX(-50%) translateY(8px) scale(0.5);
-          }
-          40% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(5px) scale(0.7);
-          }
-          50% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0px) scale(0.9);
-          }
-          65% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-8px) scale(1);
-          }
-          80% {
-            opacity: 0.9;
-            transform: translateX(-50%) translateY(-12px) scale(1.05);
-          }
-          90% {
-            opacity: 0.5;
-            transform: translateX(-50%) translateY(-15px) scale(1.08);
-          }
-          100% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-18px) scale(1.1);
-          }
-        }
-
-        @keyframes dropletGrowToBubble {
-          0%, 32% {
-            transform: scale(0.3);
-            border-radius: 50%;
-            padding: 4px 8px;
-          }
-          40% {
-            transform: scale(0.6);
-            border-radius: 45%;
-            padding: 6px 10px;
-          }
-          50% {
-            transform: scale(0.8);
-            border-radius: 40%;
-            padding: 7px 14px;
-          }
-          65% {
-            transform: scale(1);
-            border-radius: 16px;
-            padding: 8px 16px;
-          }
-          80%, 90% {
-            transform: scale(1.02);
-            border-radius: 16px;
-            padding: 8px 16px;
-          }
-          100% {
-            transform: scale(1);
-            border-radius: 16px;
-            padding: 8px 16px;
           }
         }
       `}</style>
