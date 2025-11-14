@@ -9,7 +9,7 @@ import { parseRelativeDate } from '../../userSettingsService';
 
 /**
  * Get invoice records with filters
- * Returns invoices with client details and calculated totals
+ * Returns invoices with client details and pre-calculated totals
  */
 export const getInvoicesTool = async (
   userId: string,
@@ -22,7 +22,15 @@ export const getInvoicesTool = async (
     min_amount?: number;
     max_amount?: number;
   }
-): Promise<any[]> => {
+): Promise<{
+  summary: {
+    total: number;
+    count: number;
+    by_status: Record<string, { count: number; amount: number }>;
+    outstanding: number;
+  };
+  records: any[];
+}> => {
   try {
     // Fetch all invoices
     let invoices = await getInvoices(userId);
@@ -107,10 +115,49 @@ export const getInvoicesTool = async (
       };
     });
 
+    // Calculate total using base_amount (always in user's base currency)
+    // CRITICAL: Always use base_amount for calculations to ensure correct multi-currency handling
+    const total = invoicesWithDetails.reduce((sum, inv) => sum + (inv.base_amount || inv.total), 0);
+
+    // Calculate outstanding amount (unpaid invoices)
+    const outstanding = invoicesWithDetails
+      .filter(inv => inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partially_paid')
+      .reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+
+    // Calculate breakdown by status
+    const byStatus: Record<string, { count: number; amount: number }> = {};
+    invoicesWithDetails.forEach(inv => {
+      const status = inv.status || 'draft';
+      if (!byStatus[status]) {
+        byStatus[status] = { count: 0, amount: 0 };
+      }
+      byStatus[status].count += 1;
+      byStatus[status].amount += (inv.base_amount || inv.total);
+    });
+
     console.log('[getInvoicesTool] Final result count:', invoicesWithDetails.length);
-    return invoicesWithDetails;
+    console.log('[getInvoicesTool] Calculated total:', total);
+    console.log('[getInvoicesTool] Outstanding amount:', outstanding);
+
+    return {
+      summary: {
+        total: total,
+        count: invoicesWithDetails.length,
+        by_status: byStatus,
+        outstanding: outstanding
+      },
+      records: invoicesWithDetails
+    };
   } catch (error) {
     console.error('[getInvoicesTool] Error:', error);
-    return [];
+    return {
+      summary: {
+        total: 0,
+        count: 0,
+        by_status: {},
+        outstanding: 0
+      },
+      records: []
+    };
   }
 };
