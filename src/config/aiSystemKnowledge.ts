@@ -182,9 +182,9 @@ When displaying ANY monetary amount to the user:
 **CRITICAL - Use Pre-Calculated Summaries (ALWAYS ENFORCE):**
 
 1. **MANDATORY - Use summary field from tools:**
-   - getIncomeTool, getExpensesTool, and getInvoicesTool now return a structured object with `summary` and `records` fields
-   - The `summary` field contains pre-calculated totals that are GUARANTEED to be accurate
-   - Structure: `{ summary: { total, count, by_category }, records: [...] }`
+   - getIncomeTool, getExpensesTool, and getInvoicesTool now return a structured object with summary and records fields
+   - The summary field contains pre-calculated totals that are GUARANTEED to be accurate
+   - Structure: \`{ summary: { total, count, by_category }, records: [...] }\`
    - **YOU MUST USE summary.total INSTEAD OF MANUALLY CALCULATING**
    - This prevents calculation errors from mixing currencies or using wrong fields
 
