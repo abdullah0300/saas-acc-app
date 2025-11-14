@@ -204,53 +204,11 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
       onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
       {isMinimized ? (
-        // Minimized Tab View with Droplet Animation
+        // Minimized Tab View - Simple Button
         <div className="relative">
-          {/* Droplet Animation - Floats up from button */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              bottom: '70px', // Position above button
-              left: '50%',
-              transform: 'translateX(-50%)',
-              animation: 'dropletFloat 3s ease-in-out infinite',
-            }}
-          >
-            {/* Droplet that transforms into text bubble */}
-            <div
-              className="relative px-4 py-2 rounded-2xl whitespace-nowrap"
-              style={{
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(147, 51, 234, 0.95) 100%)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                boxShadow: '0 8px 32px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                border: '1.5px solid rgba(255, 255, 255, 0.2)',
-                animation: 'dropletPulse 3s ease-in-out infinite',
-              }}
-            >
-              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" />
-                Chat with AI
-              </span>
-              {/* Droplet tail pointing to button */}
-              <div
-                className="absolute left-1/2 -bottom-2"
-                style={{
-                  width: '0',
-                  height: '0',
-                  borderLeft: '8px solid transparent',
-                  borderRight: '8px solid transparent',
-                  borderTop: '8px solid rgba(147, 51, 234, 0.95)',
-                  transform: 'translateX(-50%)',
-                  filter: 'drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3))',
-                }}
-              />
-            </div>
-          </div>
-
           {/* Main Button */}
           <div
-            className="relative rounded-2xl p-3 overflow-hidden cursor-pointer transition-all duration-500 ease-out hover:scale-105"
+            className="relative rounded-2xl p-3 cursor-pointer transition-all duration-500 ease-out hover:scale-105"
             onClick={handleExpand}
             onMouseDown={handleMouseDown}
             style={{
@@ -275,7 +233,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
                   className="w-full h-full object-contain p-1.5"
                 />
               </div>
-              <Sparkles className="h-4 w-4 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
+              <Sparkles className="h-4 w-4 text-purple-500" />
             </div>
           </div>
         </div>
@@ -609,36 +567,6 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
           }
           100% {
             transform: translateX(100%) translateY(100%) rotate(45deg);
-          }
-        }
-
-        @keyframes dropletFloat {
-          0% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(20px) scale(0.5);
-          }
-          20% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0px) scale(1);
-          }
-          80% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-5px) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-10px) scale(0.95);
-          }
-        }
-
-        @keyframes dropletPulse {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-          }
-          50% {
-            transform: scale(1.05);
-            box-shadow: 0 12px 40px rgba(59, 130, 246, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
           }
         }
       `}</style>
