@@ -12,6 +12,7 @@ export const LoanDashboardCard: React.FC = () => {
   const { formatCurrency } = useSettings();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
@@ -22,20 +23,27 @@ export const LoanDashboardCard: React.FC = () => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      // Only show loading skeleton on initial load
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       const data = await getLoans(user.id);
       // Only show active loans
       const activeLoans = data.filter(loan => loan.status === 'active');
       setLoans(activeLoans);
+      setIsInitialLoad(false);
     } catch (err: any) {
       console.error('Error loading loans:', err);
       setError(err.message || 'Failed to load loans');
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
 
-  if (loading) {
+  // Only show loading skeleton on initial load
+  if (loading && isInitialLoad) {
     return (
       <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
         <div className="animate-pulse">

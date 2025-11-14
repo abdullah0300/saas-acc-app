@@ -114,7 +114,10 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const [error, setError] = useState('');
-  const { businessData, businessDataLoading, userRole } = useData();
+  const { businessData, businessDataLoading, userRole, refreshBusinessData } = useData();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   // Initialize with session storage, default to hidden
   const [showPrivateNumbers, setShowPrivateNumbers] = useState(() => {
     const saved = sessionStorage.getItem('dashboardPrivacyMode');
@@ -139,6 +142,37 @@ const [lastInsightUpdate, setLastInsightUpdate] = useState<string>('');
 const [needsContext, setNeedsContext] = useState(false);
 const [missingFields, setMissingFields] = useState<any[]>([]); // Use any[] instead of string[]
 const [showContextModal, setShowContextModal] = useState(false);
+
+// Track initial load completion
+useEffect(() => {
+  if (!businessDataLoading && incomes.length >= 0) {
+    setIsInitialLoad(false);
+  }
+}, [businessDataLoading, incomes]);
+
+// Silent background refresh on tab visibility change
+useEffect(() => {
+  const handleVisibilityChange = async () => {
+    if (document.visibilityState === 'visible' && user && !isInitialLoad) {
+      // Tab became visible - refresh data silently
+      setIsRefreshing(true);
+      try {
+        await refreshBusinessData();
+      } catch (error) {
+        console.error('Error refreshing dashboard data:', error);
+      } finally {
+        // Keep refresh indicator for a moment
+        setTimeout(() => setIsRefreshing(false), 1000);
+      }
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, [user, refreshBusinessData, isInitialLoad]);
 
 // Filter for current month data for dashboard stats
 const currentDate = new Date();
@@ -238,13 +272,16 @@ const generateMonthlyData = () => {
 
 
 // REPLACE your loadInsights function with this corrected version:
-const loadInsights = async () => {
+const loadInsights = async (showLoader = true) => {
   try {
-    setLoadingInsights(true);
-    
+    // Only show loading skeleton on initial load
+    if (showLoader && isInitialLoad) {
+      setLoadingInsights(true);
+    }
+
     // ✅ Use the subscription that's already available from line 93
     // No need to call useSubscription() again
-    
+
     // Only Plus users get insights
     if (subscription?.plan !== 'plus') {
       setInsights([]);
@@ -252,10 +289,10 @@ const loadInsights = async () => {
       setMissingFields([]);
       return;
     }
-    
+
     // Get cached insights from today's 3 AM generation
     const response = await AIInsightsService.getCachedInsights();
-    
+
     if (response && response.insights) {
       setInsights(response.insights);
       setLastInsightUpdate(response.generated_at);
@@ -267,14 +304,16 @@ const loadInsights = async () => {
       setNeedsContext(false);
       setMissingFields([]);
     }
-    
+
   } catch (error) {
     console.error('Error loading insights:', error);
     setInsights([]);
     setNeedsContext(false);
     setMissingFields([]);
   } finally {
-    setLoadingInsights(false);
+    if (showLoader && isInitialLoad) {
+      setLoadingInsights(false);
+    }
   }
 };
 // const handleRefreshInsights = async () => {
@@ -380,7 +419,6 @@ const recentActivity = [
   }))
 ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());const recentClients = clients.slice(0, 5);
 const recentInvoices = invoices.slice(0, 5);
-const loading = businessDataLoading;
 
 
   const calculateGrowth = () => {
@@ -458,18 +496,21 @@ const handleBannerClose = () => {
   setShowMonthlyBanner(false);
 };
 
-  if (loading || settingsLoading) {
+  // Only show loading skeleton on initial load, not on background refreshes
+  const loading = businessDataLoading && isInitialLoad;
+
+  if (loading || (settingsLoading && isInitialLoad)) {
   return (
     <div className="p-4 md:p-6 bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen">
       <div className="mb-8">
         <div className="w-48 h-8 bg-gray-200 rounded animate-pulse mb-2" />
         <div className="w-64 h-4 bg-gray-200 rounded animate-pulse" />
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <SkeletonCard count={4} />
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="w-32 h-6 bg-gray-200 rounded animate-pulse mb-4" />
@@ -524,12 +565,21 @@ const handleBannerClose = () => {
         {/* Header with Quick Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Dashboard
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Dashboard
+              </h1>
+              {/* Subtle refresh indicator */}
+              {isRefreshing && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 border border-indigo-200 rounded-full animate-pulse">
+                  <RefreshCw className="h-3 w-3 text-indigo-600 animate-spin" />
+                  <span className="text-xs font-medium text-indigo-600">Updating...</span>
+                </div>
+              )}
+            </div>
             <p className="text-gray-600 mt-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
           </div>
-          
+
           <div className="flex gap-3">
   {/* Privacy Toggle Button */}
   <button
@@ -580,20 +630,20 @@ const handleBannerClose = () => {
   {/* Show breakdown if there are credit notes */}
   {stats?.creditNoteAmount > 0 ? (
     <div>
-      <p className="text-3xl font-bold text-gray-900 mt-1">
+      <p className="text-3xl font-bold text-gray-900 mt-1 transition-all duration-500 ease-in-out">
         {formatPrivateValue(stats?.totalIncome || 0)}
       </p>
       <div className="mt-2 space-y-1">
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-500 transition-all duration-500 ease-in-out">
           Gross: {showPrivateNumbers ? formatCurrency(stats?.grossIncome || 0) : '••••••'}
         </div>
-        <div className="text-xs text-red-600">
+        <div className="text-xs text-red-600 transition-all duration-500 ease-in-out">
           Credits: -{showPrivateNumbers ? formatCurrency(stats?.creditNoteAmount || 0) : '••••••'}
         </div>
       </div>
     </div>
   ) : (
-    <p className="text-3xl font-bold text-gray-900 mt-1">
+    <p className="text-3xl font-bold text-gray-900 mt-1 transition-all duration-500 ease-in-out">
       {formatPrivateValue(stats?.totalIncome || 0)}
     </p>
   )}
@@ -611,7 +661,7 @@ const handleBannerClose = () => {
               </span>
             </div>
             <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
+            <p className="text-3xl font-bold text-gray-900 mt-1 transition-all duration-500 ease-in-out">
               {formatPrivateValue(stats?.totalExpenses || 0)}
             </p>
             <p className="text-sm text-gray-500 mt-2">This month</p>
@@ -622,12 +672,12 @@ const handleBannerClose = () => {
               <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
                 <DollarSign className="h-6 w-6 text-white" />
               </div>
-              <span className="text-xs font-semibold bg-white/20 backdrop-blur px-3 py-1 rounded-full">
+              <span className="text-xs font-semibold bg-white/20 backdrop-blur px-3 py-1 rounded-full transition-all duration-500 ease-in-out">
                 {profitMargin}% margin
               </span>
             </div>
             <p className="text-sm font-medium text-indigo-100">Net Profit</p>
-            <p className="text-3xl font-bold mt-1">
+            <p className="text-3xl font-bold mt-1 transition-all duration-500 ease-in-out">
               {formatPrivateValue(stats?.netProfit || 0)}
             </p>
             <p className="text-sm text-indigo-100 mt-2">
@@ -647,10 +697,10 @@ const handleBannerClose = () => {
               )}
             </div>
             <p className="text-sm font-medium text-gray-600">Pending Invoices</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">
+            <p className="text-3xl font-bold text-gray-900 mt-1 transition-all duration-500 ease-in-out">
               {stats?.pendingInvoices || 0}
             </p>
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-gray-500 mt-2 transition-all duration-500 ease-in-out">
               {showPrivateNumbers ? formatCurrency(stats?.totalPending || 0) : '••••••'} outstanding
             </p>
           </div>
