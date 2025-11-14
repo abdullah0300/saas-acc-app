@@ -16,10 +16,6 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
-      // Initialize Tawk.to if not already loaded
-      if (window.Tawk_API) {
-        // Tawk.to is already loaded
-      }
     } else {
       document.body.style.overflow = "unset";
     }
@@ -29,12 +25,40 @@ export const ContactSupportModal: React.FC<ContactSupportModalProps> = ({
     };
   }, [isOpen]);
 
-  const handleChatClick = () => {
+  const loadTawkScript = () => {
+    // Check if Tawk.to script already exists
     if (window.Tawk_API) {
-      // Show widget first, then maximize it
+      // Already loaded, just show and maximize
       window.Tawk_API.showWidget();
       window.Tawk_API.maximize();
+      return;
     }
+
+    // Load Tawk.to script dynamically
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://embed.tawk.to/690915836435f2194e4f369c/default';
+    script.charset = 'UTF-8';
+    script.setAttribute('crossorigin', '*');
+
+    // When script loads, maximize the widget
+    script.onload = () => {
+      if (window.Tawk_API) {
+        // Wait for Tawk.to to fully initialize
+        const checkTawk = setInterval(() => {
+          if (window.Tawk_API && window.Tawk_API.maximize) {
+            clearInterval(checkTawk);
+            window.Tawk_API.maximize();
+          }
+        }, 100);
+      }
+    };
+
+    document.head.appendChild(script);
+  };
+
+  const handleChatClick = () => {
+    loadTawkScript();
     onClose();
   };
 
@@ -131,6 +155,7 @@ declare global {
     };
   }
 }
+
 
 
 

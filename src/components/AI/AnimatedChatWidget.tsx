@@ -182,18 +182,8 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
   };
 
   const handleExpand = () => {
-    setIsMinimized(false);
-    localStorage.setItem('aiWidgetMinimized', 'false');
-
-    // Mobile: full width with margins, positioned at bottom
-    // Desktop: bottom right corner
-    const newPosition = isMobile
-      ? { x: 16, y: window.innerHeight - 380 }
-      : { x: window.innerWidth - 280, y: window.innerHeight - 420 };
-    setPosition(newPosition);
-    if (!isMobile) {
-      localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
-    }
+    // Instead of expanding the preview widget, open the main chat popup
+    onOpen();
   };
 
   const currentConversation = conversations[currentIndex];
@@ -214,34 +204,79 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
       onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
       {isMinimized ? (
-        // Minimized Tab View
-        <div
-          className="relative rounded-2xl p-3 overflow-hidden cursor-pointer transition-all duration-500 ease-out hover:scale-105"
-          onClick={handleExpand}
-          onMouseDown={handleMouseDown}
-          style={{
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 50%, rgba(241, 245, 249, 0.98) 100%)',
-            backdropFilter: 'blur(40px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-            border: '1.5px solid rgba(203, 213, 225, 0.5)',
-            boxShadow: '0 15px 40px rgba(100, 116, 139, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-          }}
-        >
-          <div className="flex flex-col items-center gap-2">
+        // Minimized Tab View with Droplet Animation
+        <div className="relative">
+          {/* Droplet Animation - Floats up from button */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              bottom: '70px', // Position above button
+              left: '50%',
+              transform: 'translateX(-50%)',
+              animation: 'dropletFloat 3s ease-in-out infinite',
+            }}
+          >
+            {/* Droplet that transforms into text bubble */}
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              className="relative px-4 py-2 rounded-2xl whitespace-nowrap"
               style={{
-                background: 'linear-gradient(to bottom right, rgb(59, 130, 246), rgb(147, 51, 234))',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(147, 51, 234, 0.95) 100%)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                boxShadow: '0 8px 32px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+                border: '1.5px solid rgba(255, 255, 255, 0.2)',
+                animation: 'dropletPulse 3s ease-in-out infinite',
               }}
             >
-              <img
-                src="/smartcfo logo bg.png"
-                alt="SmartCFO"
-                className="w-full h-full object-contain p-1.5"
+              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Chat with AI
+              </span>
+              {/* Droplet tail pointing to button */}
+              <div
+                className="absolute left-1/2 -bottom-2"
+                style={{
+                  width: '0',
+                  height: '0',
+                  borderLeft: '8px solid transparent',
+                  borderRight: '8px solid transparent',
+                  borderTop: '8px solid rgba(147, 51, 234, 0.95)',
+                  transform: 'translateX(-50%)',
+                  filter: 'drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3))',
+                }}
               />
             </div>
-            <Sparkles className="h-4 w-4 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
+          </div>
+
+          {/* Main Button */}
+          <div
+            className="relative rounded-2xl p-3 overflow-hidden cursor-pointer transition-all duration-500 ease-out hover:scale-105"
+            onClick={handleExpand}
+            onMouseDown={handleMouseDown}
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 50%, rgba(241, 245, 249, 0.98) 100%)',
+              backdropFilter: 'blur(40px) saturate(200%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+              border: '1.5px solid rgba(203, 213, 225, 0.5)',
+              boxShadow: '0 15px 40px rgba(100, 116, 139, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+            }}
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(to bottom right, rgb(59, 130, 246), rgb(147, 51, 234))',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                }}
+              >
+                <img
+                  src="/smartcfo logo bg.png"
+                  alt="SmartCFO"
+                  className="w-full h-full object-contain p-1.5"
+                />
+              </div>
+              <Sparkles className="h-4 w-4 text-purple-500" style={{ animation: 'sparkle 2s ease-in-out infinite' }} />
+            </div>
           </div>
         </div>
       ) : (
@@ -574,6 +609,36 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
           }
           100% {
             transform: translateX(100%) translateY(100%) rotate(45deg);
+          }
+        }
+
+        @keyframes dropletFloat {
+          0% {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px) scale(0.5);
+          }
+          20% {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0px) scale(1);
+          }
+          80% {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-10px) scale(0.95);
+          }
+        }
+
+        @keyframes dropletPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+          }
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(59, 130, 246, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
           }
         }
       `}</style>

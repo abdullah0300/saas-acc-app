@@ -464,9 +464,8 @@ export const AIChatWidget: React.FC = () => {
 
   return (
     <>
-      {/* Animated Chat Widget */}
-      {/* UNCOMMENT THE LINE BELOW TO ENABLE THE ANIMATED CHAT WIDGET */}
-     {!isOpen && <AnimatedChatWidget onOpen={handleOpen} />} 
+      {/* Animated Chat Widget - Only shows minimized button, opens big popup directly */}
+      {!isOpen && <AnimatedChatWidget onOpen={handleOpen} />} 
 
       {/* Chat Popup */}
       {isOpen && (
