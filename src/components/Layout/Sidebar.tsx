@@ -374,13 +374,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
             {isExpanded && (
               <div className="px-6 py-4 border-t border-gray-700/50 hidden lg:block">
                 <p className="text-xs text-center text-gray-500">
-                  © 2024 SmartCFO
+                  © 2025 SmartCFO
                 </p>
               </div>
             )}
             <div className="px-6 py-4 border-t border-gray-700/50 lg:hidden">
               <p className="text-xs text-center text-gray-500">
-                © 2024 SmartCFO
+                © 2025 SmartCFO
               </p>
             </div>
           </div>

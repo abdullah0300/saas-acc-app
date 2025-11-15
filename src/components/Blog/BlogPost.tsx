@@ -521,7 +521,7 @@ export const BlogPost: React.FC = () => {
             {/* Bottom */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex items-center gap-4 text-sm text-gray-600">
-                <span>© 2024 SmartCFO</span>
+                <span>© 2025 SmartCFO</span>
                 <span className="hidden md:block">•</span>
                 <span className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-green-500" />

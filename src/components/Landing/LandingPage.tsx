@@ -991,7 +991,7 @@ export const LandingPage: React.FC = () => {
           
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-sm text-gray-400">
-              © 2024 SmartCFO. Built with AI, for humans who love smart accounting.
+              © 2025 SmartCFO. Built with AI, for humans who love smart accounting.
             </p>
             <p className="text-xs text-gray-500 mt-2">
               Designed & Developed by{' '}
