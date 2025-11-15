@@ -310,6 +310,7 @@ export const createExpenseTool = async (
 /**
  * Get expense records with filters
  * Can filter by date range, category, vendor, etc.
+ * Returns pre-calculated summary to ensure accurate totals
  */
 export const getExpensesTool = async (
   userId: string,
@@ -319,7 +320,14 @@ export const getExpensesTool = async (
     category_name?: string;
     vendor_name?: string;
   }
-): Promise<any[]> => {
+): Promise<{
+  summary: {
+    total: number;
+    count: number;
+    by_category: Record<string, number>;
+  };
+  records: any[];
+}> => {
   try {
     // Fetch expense records
     let expenses = await getExpenses(userId, filters?.start_date, filters?.end_date);
@@ -357,11 +365,38 @@ export const getExpensesTool = async (
       console.log('[getExpensesTool] Vendor filter:', beforeFilter, '→', expenses.length);
     }
 
+    // Calculate total using base_amount (always in user's base currency)
+    // CRITICAL: Always use base_amount for calculations to ensure correct multi-currency handling
+    const total = expenses.reduce((sum, exp) => sum + (exp.base_amount || exp.amount), 0);
+
+    // Calculate breakdown by category
+    const byCategory: Record<string, number> = {};
+    expenses.forEach(exp => {
+      const categoryName = exp.category?.name || 'Uncategorized';
+      byCategory[categoryName] = (byCategory[categoryName] || 0) + (exp.base_amount || exp.amount);
+    });
+
     console.log('[getExpensesTool] Final result count:', expenses.length);
-    return expenses;
+    console.log('[getExpensesTool] Calculated total:', total);
+
+    return {
+      summary: {
+        total: total,
+        count: expenses.length,
+        by_category: byCategory
+      },
+      records: expenses
+    };
   } catch (error) {
     console.error('[getExpensesTool] Error:', error);
-    return [];
+    return {
+      summary: {
+        total: 0,
+        count: 0,
+        by_category: {}
+      },
+      records: []
+    };
   }
 };
 

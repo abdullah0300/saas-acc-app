@@ -379,6 +379,7 @@ export const createIncomeTool = async (
 /**
  * Get income records with filters
  * Can filter by date range, category, client, etc.
+ * Returns pre-calculated summary to ensure accurate totals
  */
 export const getIncomeTool = async (
   userId: string,
@@ -388,7 +389,14 @@ export const getIncomeTool = async (
     category_name?: string;
     client_name?: string;
   }
-): Promise<any[]> => {
+): Promise<{
+  summary: {
+    total: number;
+    count: number;
+    by_category: Record<string, number>;
+  };
+  records: any[];
+}> => {
   try {
     // Fetch income records
     let income = await getIncomes(userId, filters?.start_date, filters?.end_date);
@@ -428,11 +436,42 @@ export const getIncomeTool = async (
       console.log('[getIncomeTool] Client filter:', beforeFilter, '→', income.length);
     }
 
+    // Calculate total using base_amount (always in user's base currency)
+    // CRITICAL: Always use base_amount for calculations to ensure correct multi-currency handling
+    const total = income
+      .filter(inc => !inc.credit_note_id) // Exclude credit note entries
+      .reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0);
+
+    // Calculate breakdown by category
+    const byCategory: Record<string, number> = {};
+    income
+      .filter(inc => !inc.credit_note_id)
+      .forEach(inc => {
+        const categoryName = inc.category?.name || 'Uncategorized';
+        byCategory[categoryName] = (byCategory[categoryName] || 0) + (inc.base_amount || inc.amount);
+      });
+
     console.log('[getIncomeTool] Final result count:', income.length);
-    return income;
+    console.log('[getIncomeTool] Calculated total:', total);
+
+    return {
+      summary: {
+        total: total,
+        count: income.filter(inc => !inc.credit_note_id).length,
+        by_category: byCategory
+      },
+      records: income
+    };
   } catch (error) {
     console.error('[getIncomeTool] Error:', error);
-    return [];
+    return {
+      summary: {
+        total: 0,
+        count: 0,
+        by_category: {}
+      },
+      records: []
+    };
   }
 };
 
