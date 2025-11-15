@@ -566,6 +566,9 @@ export const AIChatWidget: React.FC = () => {
                   creditsRemaining={creditsRemaining}
                   isLoading={isLoading}
                 />
+                <p className="text-[10px] text-gray-500 mt-2 text-center leading-relaxed">
+                  SmartCFO is in <span className="font-bold">beta</span>. Please double-check important info.
+                </p>
               </div>
             </div>
           )}
@@ -754,6 +757,9 @@ export const AIChatWidget: React.FC = () => {
                       creditsRemaining={creditsRemaining}
                       isLoading={isLoading}
                     />
+                    <p className="text-[10px] text-gray-500 mt-2 text-center leading-relaxed">
+                      SmartCFO is in <span className="font-bold">beta</span>. AI can occasionally make mistakes, so please double-check important information.
+                    </p>
                   </div>
                 </div>
               </div>
