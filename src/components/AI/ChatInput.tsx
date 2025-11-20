@@ -27,7 +27,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, disabled = false, 
   };
 
   return (
-    <div className="space-y-2">
+    <>
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <div className="space-y-2">
       {creditsRemaining === 0 && (
         <p className="text-xs text-red-500 text-center">
           No credits remaining. Credits reset daily.
@@ -41,8 +47,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, disabled = false, 
           placeholder={disabled ? "No credits remaining" : isLoading ? "AI is thinking..." : "Type your message..."}
           disabled={disabled}
           rows={1}
-          className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-          style={{ minHeight: '40px', maxHeight: '120px' }}
+          className="flex-1 px-4 py-2 border-2 border-purple-200/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:cursor-not-allowed scrollbar-hide"
+          style={{
+            minHeight: '40px',
+            maxHeight: '120px',
+            background: disabled ? 'rgba(243, 244, 246, 0.5)' : 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}
           onInput={(e) => {
             const target = e.target as HTMLTextAreaElement;
             target.style.height = 'auto';
@@ -60,5 +73,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, disabled = false, 
         </button>
       </div>
     </div>
+    </>
   );
 };

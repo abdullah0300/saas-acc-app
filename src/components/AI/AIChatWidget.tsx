@@ -57,8 +57,8 @@ export const AIChatWidget: React.FC = () => {
   }));
   // Initialize minimized popup position to right-bottom
   const [minimizedPosition, setMinimizedPosition] = useState(() => ({
-    x: typeof window !== 'undefined' ? window.innerWidth - 464 : 0, // Right side (440px width + 24px padding)
-    y: typeof window !== 'undefined' ? window.innerHeight - 450 : 0 // Bottom position
+    x: typeof window !== 'undefined' ? window.innerWidth - 364 : 0, // Right side (340px width + 24px padding)
+    y: typeof window !== 'undefined' ? window.innerHeight - 544 : 0 // Bottom position (520px height + 24px padding)
   }));
   const [isAnimating, setIsAnimating] = useState(false);
   
@@ -84,8 +84,8 @@ export const AIChatWidget: React.FC = () => {
       } else if (isOpen && isMinimized) {
         // Small popup - keep position but constrain to viewport
         setMinimizedPosition({
-          x: Math.min(minimizedPosition.x, window.innerWidth - 464),
-          y: Math.min(minimizedPosition.y, window.innerHeight - 450)
+          x: Math.min(minimizedPosition.x, window.innerWidth - 364),
+          y: Math.min(minimizedPosition.y, window.innerHeight - 544)
         });
       }
     };
@@ -118,9 +118,14 @@ export const AIChatWidget: React.FC = () => {
   };
 
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom only when new messages are added (not on minimize/maximize)
+  const previousMessageCountRef = useRef(messages.length);
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll if message count increased (new message added)
+    if (messages.length > previousMessageCountRef.current) {
+      scrollToBottom();
+    }
+    previousMessageCountRef.current = messages.length;
   }, [messages]);
 
   const loadActiveConversation = async () => {
@@ -395,22 +400,26 @@ export const AIChatWidget: React.FC = () => {
     setIsMinimized(true);
     // Set position to right-bottom when minimizing
     setMinimizedPosition({
-      x: window.innerWidth - 464, // Right side (440px width + 24px padding)
-      y: window.innerHeight - 450
+      x: window.innerWidth - 364, // Right side (340px width + 24px padding)
+      y: window.innerHeight - 544 // Bottom position (520px height + 24px padding)
     });
-    setTimeout(() => setIsAnimating(false), 400);
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, 400);
   }, []);
 
   const handleMaximize = useCallback(() => {
     setIsAnimating(true);
     setIsMinimized(false);
-    
+
     setPopupPosition({
       x: (window.innerWidth - 900) / 2,
       y: window.innerHeight - 730
     });
-    
-    setTimeout(() => setIsAnimating(false), 400);
+
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, 400);
   }, []);
 
   // Drag handlers for small minimized popup only
@@ -432,10 +441,10 @@ export const AIChatWidget: React.FC = () => {
       if (isMinimized) {
         const newX = e.clientX - dragStartPos.current.x;
         const newY = e.clientY - dragStartPos.current.y;
-        
+
         setMinimizedPosition({
-          x: Math.max(0, Math.min(newX, window.innerWidth - 464)),
-          y: Math.max(0, Math.min(newY, window.innerHeight - 450)),
+          x: Math.max(0, Math.min(newX, window.innerWidth - 364)),
+          y: Math.max(0, Math.min(newY, window.innerHeight - 544)),
         });
       }
     };
@@ -491,8 +500,8 @@ export const AIChatWidget: React.FC = () => {
                 position: 'fixed',
                 left: `${minimizedPosition.x}px`,
                 top: `${minimizedPosition.y}px`,
-                width: '440px',
-                height: '420px',
+                width: '340px',
+                height: '520px',
                 background: 'linear-gradient(to bottom, rgba(248, 246, 255, 0.95), rgba(243, 240, 255, 0.9), rgba(238, 235, 255, 0.85))',
                 backdropFilter: 'blur(20px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -503,9 +512,12 @@ export const AIChatWidget: React.FC = () => {
               className={`z-50 rounded-2xl border border-white/30 flex flex-col overflow-hidden shadow-2xl ${popupAnimationClass}`}
             >
               {/* Header - Thinner */}
-              <div 
-                className="px-4 py-3 bg-gradient-to-r from-purple-50/80 to-indigo-50/80 backdrop-blur-sm border-b border-white/20 flex items-center justify-between"
-                style={{ cursor: isDragging ? 'grabbing' : 'default' }}
+              <div
+                className="px-4 py-3 backdrop-blur-sm border-b border-white/20 flex items-center justify-between"
+                style={{
+                  cursor: isDragging ? 'grabbing' : 'default',
+                  background: 'linear-gradient(to right, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15))'
+                }}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0 overflow-hidden p-1">
@@ -546,7 +558,7 @@ export const AIChatWidget: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    <ChatMessageList messages={messages.slice(-4)} />
+                    <ChatMessageList messages={messages.slice(-6)} />
                     {isLoading && (
                       <div className="flex items-center gap-2 text-gray-500 text-sm">
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -559,7 +571,12 @@ export const AIChatWidget: React.FC = () => {
               </div>
 
               {/* Input - Compact */}
-              <div className="p-4 border-t border-gray-200/50 bg-white/90 backdrop-blur-sm">
+              <div
+                className="p-4 border-t border-gray-200/50 backdrop-blur-sm"
+                style={{
+                  background: 'linear-gradient(to top, rgba(139, 92, 246, 0.12), rgba(99, 102, 241, 0.08), rgba(255, 255, 255, 0.9))'
+                }}
+              >
                 <ChatInput
                   onSend={handleSendMessage}
                   disabled={creditsRemaining === 0}
@@ -617,10 +634,19 @@ export const AIChatWidget: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleMinimize}
-                    className="p-2 hover:bg-white/40 rounded-lg transition-colors text-gray-600 hover:text-gray-900"
+                    className="p-2.5 rounded-lg transition-all duration-200 group relative"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.1))',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                    }}
                     aria-label="Minimize"
                   >
-                    <Minimize2 className="h-4 w-4" />
+                    <Minimize2 className="h-4 w-4 text-purple-600 group-hover:text-purple-700 transition-colors" />
+                    <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.15))',
+                      }}
+                    />
                   </button>
                   <button
                     onClick={handleClose}

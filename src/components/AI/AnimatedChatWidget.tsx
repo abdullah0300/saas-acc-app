@@ -45,18 +45,16 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
     return localStorage.getItem('aiWidgetMinimized') === 'true';
   });
   const [isDragging, setIsDragging] = useState(false);
+  const [hasBouncedOnLoad, setHasBouncedOnLoad] = useState(false);
   const [position, setPosition] = useState(() => {
-    // Load saved position or use default
-    const saved = localStorage.getItem('aiWidgetPosition');
+    // Always start at bottom-right, no localStorage
     const isMobileView = window.innerWidth < 768;
-    if (!isMobileView && saved) {
-      return JSON.parse(saved);
-    }
-    // Mobile: center horizontally at bottom
     if (isMobileView) {
-      return { x: 16, y: window.innerHeight - 380 };
+      // Mobile: bottom-right with margin
+      return { x: window.innerWidth - 76, y: window.innerHeight - 120 };
     }
-    return { x: window.innerWidth - 244, y: window.innerHeight - 200 }; // 220px width + 24px margin
+    // Desktop: bottom-right with margin (60px button width + 20px margin from right, 40px from bottom)
+    return { x: window.innerWidth - 80, y: window.innerHeight - 100 };
   });
 
   const cycleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -64,6 +62,15 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
   const assistantTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const widgetRef = useRef<HTMLDivElement>(null);
+
+  // Bounce on load effect - triggers after component mounts
+  useEffect(() => {
+    const bounceTimer = setTimeout(() => {
+      setHasBouncedOnLoad(true);
+    }, 1500); // Complete bounce animation (1000ms) + buffer (500ms)
+
+    return () => clearTimeout(bounceTimer);
+  }, []);
 
   useEffect(() => {
     // Reset states when conversation changes
@@ -115,9 +122,10 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
       const newX = e.clientX - dragStartPos.current.x;
       const newY = e.clientY - dragStartPos.current.y;
 
-      // Constrain to viewport
-      const maxX = window.innerWidth - 220; // widget width
-      const maxY = window.innerHeight - 180; // approximate widget height
+      // Constrain to viewport - use 80px for minimized button size
+      const buttonSize = 80;
+      const maxX = window.innerWidth - buttonSize;
+      const maxY = window.innerHeight - buttonSize;
 
       const constrainedPosition = {
         x: Math.max(0, Math.min(newX, maxX)),
@@ -129,8 +137,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      // Save position to localStorage
-      localStorage.setItem('aiWidgetPosition', JSON.stringify(position));
+      // Don't save position - it will reset on reload
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -142,23 +149,25 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
     };
   }, [isDragging, position]);
 
-  // Handle window resize and mobile detection
+  // Handle window resize and mobile detection - reset to bottom-right
   useEffect(() => {
     const handleResize = () => {
       const isMobileView = window.innerWidth < 768;
       setIsMobile(isMobileView);
 
+      // Always reset to bottom-right on resize
       if (isMobileView) {
-        // On mobile, position at bottom with proper margins
+        // Mobile: bottom-right with margin
         setPosition({
-          x: 16,
-          y: isMinimized ? window.innerHeight - 100 : window.innerHeight - 380,
+          x: window.innerWidth - 76,
+          y: window.innerHeight - 120,
         });
       } else {
-        setPosition((prev: { x: number; y: number }) => ({
-          x: Math.min(prev.x, window.innerWidth - 220),
-          y: Math.min(prev.y, window.innerHeight - 180),
-        }));
+        // Desktop: bottom-right with margin
+        setPosition({
+          x: window.innerWidth - 80,
+          y: window.innerHeight - 100,
+        });
       }
     };
 
@@ -170,15 +179,11 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
     setIsMinimized(true);
     localStorage.setItem('aiWidgetMinimized', 'true');
 
-    // Mobile: position at bottom right with smaller margin
-    // Desktop: bottom right corner
+    // Reset to bottom-right corner
     const newPosition = isMobile
-      ? { x: window.innerWidth - 76, y: window.innerHeight - 100 }
+      ? { x: window.innerWidth - 76, y: window.innerHeight - 120 }
       : { x: window.innerWidth - 80, y: window.innerHeight - 100 };
     setPosition(newPosition);
-    if (!isMobile) {
-      localStorage.setItem('aiWidgetPosition', JSON.stringify(newPosition));
-    }
   };
 
   const handleExpand = () => {
@@ -206,6 +211,17 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
       {isMinimized ? (
         // Minimized Tab View - Simple Button
         <div className="relative">
+          {/* Pulsing Shadow Effect */}
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{
+              animation: 'shadowPulse 3s ease-in-out infinite',
+              filter: 'blur(20px)',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(147, 51, 234, 0.6) 100%)',
+              transform: 'scale(1.1)',
+            }}
+          />
+
           {/* Main Button */}
           <div
             className="relative rounded-2xl p-3 cursor-pointer transition-all duration-500 ease-out hover:scale-105"
@@ -217,6 +233,7 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
               WebkitBackdropFilter: 'blur(40px) saturate(200%)',
               border: '1.5px solid rgba(203, 213, 225, 0.5)',
               boxShadow: '0 15px 40px rgba(100, 116, 139, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+              animation: hasBouncedOnLoad ? 'none' : 'bounceOnLoad 1s ease-out forwards',
             }}
           >
             <div className="flex flex-col items-center gap-2">
@@ -567,6 +584,43 @@ export const AnimatedChatWidget: React.FC<AnimatedChatWidgetProps> = ({ onOpen }
           }
           100% {
             transform: translateX(100%) translateY(100%) rotate(45deg);
+          }
+        }
+
+        /* Bounce on Load Animation */
+        @keyframes bounceOnLoad {
+          0% {
+            opacity: 0;
+            transform: scale(0.3) translateY(0);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.05) translateY(-20px);
+          }
+          65% {
+            transform: scale(0.95) translateY(0);
+          }
+          80% {
+            transform: scale(1.02) translateY(-10px);
+          }
+          95% {
+            transform: scale(0.98) translateY(0);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        /* Shadow Pulse Animation */
+        @keyframes shadowPulse {
+          0%, 100% {
+            opacity: 0.5;
+            transform: scale(1.1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.3);
           }
         }
       `}</style>
