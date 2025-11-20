@@ -768,14 +768,14 @@ const isUK = invoice.currency === 'GBP' &&
                 )}
               </button>
 
-              {/* Print */}
-              <button
+              {/* Print - Commented out */}
+              {/* <button
                 onClick={handlePrint}
                 className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors"
                 title="Print"
               >
                 <Printer className="h-5 w-5" />
-              </button>
+              </button> */}
 
               {/* Share - UPDATED THIS SECTION */}
               <div className="relative">
