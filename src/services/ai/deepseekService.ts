@@ -1013,7 +1013,9 @@ export const chatWithDeepSeek = async (
       });
 
       if (!followUpResponse.ok) {
-        throw new Error(`DeepSeek follow-up error: ${followUpResponse.status}`);
+        const errorBody = await followUpResponse.text();
+        console.error('[DeepSeek Streaming] Follow-up error response:', errorBody);
+        throw new Error(`DeepSeek follow-up error: ${followUpResponse.status} - ${errorBody}`);
       }
 
       const followUpData = await followUpResponse.json();
@@ -1173,6 +1175,280 @@ export const chatWithDeepSeek = async (
     };
   } catch (error: any) {
     console.error('[DeepSeek] Error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Streaming version of chatWithDeepSeek for AI search
+ * Returns results progressively for better UX
+ */
+export const chatWithDeepSeekStreaming = async (
+  messages: ChatMessage[],
+  userId: string,
+  conversationId: string,
+  exchangeRates: Record<string, number> = {},
+  onProgress?: (status: string) => void
+): Promise<{ content: string; tool_calls?: any[] }> => {
+  try {
+    onProgress?.('💭 SmartCFO is thinking...');
+
+    const apiKey = await getDeepSeekApiKey();
+    const systemPrompt = await buildSystemPrompt(userId);
+
+    const apiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.slice(-20).map((msg) => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+      })),
+    ];
+
+    onProgress?.('🔍 Looking through your records...');
+
+    // Call DeepSeek API with streaming enabled
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: apiMessages,
+        tools: getToolsDefinition(),
+        tool_choice: 'auto',
+        temperature: 0.7,
+        max_tokens: 800, // Shorter responses for speed
+        stream: true, // Enable streaming!
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+    }
+
+    // Process streaming response
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let assistantMessage: any = { content: '', tool_calls: [] };
+    let currentToolCall: any = null;
+
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+
+          if (data === '[DONE]') {
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices[0]?.delta;
+
+            if (delta?.content) {
+              assistantMessage.content += delta.content;
+              onProgress?.('📋 Analyzing your data...');
+            }
+
+            if (delta?.tool_calls) {
+              for (const toolCallDelta of delta.tool_calls) {
+                if (toolCallDelta.index !== undefined) {
+                  if (!assistantMessage.tool_calls[toolCallDelta.index]) {
+                    assistantMessage.tool_calls[toolCallDelta.index] = {
+                      id: toolCallDelta.id || '',
+                      type: 'function',
+                      function: { name: '', arguments: '' }
+                    };
+                  }
+
+                  const toolCall = assistantMessage.tool_calls[toolCallDelta.index];
+
+                  if (toolCallDelta.id) {
+                    toolCall.id = toolCallDelta.id;
+                  }
+                  if (toolCallDelta.function?.name) {
+                    toolCall.function.name = toolCallDelta.function.name;
+                    onProgress?.('🔎 Searching...');
+                  }
+                  if (toolCallDelta.function?.arguments) {
+                    toolCall.function.arguments += toolCallDelta.function.arguments;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[DeepSeek Streaming] Failed to parse chunk:', e);
+          }
+        }
+      }
+    }
+
+    // If tool calls detected, execute them (WITH CHAINING SUPPORT!)
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      onProgress?.('📊 Gathering your information...');
+
+      const toolResults: Array<{ toolName: string; result: any }> = [];
+
+      // Execute first round of tools
+      for (const toolCall of assistantMessage.tool_calls) {
+        const toolName = toolCall.function.name;
+        const toolArgs = JSON.parse(toolCall.function.arguments);
+
+        console.log('[DeepSeek Streaming] Executing tool:', toolName);
+        const result = await executeToolCall(toolName, toolArgs, userId, conversationId, exchangeRates);
+        toolResults.push({ toolName, result });
+      }
+
+      // Send tool results back to AI (non-streaming for follow-up)
+      const followUpMessages = [
+        ...apiMessages,
+        {
+          role: 'assistant',  // ← ADD ROLE FIELD!
+          content: assistantMessage.content || null,
+          tool_calls: assistantMessage.tool_calls
+        },
+        ...assistantMessage.tool_calls.map((tc: any, idx: number) => ({
+          role: 'tool',
+          tool_call_id: tc.id,
+          name: tc.function.name,
+          content: JSON.stringify(toolResults[idx].result),
+        })),
+      ];
+
+      console.log('[DeepSeek Streaming] Sending tool results back...');
+      console.log('[DeepSeek Streaming] Follow-up message structure:', {
+        total_messages: followUpMessages.length,
+        last_message_role: followUpMessages[followUpMessages.length - 1].role,
+        assistant_message_has_role: !!followUpMessages.find(m => m.role === 'assistant' && m.tool_calls)
+      });
+      onProgress?.('✨ Almost there...');
+
+      const followUpResponse = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: DEEPSEEK_MODEL,
+          messages: followUpMessages,
+          tools: getToolsDefinition(),
+          tool_choice: 'auto',
+          temperature: 0.7,
+          max_tokens: 800,
+          // NO streaming for follow-up (faster for tool chains)
+        }),
+      });
+
+      if (!followUpResponse.ok) {
+        const errorBody = await followUpResponse.text();
+        console.error('[DeepSeek Streaming] Follow-up error response:', errorBody);
+        throw new Error(`DeepSeek follow-up error: ${followUpResponse.status} - ${errorBody}`);
+      }
+
+      const followUpData = await followUpResponse.json();
+      let currentResponse = followUpData.choices[0].message;
+
+      // Handle chained tool calls (AI wants to call more tools)
+      let currentMessages = followUpMessages;
+      let maxIterations = 5; // Prevent infinite loops
+      let iteration = 0;
+
+      while (currentResponse.tool_calls && currentResponse.tool_calls.length > 0 && iteration < maxIterations) {
+        iteration++;
+        console.log(`[DeepSeek Streaming] Chained tool calls (iteration ${iteration}):`, currentResponse.tool_calls.length);
+        onProgress?.('🔍 Finding more details...');
+
+        // Execute additional tool calls
+        const additionalToolResults: Array<{ toolName: string; result: any }> = [];
+
+        for (const toolCall of currentResponse.tool_calls) {
+          console.log(`[DeepSeek Streaming] Executing chained tool: ${toolCall.function.name}`);
+          const args = JSON.parse(toolCall.function.arguments);
+          const result = await executeToolCall(toolCall.function.name, args, userId, conversationId, exchangeRates);
+          additionalToolResults.push({ toolName: toolCall.function.name, result });
+          toolResults.push({ toolName: toolCall.function.name, result }); // Add to main results
+        }
+
+        // Build next messages array
+        currentMessages = [
+          ...currentMessages,
+          currentResponse,
+          ...currentResponse.tool_calls.map((tc: any, idx: number) => ({
+            role: 'tool',
+            tool_call_id: tc.id,
+            name: tc.function.name,
+            content: JSON.stringify(additionalToolResults[idx].result),
+          })),
+        ];
+
+        console.log('[DeepSeek Streaming] Sending chained results back...');
+
+        // Send results back
+        const chainedResponse = await fetch(DEEPSEEK_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: DEEPSEEK_MODEL,
+            messages: currentMessages,
+            tools: getToolsDefinition(),
+            tool_choice: 'auto',
+            temperature: 0.7,
+            max_tokens: 800,
+          }),
+        });
+
+        if (!chainedResponse.ok) {
+          const errorBody = await chainedResponse.text();
+          console.error('[DeepSeek Streaming] Chained call error response:', errorBody);
+          throw new Error(`DeepSeek chained error: ${chainedResponse.status} - ${errorBody}`);
+        }
+
+        const chainedData = await chainedResponse.json();
+        currentResponse = chainedData.choices[0].message;
+
+        console.log(`[DeepSeek Streaming] Chained response (iteration ${iteration}):`, {
+          finish_reason: chainedData.choices[0].finish_reason,
+          has_tool_calls: !!currentResponse.tool_calls,
+        });
+      }
+
+      if (iteration >= maxIterations) {
+        console.warn('[DeepSeek Streaming] Max tool call iterations reached');
+      }
+
+      onProgress?.('✅ Found your results!');
+
+      return {
+        content: currentResponse.content || 'Results retrieved!',
+        tool_calls: toolResults,
+      };
+    }
+
+    return {
+      content: assistantMessage.content || 'I can help you search your income records!',
+    };
+  } catch (error: any) {
+    console.error('[DeepSeek Streaming] Error:', error);
     throw error;
   }
 };

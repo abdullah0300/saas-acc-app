@@ -173,7 +173,7 @@ export const getIncomes = async (userId: string, startDate?: string, endDate?: s
 
 export const createIncome = async (income: Omit<Income, 'id' | 'created_at' | 'updated_at'>) => {
   const effectiveUserId = await getEffectiveUserId(income.user_id);
-  
+
   const { data, error } = await supabase
   .from('income')
   .insert([{
@@ -182,8 +182,8 @@ export const createIncome = async (income: Omit<Income, 'id' | 'created_at' | 'u
     category_id: income.category_id || null,
     client_id: income.client_id || null,
     reference_number: income.reference_number || null,
-    tax_rate: income.tax_rate || null,
-    tax_amount: income.tax_amount || null
+    tax_rate: income.tax_rate ?? null,
+    tax_amount: income.tax_amount ?? null
   }])
     .select(`
       *,
@@ -217,10 +217,10 @@ export const updateIncome = async (id: string, updates: Partial<Income>) => {
   }
   const updateData: any = { ...updates };
 if ('category_id' in updates) updateData.category_id = updates.category_id || null;
-if ('client_id' in updates) updateData.client_id = updates.client_id || null; // ADD THIS LINE
+if ('client_id' in updates) updateData.client_id = updates.client_id || null;
 if ('reference_number' in updates) updateData.reference_number = updates.reference_number || null;
-if ('tax_rate' in updates) updateData.tax_rate = updates.tax_rate || null; // ADD THIS LINE
-if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount || null; // ADD THIS LINE
+if ('tax_rate' in updates) updateData.tax_rate = updates.tax_rate ?? null;
+if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount ?? null;
 
   const { data, error } = await supabase
     .from('income')
@@ -324,6 +324,8 @@ export const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' |
       category_id: expense.category_id || null,
       vendor: expense.vendor || null,
       receipt_url: expense.receipt_url || null,
+      tax_rate: expense.tax_rate ?? null,
+      tax_amount: expense.tax_amount ?? null,
       is_vat_reclaimable: (expense as any).is_vat_reclaimable ?? true,
       base_tax_amount: (expense as any).base_tax_amount || 0,
       tax_point_date: (expense as any).tax_point_date || expense.date
@@ -362,6 +364,8 @@ export const updateExpense = async (id: string, updates: Partial<Expense>) => {
   if ('category_id' in updates) updateData.category_id = updates.category_id || null;
   if ('vendor' in updates) updateData.vendor = updates.vendor || null;
   if ('receipt_url' in updates) updateData.receipt_url = updates.receipt_url || null;
+  if ('tax_rate' in updates) updateData.tax_rate = updates.tax_rate ?? null;
+  if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount ?? null;
   if ('is_vat_reclaimable' in updates) updateData.is_vat_reclaimable = (updates as any).is_vat_reclaimable ?? true;
   if ('base_tax_amount' in updates) updateData.base_tax_amount = (updates as any).base_tax_amount || 0;
   if ('tax_point_date' in updates) updateData.tax_point_date = (updates as any).tax_point_date || updates.date;

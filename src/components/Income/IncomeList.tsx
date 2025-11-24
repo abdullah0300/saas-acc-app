@@ -5,12 +5,12 @@ import { getClients } from '../../services/database';
 import { useData } from '../../contexts/DataContext';
 import { countries } from '../../data/countries';
 import { SkeletonTable } from '../Common/Loading';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
   Download,
   Calendar,
   TrendingUp,
@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Copy,
   Users,
-  Receipt 
+  Receipt,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { getIncomes, deleteIncome, getCategories } from '../../services/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,7 +38,7 @@ import { Income, Category } from '../../types';
 
 export const IncomeList: React.FC = () => {
   const { user } = useAuth();
-  const { formatCurrency, baseCurrency } = useSettings();
+  const { formatCurrency, baseCurrency, exchangeRates } = useSettings();
   const [searchParams, setSearchParams] = useSearchParams();
 
 // Remove local incomes state - we'll use cached data instead
@@ -71,6 +73,14 @@ const [showDetailModal, setShowDetailModal] = useState(false);
 const [selectedIncome, setSelectedIncome] = useState<Income | null>(null);
 const { userSettings } = useSettings();
 const userCountry = countries.find(c => c.code === userSettings?.country);
+
+  // AI Search states
+  const [aiSearchQuery, setAiSearchQuery] = useState('');
+  const [aiSearchResults, setAiSearchResults] = useState<Income[]>([]);
+  const [isAiSearching, setIsAiSearching] = useState(false);
+  const [showAiResults, setShowAiResults] = useState(false);
+  const [isAiSearchExpanded, setIsAiSearchExpanded] = useState(false);
+  const [aiSearchStatus, setAiSearchStatus] = useState('');
 
   // Sync filters to URL params
   useEffect(() => {
@@ -418,6 +428,187 @@ const clearSelections = () => {
   setSelectAll(false);
 };
 
+  // AI Search: Detect if query is simple income-only query
+  const isSimpleIncomeQuery = (query: string): boolean => {
+    const lowerQuery = query.toLowerCase();
+
+    // Check if query mentions other entities (not income-related)
+    const hasOtherEntity =
+      lowerQuery.includes('expense') ||
+      lowerQuery.includes('invoice') ||
+      lowerQuery.includes('client') ||
+      lowerQuery.includes('compare') ||
+      lowerQuery.includes('vs') ||
+      lowerQuery.includes('profit') ||
+      lowerQuery.includes('how much') ||
+      lowerQuery.includes('should i');
+
+    if (hasOtherEntity) {
+      return false; // Complex query - open chat
+    }
+
+    // Check if query is income-related or generic search
+    const isIncomeRelated =
+      lowerQuery.includes('income') ||
+      lowerQuery.includes('revenue') ||
+      lowerQuery.includes('earning') ||
+      lowerQuery.includes('paid');
+
+    // If no specific entity mentioned, assume it's for current page (income)
+    if (!hasOtherEntity && !isIncomeRelated) {
+      return true; // Generic search like "October", "Acme"
+    }
+
+    return isIncomeRelated;
+  };
+
+  // AI Search: Expand search bar
+  const expandAiSearch = () => {
+    setIsAiSearchExpanded(true);
+  };
+
+  // AI Search: Close search bar (keeps data)
+  const closeAiSearch = () => {
+    setIsAiSearchExpanded(false);
+  };
+
+  // AI Search: Clear and close search bar (removes all data)
+  const clearAndCloseAiSearch = () => {
+    setIsAiSearchExpanded(false);
+    setShowAiResults(false);
+    setAiSearchResults([]);
+    setAiSearchQuery('');
+  };
+
+  // AI Search: Open chat widget with auto-filled query
+  const openChatWithQuery = (query: string) => {
+    window.dispatchEvent(new CustomEvent('openAIChat', {
+      detail: { query }
+    }));
+
+    // Clear and close search bar
+    clearAndCloseAiSearch();
+  };
+
+  // AI Search: Handle clicking on result row
+  const handleAiResultClick = (income: Income) => {
+    // Close AI search (keep data)
+    closeAiSearch();
+    // Open income detail modal
+    handleViewDetails(income);
+  };
+
+  // AI Search: Handle inline search for simple queries (WITH STREAMING!)
+  const handleInlineSearch = async () => {
+    setIsAiSearching(true);
+    setAiSearchStatus('Preparing your search...');
+
+    try {
+      // Import AI service dynamically
+      const deepseekModule = await import('../../services/ai/deepseekService');
+      console.log('[AI Search] Imported module:', Object.keys(deepseekModule));
+
+      const { chatWithDeepSeekStreaming } = deepseekModule;
+
+      if (!chatWithDeepSeekStreaming) {
+        console.error('[AI Search] chatWithDeepSeekStreaming not found in module!');
+        throw new Error('Streaming function not available');
+      }
+
+      console.log('[AI Search] Using streaming function for query:', aiSearchQuery);
+
+      // Call AI with streaming enabled
+      const response = await chatWithDeepSeekStreaming(
+        [{ role: 'user', content: aiSearchQuery, timestamp: new Date().toISOString() }],
+        user!.id,
+        'search-session-' + Date.now(),
+        exchangeRates, // Use real exchange rates
+        (status) => {
+          // This callback updates in real-time!
+          setAiSearchStatus(status);
+        }
+      );
+
+      // Check if AI used getIncomeTool
+      console.log('[AI Search] Response received:', {
+        has_tool_calls: !!response.tool_calls,
+        tool_calls_count: response.tool_calls?.length || 0,
+        tool_names: response.tool_calls?.map((t: any) => t.toolName) || []
+      });
+
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        const incomeTool = response.tool_calls.find(
+          (t: any) => t.toolName === 'getIncomeTool'
+        );
+
+        console.log('[AI Search] Found getIncomeTool:', {
+          found: !!incomeTool,
+          has_result: !!incomeTool?.result,
+          has_records: !!incomeTool?.result?.records,
+          records_count: incomeTool?.result?.records?.length || 0
+        });
+
+        if (incomeTool && incomeTool.result && incomeTool.result.records !== undefined) {
+          // Show results inline (even if 0 records)
+          console.log('[AI Search] Showing inline results:', incomeTool.result.records.length, 'records');
+          setAiSearchResults(incomeTool.result.records);
+          setShowAiResults(true);
+          setAiSearchStatus(incomeTool.result.records.length > 0 ? `✅ Found ${incomeTool.result.records.length} record${incomeTool.result.records.length !== 1 ? 's' : ''}!` : '✅ No records found');
+        } else {
+          // No income results - open chat instead
+          console.log('[AI Search] No getIncomeTool found, opening chat');
+          setAiSearchStatus('');
+          openChatWithQuery(aiSearchQuery);
+        }
+      } else {
+        // No tool calls - open chat
+        console.log('[AI Search] No tool calls detected, opening chat');
+        setAiSearchStatus('');
+        openChatWithQuery(aiSearchQuery);
+      }
+    } catch (error) {
+      console.error('[AI Search] Error occurred:', error);
+      console.error('[AI Search] Error details:', {
+        message: (error as Error).message,
+        stack: (error as Error).stack
+      });
+      setAiSearchStatus('⚠️ Something went wrong. Opening chat assistant...');
+      // Fallback: open chat widget
+      setTimeout(() => {
+        console.log('[AI Search] Opening chat due to error');
+        openChatWithQuery(aiSearchQuery);
+      }, 1000);
+    } finally {
+      setIsAiSearching(false);
+      // Clear status after 2 seconds
+      setTimeout(() => {
+        setAiSearchStatus('');
+      }, 2000);
+    }
+  };
+
+  // AI Search: Main handler
+  const handleAiSearch = async () => {
+    if (!aiSearchQuery.trim()) return;
+
+    // Check if query is simple income query
+    const isSimple = isSimpleIncomeQuery(aiSearchQuery);
+    console.log('[AI Search] Query analysis:', {
+      query: aiSearchQuery,
+      is_simple: isSimple,
+      will_use: isSimple ? 'inline search' : 'chat widget'
+    });
+
+    if (isSimple) {
+      // Handle inline - use existing AI tools
+      await handleInlineSearch();
+    } else {
+      // Open chat widget with auto-filled query
+      console.log('[AI Search] Complex query detected, opening chat');
+      openChatWithQuery(aiSearchQuery);
+    }
+  };
+
 const totalPages = Math.ceil(filteredIncomes.length / itemsPerPage);
 const paginatedIncomes = getPaginatedIncomes();
 
@@ -586,6 +777,235 @@ const averageIncome = regularIncomes.length > 0
           <p className="text-sm text-gray-500 mt-1">Active categories</p>
         </div>
       </div>
+
+      {/* AI Search - Sleek Modern Input */}
+      {!isAiSearchExpanded && (
+        <div
+          onClick={expandAiSearch}
+          className="relative group cursor-pointer"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-indigo-500 rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity"></div>
+          <div className="relative bg-white rounded-2xl border-2 border-purple-200/60 hover:border-purple-400/80 transition-all shadow-sm hover:shadow-md overflow-hidden">
+            <div className="flex items-center px-4 py-3.5 gap-3">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg blur-sm opacity-50"></div>
+                  <div className="relative p-2 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-400 group-hover:text-gray-600 transition-colors">
+                    Ask SmartCFO anything about your income...
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded-lg">
+                  <Search className="h-3 w-3" />
+                  Search
+                </kbd>
+                <Search className="sm:hidden h-5 w-5 text-purple-500" />
+              </div>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Search - Expanded Modal */}
+      {isAiSearchExpanded && (
+        <>
+          {/* Backdrop Blur */}
+          <div
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+            onClick={closeAiSearch}
+          />
+
+          {/* Expanded Search at Top */}
+          <div className="fixed top-0 left-0 right-0 z-50 p-6 animate-fade-in">
+            <div className="max-w-4xl mx-auto">
+              {/* Search Box */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-200/50 shadow-2xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl shadow-lg">
+                    <Sparkles className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">SmartCFO Assistant</h3>
+                    <p className="text-sm text-gray-600">Ask me anything about your income</p>
+                  </div>
+                  <button
+                    onClick={closeAiSearch}
+                    className="p-2 hover:bg-white/60 rounded-lg transition-colors"
+                    title="Close (keeps search)"
+                  >
+                    <X className="h-5 w-5 text-gray-600" />
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={aiSearchQuery}
+                    onChange={(e) => setAiSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAiSearch()}
+                    placeholder="Try: 'Show me October income' or 'Income from Acme Corp'"
+                    disabled={isAiSearching}
+                    autoFocus
+                    className="w-full px-4 py-3.5 pr-12 rounded-xl border-2 border-purple-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none text-gray-900 placeholder-gray-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  <button
+                    onClick={handleAiSearch}
+                    disabled={isAiSearching || !aiSearchQuery.trim()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isAiSearching ? (
+                      <Loader2 className="h-5 w-5 text-white animate-spin" />
+                    ) : (
+                      <Search className="h-5 w-5 text-white" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Real-time Streaming Status */}
+                {isAiSearching && aiSearchStatus && (
+                  <div className="mt-3 px-4 py-2 bg-purple-50 border border-purple-200 rounded-lg animate-fade-in">
+                    <p className="text-sm text-purple-700 font-medium flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {aiSearchStatus}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
+                  <span className="font-medium">💡 Examples:</span>
+                  <button
+                    onClick={() => {
+                      setAiSearchQuery("Show me last month income");
+                      setTimeout(() => handleAiSearch(), 100);
+                    }}
+                    className="px-3 py-1 bg-white/60 hover:bg-white rounded-lg transition-colors text-purple-700 font-medium"
+                  >
+                    Last month
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAiSearchQuery("Income over 5000");
+                      setTimeout(() => handleAiSearch(), 100);
+                    }}
+                    className="px-3 py-1 bg-white/60 hover:bg-white rounded-lg transition-colors text-purple-700 font-medium"
+                  >
+                    Over $5000
+                  </button>
+                </div>
+              </div>
+
+              {/* AI Search Results - Below Search Bar */}
+              {showAiResults && (
+                <div className="mt-4 bg-white rounded-xl shadow-2xl p-6 border border-purple-100 animate-fade-in">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-purple-600" />
+                        Search Results
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {aiSearchResults.length > 0 ? (
+                          <>
+                            Found {aiSearchResults.length} record{aiSearchResults.length !== 1 ? 's' : ''} • Total: {formatCurrency(
+                              aiSearchResults.reduce((sum, inc) => sum + (inc.base_amount || inc.amount), 0),
+                              baseCurrency
+                            )}
+                          </>
+                        ) : (
+                          'No income records found for your search'
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={clearAndCloseAiSearch}
+                      className="px-4 py-2 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-2 font-medium"
+                      title="Clear all results"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Clear
+                    </button>
+                  </div>
+
+                  {/* Results Display */}
+                  {aiSearchResults.length > 0 ? (
+                    <div className="max-h-96 overflow-y-auto space-y-3 custom-scrollbar">
+                      {aiSearchResults.map((income) => (
+                      <div
+                        key={income.id}
+                        onClick={() => handleAiResultClick(income)}
+                        className="p-4 border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all bg-gradient-to-r from-white to-purple-50/30 cursor-pointer"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 mb-2">
+                              {income.description || 'No description'}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3.5 w-3.5" />
+                                {format(parseISO(income.date), 'MMM dd, yyyy')}
+                              </span>
+                              {income.client && (
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3.5 w-3.5" />
+                                  {income.client.name}
+                                </span>
+                              )}
+                              {income.category && (
+                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium">
+                                  {income.category.name}
+                                </span>
+                              )}
+                              {income.reference_number && (
+                                <span className="flex items-center gap-1 text-xs">
+                                  <Receipt className="h-3 w-3" />
+                                  {income.reference_number}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="text-lg font-bold text-emerald-600">
+                              {formatCurrency(income.amount, income.currency || baseCurrency)}
+                            </p>
+                            {income.tax_amount && income.tax_amount > 0 && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Tax: {formatCurrency(income.tax_amount)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="p-4 bg-gray-100 rounded-full">
+                          <FileText className="h-12 w-12 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-gray-900 mb-2">No Records Found</p>
+                          <p className="text-sm text-gray-600 max-w-md">
+                            We couldn't find any income records matching your search. Try adjusting your search criteria or date range.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Search and Filters */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">

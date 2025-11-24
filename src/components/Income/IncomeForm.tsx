@@ -65,7 +65,7 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     if (isEdit && id) {
       loadIncome();
     }
-  }, [id, isEdit]);
+  }, [id, isEdit, user]);
 
   useEffect(() => {
   if (isUserSettingsReady && baseCurrency && formData.currency !== baseCurrency) {
@@ -133,7 +133,7 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     project_id: (income as any).project_id || "",
     date: income.date,
     reference_number: income.reference_number || "",
-    tax_rate: (income.tax_rate || defaultTaxRate).toString(),
+    tax_rate: (income.tax_rate ?? defaultTaxRate).toString(),
     tax_amount: (income.tax_amount || 0).toString(),
     currency: income.currency || baseCurrency,
   });
@@ -229,6 +229,8 @@ const exchangeRate = formData.currency !== baseCurrency
 const baseAmount = netAmount / exchangeRate;
 const baseTaxAmount = taxAmount / exchangeRate;
 
+const taxRateValue = parseFloat(formData.tax_rate);
+
 const incomeData = {
   user_id: user.id,
   amount: netAmount,  // Store NET amount (matching invoice behavior)
@@ -238,7 +240,7 @@ const incomeData = {
   project_id: formData.project_id || undefined,
   date: formData.date,
   reference_number: formData.reference_number || undefined,
-  tax_rate: parseFloat(formData.tax_rate) || undefined,
+  tax_rate: isNaN(taxRateValue) ? undefined : taxRateValue,
   tax_amount: taxAmount,
   currency: formData.currency,
   exchange_rate: exchangeRate,

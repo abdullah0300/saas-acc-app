@@ -66,6 +66,7 @@ export const AIChatWidget: React.FC = () => {
   const popupRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const buttonDragStart = useRef({ x: 0, y: 0 });
+  const pendingQueryRef = useRef<string | null>(null);
 
   // Update positions on window resize
   useEffect(() => {
@@ -102,6 +103,50 @@ export const AIChatWidget: React.FC = () => {
       loadConversations();
     }
   }, [user, isOpen]);
+
+  // Listen for auto-open events from AI search bars
+  useEffect(() => {
+    const handleAutoOpen = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { query } = customEvent.detail;
+
+      // Store query in ref to process after widget opens
+      if (query) {
+        pendingQueryRef.current = query;
+      }
+
+      // Open widget
+      setIsAnimating(true);
+      setIsOpen(true);
+      setIsMinimized(false);
+
+      setPopupPosition({
+        x: (window.innerWidth - 900) / 2,
+        y: window.innerHeight - 730
+      });
+
+      setTimeout(() => setIsAnimating(false), 300);
+    };
+
+    window.addEventListener('openAIChat', handleAutoOpen);
+
+    return () => {
+      window.removeEventListener('openAIChat', handleAutoOpen);
+    };
+  }, []);
+
+  // Process pending query after widget opens
+  useEffect(() => {
+    if (isOpen && pendingQueryRef.current && !isLoading) {
+      const query = pendingQueryRef.current;
+      pendingQueryRef.current = null;
+
+      // Send message after a short delay
+      setTimeout(() => {
+        handleSendMessage(query);
+      }, 600);
+    }
+  }, [isOpen, isLoading]);
 
   // Load chat history
   const loadConversations = async () => {

@@ -161,7 +161,7 @@ useEffect(() => {
     vendor_id: expense.vendor_id || "",
     project_id: (expense as any).project_id || "",
     receipt_url: expense.receipt_url || "",
-    tax_rate: (expense.tax_rate || defaultTaxRate).toString(),
+    tax_rate: (expense.tax_rate ?? defaultTaxRate).toString(),
     tax_amount: (expense.tax_amount || 0).toString(),
     currency: expense.currency || baseCurrency,
     reference_number: expense.reference_number || "",
@@ -374,6 +374,8 @@ const baseAmount = formData.currency !== baseCurrency ? amount / exchangeRate : 
 const taxAmount = parseFloat(formData.tax_amount) || 0;
 const baseTaxAmount = formData.currency !== baseCurrency ? taxAmount / exchangeRate : taxAmount;
 
+const taxRateValue = parseFloat(formData.tax_rate);
+
 const expenseData = {
   user_id: user.id,
   amount: amount,
@@ -385,7 +387,7 @@ const expenseData = {
   project_id: formData.project_id || undefined,
   receipt_url: formData.receipt_url || undefined,
   reference_number: formData.reference_number || undefined,
-  tax_rate: parseFloat(formData.tax_rate) || 0,
+  tax_rate: isNaN(taxRateValue) ? undefined : taxRateValue,
   tax_amount: taxAmount,
   currency: formData.currency,
   exchange_rate: exchangeRate,
