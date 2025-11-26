@@ -14,6 +14,7 @@ import {
 import { SEOHead } from "../SEO";
 import { BetaBadge } from "../Common/BetaBadge";
 import { supabase } from "../../services/supabaseClient";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Brain,
   Sparkles,
@@ -65,6 +66,22 @@ import {
   LineChart,
   Mail,
 } from "lucide-react";
+
+// TypeScript declarations for Google One Tap
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          prompt: (callback?: (notification: any) => void) => void;
+          cancel: () => void;
+        };
+      };
+    };
+    handleGoogleOneTapResponse?: (response: any) => void;
+  }
+}
 
 // Custom CSS for smooth animations
 const customStyles = `
@@ -248,6 +265,7 @@ const useTypewriter = (text: string, speed: number = 100) => {
 
 export const LandingPageAwwrd: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
@@ -331,6 +349,84 @@ export const LandingPageAwwrd: React.FC = () => {
       document.head.removeChild(styleElement);
     };
   }, []);
+
+  // Google One Tap Implementation
+  useEffect(() => {
+    // Don't show if user is already logged in
+    if (user) return;
+
+    // Load Google One Tap script
+    const loadGoogleOneTap = () => {
+      // Check if script already loaded
+      if (document.getElementById('google-one-tap-script')) return;
+
+      const script = document.createElement('script');
+      script.id = 'google-one-tap-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+
+      script.onload = () => {
+        // Initialize Google One Tap
+        if (window.google) {
+          window.google.accounts.id.initialize({
+            // Get your Google Client ID from Supabase Dashboard > Authentication > Providers > Google
+            // For now, we'll fetch it from Supabase config
+            client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || '',
+            callback: handleGoogleOneTapResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+
+          // Display the One Tap prompt
+          window.google.accounts.id.prompt((notification: any) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              console.log('Google One Tap not displayed:', notification.getNotDisplayedReason());
+            }
+          });
+        }
+      };
+
+      document.head.appendChild(script);
+    };
+
+    // Handler for Google One Tap credential response
+    const handleGoogleOneTapResponse = async (response: any) => {
+      try {
+        console.log('🔐 Google One Tap: Received credential');
+
+        // Sign in to Supabase using the Google ID token
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: response.credential,
+        });
+
+        if (error) {
+          console.error('Google One Tap sign-in error:', error);
+          return;
+        }
+
+        console.log('✅ Google One Tap: Sign-in successful', data);
+
+        // Redirect to dashboard
+        navigate('/dashboard');
+      } catch (error) {
+        console.error('Google One Tap error:', error);
+      }
+    };
+
+    // Define the callback on window for Google to call
+    (window as any).handleGoogleOneTapResponse = handleGoogleOneTapResponse;
+
+    // Load the script
+    loadGoogleOneTap();
+
+    // Cleanup
+    return () => {
+      // Remove the callback
+      delete (window as any).handleGoogleOneTapResponse;
+    };
+  }, [user, navigate]);
 
   return (
     <>
