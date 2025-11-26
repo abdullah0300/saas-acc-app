@@ -535,7 +535,7 @@ export const LandingPageAwwrd: React.FC = () => {
 
               {/* Desktop Navigation */}
               <div className="hidden lg:flex items-center gap-1">
-                {["Features", "Solutions", "Pricing"].map((item) => (
+                {["Features", "Pricing"].map((item) => (
                   <a
                     key={item}
                     href={`#${item.toLowerCase()}`}
@@ -586,7 +586,7 @@ export const LandingPageAwwrd: React.FC = () => {
                 className="lg:hidden absolute top-24 left-6 right-6 bg-white rounded-3xl border border-gray-200 p-6 shadow-2xl"
               >
                 <div className="flex flex-col gap-3">
-                  {["Features", "Solutions", "Pricing"].map((item) => (
+                  {["Features", "Pricing"].map((item) => (
                     <a
                       key={item}
                       href={`#${item.toLowerCase()}`}
@@ -1324,7 +1324,6 @@ export const LandingPageAwwrd: React.FC = () => {
                       {[
                         { name: "Features", href: "#features" },
                         { name: "Pricing", href: "#pricing" },
-                        { name: "Solutions", href: "#solutions" },
                         { name: "Blog", href: "/blog" },
                       ].map((link) => (
                         <li key={link.name}>
