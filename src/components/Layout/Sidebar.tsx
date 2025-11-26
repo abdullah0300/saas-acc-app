@@ -26,6 +26,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { getProfile } from "../../services/database";
 import { User } from "../../types";
 import { BetaBadge } from "../Common/BetaBadge";
+import { useTeamPermissions } from "../../hooks/useTeamPermissions";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
   const { hasFeature, showAnticipationModal } = useSubscription();
   const navigate = useNavigate();
   const [showMoreDropup, setShowMoreDropup] = useState(false);
+  const { isPlatformAdmin } = useTeamPermissions();
 
   // Collapsible sidebar state
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -347,6 +349,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, onCollapseCh
                   </button>
                 );
               })}
+
+              {/* Admin Dashboard - Platform Admin Only */}
+              {isPlatformAdmin && (
+                <button
+                  onClick={() => {
+                    navigate("/admin/dashboard");
+                    if (window.innerWidth < 1024) {
+                      onToggle();
+                    }
+                  }}
+                  className={`w-full group flex items-center px-4 py-3 rounded-xl transition-all duration-200 relative ${
+                    !isExpanded ? 'lg:justify-center lg:px-2' : 'space-x-3'
+                  } ${
+                    location.pathname.startsWith('/admin')
+                      ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25"
+                      : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                  }`}
+                >
+                  <Crown
+                    className={`h-5 w-5 transition-transform duration-200 flex-shrink-0 ${
+                      location.pathname.startsWith('/admin') ? "scale-110" : "group-hover:scale-110"
+                    }`}
+                  />
+                  {isExpanded && (
+                    <>
+                      <span className="font-medium hidden lg:block">Admin Dashboard</span>
+                      {location.pathname.startsWith('/admin') && (
+                        <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse hidden lg:block" />
+                      )}
+                    </>
+                  )}
+                  <span className="font-medium lg:hidden">Admin Dashboard</span>
+                  {location.pathname.startsWith('/admin') && (
+                    <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse lg:hidden" />
+                  )}
+                </button>
+              )}
             </nav>
 
             {/* Sign out button */}

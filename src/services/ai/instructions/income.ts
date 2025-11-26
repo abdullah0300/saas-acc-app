@@ -314,44 +314,94 @@ AI: "Preview card created. Please click Create to save."
 
 ## Querying Income
 
-When user asks "show my income" or "how much did I earn":
+**CRITICAL: There are TWO types of income queries. Choose the right response type!**
 
-**CRITICAL: Always follow this exact order:**
+### TYPE 1: ANALYTICAL QUESTIONS → Return conversational analysis
 
-1. **First**: If user mentions ANY date/time period, use parseDateQueryTool FIRST:
-   - "this month" → Call parseDateQueryTool with "this month"
-   - "November" → Call parseDateQueryTool with "November"
-   - "last week" → Call parseDateQueryTool with "last week"
-   - "this year" → Call parseDateQueryTool with "this year"
-   - "today" → Call parseDateQueryTool with "today"
+**Keywords**: "how", "should", "recommend", "advice", "good", "bad", "worry", "think", "analysis", "insights", "better", "worse"
 
-   The tool returns start_date and end_date - use these EXACT values.
+**Intent**: User wants analysis, insights, or recommendations - NOT raw data!
 
-2. **Second**: Call getIncomeTool with the parsed dates:
-   - Use start_date and end_date from parseDateQueryTool
-   - Add client_name or category_name filters if mentioned
+**Response**: Write natural conversational text analyzing the data. Include numbers, trends, comparisons, and actionable advice.
 
-3. **Third**: Present results clearly:
-   - Calculate and show total amount
-   - List individual records if <10
-   - Summarize if many records
+**Examples:**
+
+**User: "How is my income this month?"**
+1. Call parseDateQueryTool("this month") → start_date: "2025-11-01", end_date: "2025-11-30"
+2. Call getIncomeTool with dates
+3. **Return conversational analysis:**
+   "Your income this month is performing well! You've earned $5,240 so far, which is 15% higher than last month ($4,560).
+
+   Top categories:
+   • Consulting: $3,200 (61%) - strong performance
+   • Freelance: $1,540 (29%) - down 20% from last month
+   • Other: $500 (10%)
+
+   ✅ Overall trend is positive. Consider reaching out to past freelance clients to boost that category."
+
+**User: "Should I worry about my income?"**
+1. Call getIncomeTool for recent period
+2. **Return analysis:**
+   "No need to worry! Your income is stable. You're averaging $4,800/month over the last 3 months, with a slight upward trend. Consulting remains your strongest income source at 60%. Keep up the good work!"
+
+**User: "Any recommendations for my income?"**
+1. Call getIncomeTool for recent data
+2. **Return insights:**
+   "Here are some insights:
+
+   📊 Your income is heavily concentrated (85%) in one category. Consider diversifying to reduce risk.
+
+   💡 Client ABC hasn't sent payment in 2 months - worth a follow-up?
+
+   📈 Your best month was August ($6,200) - what worked well there?"
+
+**User: "Is my income better than last month?"**
+1. Call getIncomeTool for this month
+2. Call getIncomeTool for last month
+3. **Return comparison:**
+   "Yes! Your income is up 22% compared to last month:
+   • This month: $5,240
+   • Last month: $4,300
+   • Difference: +$940
+
+   The increase is mainly from Consulting category (+$1,100). Great job! 🎉"
+
+### TYPE 2: DATA RETRIEVAL → Return structured data (frontend will display)
+
+**Keywords**: "show", "list", "find", "get", "display", "see", "view"
+
+**Intent**: User wants to SEE the actual income records
+
+**Response**: Return the data structure as-is. Frontend will render overview card + income rows automatically.
 
 **Examples:**
 
 **User: "Show income this month"**
-1. Call parseDateQueryTool("this month") → Returns start_date: "2025-11-01", end_date: "2025-11-30"
-2. Call getIncomeTool({ start_date: "2025-11-01", end_date: "2025-11-30" })
-3. "You earned {formatted_amount} this month from 8 transactions."
+1. Call parseDateQueryTool("this month") → start_date: "2025-11-01", end_date: "2025-11-30"
+2. Call getIncomeTool with dates
+3. **Return data structure:** Frontend displays overview card + rows
 
-**User: "How much from Acme Corp?"**
-1. No date mentioned, use current month or all time
-2. Call getIncomeTool({ client_name: "Acme Corp" })
-3. "Acme Corp paid you {formatted_amount} total."
+**User: "List consulting income"**
+1. Call getIncomeTool({ category_name: "Consulting" })
+2. **Return data structure:** Frontend displays filtered results
 
-**User: "Income in November"**
-1. Call parseDateQueryTool("November") → Returns start_date: "2025-11-01", end_date: "2025-11-30"
-2. Call getIncomeTool({ start_date: "2025-11-01", end_date: "2025-11-30" })
-3. Show results
+**User: "Find income from Acme Corp"**
+1. Call getIncomeTool({ client_name: "Acme Corp" })
+2. **Return data structure:** Frontend displays client-specific income
+
+### Query Workflow (Follow in this exact order):
+
+1. **Parse date if mentioned**: Use parseDateQueryTool FIRST for ANY date/time period:
+   - "this month", "November", "last week", "today", "this year"
+   - Tool returns start_date and end_date - use these EXACT values
+
+2. **Call getIncomeTool**: With parsed dates and any filters (client_name, category_name)
+
+3. **Choose response type**:
+   - **Analytical question** → Write conversational analysis with insights
+   - **Data retrieval** → Return data structure unchanged
+
+4. **Always use summary.total** from getIncomeTool - it's ALWAYS in user's base currency (multi-currency handled automatically)
 
 ## Updating Income
 
@@ -374,14 +424,23 @@ When user wants to change something:
 5. **Help with names**: If client/category doesn't exist, offer to create it
 6. **NET amounts**: Income amounts are always NET (before tax)
 
-## Common Questions
+## Common Questions & Response Types
 
-**"How much did I make this month?"**
-→ Parse "this month" → Fetch income → Calculate total → Show clearly
+**"How much did I make this month?"** (ANALYTICAL)
+→ Parse "this month" → Fetch income → **Return conversational analysis with total, trends, insights**
 
-**"Show income from Acme Corp"**
-→ Filter by client "Acme Corp" → List transactions → Show total
+**"Show income from Acme Corp"** (DATA RETRIEVAL)
+→ Filter by client → **Return data structure** → Frontend displays overview + rows
 
-**"What income doesn't have a category?"**
-→ Fetch all → Filter uncategorized → Show list
+**"Should I focus on client X?"** (ANALYTICAL)
+→ Fetch income for client X and overall → **Return analysis comparing client to others with recommendation**
+
+**"List uncategorized income"** (DATA RETRIEVAL)
+→ Fetch all → Filter uncategorized → **Return data structure** → Frontend displays results
+
+**"How does this month compare to last month?"** (ANALYTICAL)
+→ Fetch both months → **Return comparison analysis with percentages, insights, what changed**
+
+**"Find income over $1000"** (DATA RETRIEVAL)
+→ Fetch and filter → **Return data structure** → Frontend displays filtered results
 `.trim();

@@ -159,7 +159,28 @@ const getToolsDefinition = () => {
       type: 'function',
       function: {
         name: 'getIncomeTool',
-        description: 'Retrieves income records with optional filters. Use parsed dates from parseDateQueryTool for date filters.',
+        description: `Retrieves income with filters. Returns: { summary: { total, count, by_category }, records: [...] }
+
+CRITICAL - Choose response type based on user intent:
+
+TYPE 1 - ANALYTICAL QUESTIONS → Return conversational analysis:
+Keywords: "how", "should", "recommend", "advice", "good", "bad", "worry", "think", "analysis", "insights", "better", "worse"
+Examples: "How is my income this month?", "Should I worry?", "Any recommendations?", "Is my income good?"
+
+Response format: Write natural conversational text analyzing the data:
+- Use summary.total (ALWAYS in user's base currency) for all numbers
+- Compare with previous period if relevant
+- Highlight trends, top categories from by_category
+- Give actionable insights and recommendations
+- Be specific with numbers and percentages
+
+TYPE 2 - DATA RETRIEVAL → Return raw data structure:
+Keywords: "show", "list", "find", "get", "display", "see", "view"
+Examples: "Show me income last month", "List consulting income", "Find income from ABC client"
+
+Response format: Return the full data structure { summary, records } unchanged. Frontend will render overview card + rows.
+
+Use parseDateQueryTool first for date queries.`,
         parameters: {
           type: 'object',
           properties: {

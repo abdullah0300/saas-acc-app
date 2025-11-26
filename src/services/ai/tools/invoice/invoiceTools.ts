@@ -67,9 +67,7 @@ export const getInvoicesTool = async (
       invoices = invoices.filter((invoice) => {
         const matches =
           invoice.client?.name?.toLowerCase().includes(searchLower) ||
-          invoice.client?.company_name?.toLowerCase().includes(searchLower) ||
-          searchLower.includes(invoice.client?.name?.toLowerCase() || '') ||
-          searchLower.includes(invoice.client?.company_name?.toLowerCase() || '');
+          invoice.client?.company_name?.toLowerCase().includes(searchLower);
         return matches;
       });
 

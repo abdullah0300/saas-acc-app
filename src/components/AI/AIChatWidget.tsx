@@ -106,9 +106,29 @@ export const AIChatWidget: React.FC = () => {
 
   // Listen for auto-open events from AI search bars
   useEffect(() => {
-    const handleAutoOpen = (event: Event) => {
+    const handleAutoOpen = async (event: Event) => {
       const customEvent = event as CustomEvent;
       const { query } = customEvent.detail;
+
+      // Start a new chat when opening from external source (Income page, etc.)
+      // This ensures each search is a fresh, focused conversation
+      if (user) {
+        try {
+          // Save current conversation if it has messages
+          if (conversationId && messages.length > 0) {
+            await updateConversationStatus(conversationId, 'completed');
+          } else if (conversationId && messages.length === 0) {
+            await deleteConversation(conversationId);
+          }
+
+          // Clear everything for new chat
+          setConversationId(null);
+          setMessages([]);
+          setPendingAction(null);
+        } catch (error) {
+          console.error('Error starting new chat from external source:', error);
+        }
+      }
 
       // Store query in ref to process after widget opens
       if (query) {
@@ -133,7 +153,7 @@ export const AIChatWidget: React.FC = () => {
     return () => {
       window.removeEventListener('openAIChat', handleAutoOpen);
     };
-  }, []);
+  }, [user, conversationId, messages]);
 
   // Process pending query after widget opens
   useEffect(() => {

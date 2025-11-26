@@ -9,6 +9,10 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  isImpersonating: boolean;
+  impersonatedUser: User | null;
+  realAdmin: User | null;
+  exitImpersonation: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +28,9 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [impersonatedUser, setImpersonatedUser] = useState<User | null>(null);
+  const [realAdmin, setRealAdmin] = useState<User | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -54,6 +61,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
           }
           return;
+        }
+
+        // Check for impersonation FIRST
+        const impersonatingUserId = localStorage.getItem('impersonating_user_id');
+        const adminUserId = localStorage.getItem('admin_user_id');
+
+        if (session && impersonatingUserId && adminUserId) {
+          console.log('🎭 Impersonation detected - admin:', adminUserId, 'impersonating:', impersonatingUserId);
+
+          // SECURITY: Validate that adminUserId is actually a platform admin
+          const { data: adminCheck } = await supabase
+            .from('platform_admins')
+            .select('user_id')
+            .eq('user_id', adminUserId)
+            .single();
+
+          // If not a platform admin, clear localStorage and reject impersonation
+          if (!adminCheck) {
+            console.error('⛔ Security: Unauthorized impersonation attempt blocked. User is not a platform admin.');
+            localStorage.removeItem('impersonating_user_id');
+            localStorage.removeItem('admin_user_id');
+
+            // Log security incident
+            await supabase.from('audit_logs').insert({
+              user_id: session.user.id,
+              action: 'security_violation',
+              entity_type: 'auth',
+              entity_id: session.user.id,
+              metadata: {
+                violation_type: 'unauthorized_impersonation_attempt',
+                attempted_admin_id: adminUserId,
+                attempted_target_id: impersonatingUserId,
+                timestamp: new Date().toISOString(),
+              },
+            });
+
+            // Continue with normal auth flow (fall through to session check below)
+          } else {
+            // Platform admin validated - proceed with impersonation
+            console.log('✅ Platform admin validated, proceeding with impersonation');
+
+            // Fetch impersonated user settings
+            const { data: impersonatedSettings } = await supabase
+              .from('user_settings')
+              .select('*')
+              .eq('user_id', impersonatingUserId)
+              .single();
+
+            if (impersonatedSettings && mounted) {
+              // Create a mock user object for impersonated user
+              const mockImpersonatedUser: User = {
+                ...session.user,
+                id: impersonatingUserId,
+                email: impersonatedSettings.full_name || 'Impersonated User',
+              } as User;
+
+              setIsImpersonating(true);
+              setRealAdmin(session.user);
+              setImpersonatedUser(mockImpersonatedUser);
+              setUser(mockImpersonatedUser);
+              setLoading(false);
+              return;
+            }
+          }
         }
 
         if (session) {
@@ -182,18 +253,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Clear remember me preference
     localStorage.removeItem('smartcfo-remember-me');
     sessionStorage.removeItem('smartcfo-temp-session');
-    
+
     // Logout is logged by onAuthStateChange
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
+  const exitImpersonation = async () => {
+    if (!realAdmin) return;
+
+    const targetUserId = user?.id;
+
+    // Log impersonation end
+    await auditService.log({
+      action: 'view',
+      entity_type: 'user',
+      entity_id: targetUserId || '',
+      user_id: realAdmin.id,
+      metadata: {
+        impersonation_end: true,
+        admin_id: realAdmin.id,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    // Clear impersonation
+    localStorage.removeItem('impersonating_user_id');
+    localStorage.removeItem('admin_user_id');
+
+    // Reset state
+    setIsImpersonating(false);
+    setImpersonatedUser(null);
+    setUser(realAdmin);
+    setRealAdmin(null);
+
+    // Redirect to admin dashboard
+    window.location.href = '/admin/dashboard';
+  };
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      signIn, 
-      signOut
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      signIn,
+      signOut,
+      isImpersonating,
+      impersonatedUser,
+      realAdmin,
+      exitImpersonation
     }}>
       {children}
     </AuthContext.Provider>

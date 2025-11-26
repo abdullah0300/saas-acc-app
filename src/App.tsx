@@ -50,6 +50,7 @@ import { RetentionDashboard } from './components/Admin/RetentionDashboard';
 import { BreachDashboard } from './components/Admin/BreachManagement/BreachDashboard';
 import { AuditAnalytics } from './components/Admin/AuditAnalytics';
 import { RoPAManager } from './components/Admin/RoPA/RoPAManager';
+import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { CashFlowInsights } from './components/Reports/CashFlowInsights';
 import { TaxReport } from './components/Reports/TaxReport';
 import { SubscriptionEnforcer } from './components/Subscription/SubscriptionEnforcer';
@@ -321,6 +322,9 @@ function AppRoutes() {
           <Route path="breach-management" element={<PlatformAdminRoute><BreachDashboard /></PlatformAdminRoute>} />
           <Route path="ropa" element={<PlatformAdminRoute><RoPAManager /></PlatformAdminRoute>} />
         </Route>
+
+        {/* Admin Dashboard - Platform Admin Only */}
+        <Route path="/admin/dashboard" element={<PlatformAdminRoute><AdminDashboard /></PlatformAdminRoute>} />
 
         {/* Admin SEO & Blog Management - SEO Admin or Platform Admin only */}
         <Route path="/admin/seo-manager" element={<SEOAdminRoute><SEOManagerDashboard /></SEOAdminRoute>} />
