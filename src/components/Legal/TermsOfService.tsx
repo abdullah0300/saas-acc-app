@@ -1,12 +1,153 @@
-import React from 'react';
-import { Scale, Shield, AlertTriangle, CreditCard, Users, FileText, Gavel, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Scale, Shield, AlertTriangle, CreditCard, Users, FileText, Gavel, CheckCircle, Menu, X, ArrowRight, MessageSquare, Mail, Globe } from 'lucide-react';
+import { BetaBadge } from '../Common/BetaBadge';
 
 export const TermsOfService: React.FC = () => {
-  const lastUpdated = "January 2025";
+  const lastUpdated = "November 2025";
+  const navigate = useNavigate();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      {/* Navigation - Floating Capsule Style */}
+      <motion.nav
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-6 px-6"
+      >
+        <motion.div
+          className={`transition-all duration-500 ${
+            isScrolled
+              ? "bg-white/95 backdrop-blur-lg shadow-2xl border border-gray-200"
+              : "bg-white/80 backdrop-blur-md border border-gray-100"
+          } rounded-full px-6 py-4`}
+          animate={isScrolled ? { scale: 0.98 } : { scale: 1 }}
+        >
+          <div className="flex items-center gap-8">
+            {/* Logo */}
+            <motion.div
+              className="flex items-center gap-3 cursor-pointer"
+              whileHover={{ scale: 1.05 }}
+              onClick={() => navigate("/")}
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                <img
+                  src="https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717"
+                  className="h-6"
+                  alt="SmartCFO"
+                />
+              </div>
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="text-lg font-bold text-gray-900">
+                  SmartCFO
+                </span>
+                <BetaBadge size="small" variant="gradient" />
+              </div>
+            </motion.div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center gap-1">
+              {["Features", "Pricing"].map((item) => (
+                <a
+                  key={item}
+                  href={`/#${item.toLowerCase()}`}
+                  className="px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all duration-300 text-sm font-medium"
+                >
+                  {item}
+                </a>
+              ))}
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="hidden md:flex items-center gap-3">
+              <button
+                onClick={() => navigate("/login")}
+                className="px-5 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all duration-300 text-sm font-medium"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => navigate("/register")}
+                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-semibold text-sm shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105"
+              >
+                Get Started
+              </button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 text-gray-700 hover:bg-purple-50 rounded-full transition-all"
+            >
+              {mobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Mobile Menu Dropdown */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="lg:hidden absolute top-24 left-6 right-6 bg-white rounded-3xl border border-gray-200 p-6 shadow-2xl"
+            >
+              <div className="flex flex-col gap-3">
+                {["Features", "Pricing"].map((item) => (
+                  <a
+                    key={item}
+                    href={`/#${item.toLowerCase()}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all text-sm font-medium"
+                  >
+                    {item}
+                  </a>
+                ))}
+                <div className="border-t border-gray-200 my-2"></div>
+                <button
+                  onClick={() => {
+                    navigate("/login");
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-4 py-3 text-left text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all text-sm font-medium"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/register");
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold text-sm shadow-lg text-center"
+                >
+                  Get Started
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.nav>
+
+      {/* Main Content with top padding for fixed navbar */}
+      <div className="max-w-4xl mx-auto pt-32 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow-sm rounded-lg p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Terms of Service</h1>
@@ -287,6 +428,42 @@ export const TermsOfService: React.FC = () => {
                     provide services or as required by law.
                   </p>
                 </div>
+
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Administrative Account Access</h3>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3">
+                    <div className="flex items-start">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" />
+                      <p className="text-sm text-yellow-800">
+                        <strong>Notice:</strong> By using SmartCFO, you acknowledge and consent to limited administrative access to your account as described below.
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-gray-700 mb-2">
+                    Authorized platform administrators may access your account, including viewing your financial records and business data, for the following purposes only:
+                  </p>
+                  <ul className="list-disc pl-6 space-y-1 text-gray-700">
+                    <li>Providing customer support and resolving technical issues you report</li>
+                    <li>Investigating bugs, data discrepancies, or service errors</li>
+                    <li>Ensuring service quality and preventing fraud or system abuse</li>
+                    <li>Responding to legal requirements or valid governmental requests</li>
+                    <li>Maintaining security and integrity of the platform</li>
+                  </ul>
+                  <p className="text-gray-700 mt-2">
+                    <strong>Important Safeguards:</strong>
+                  </p>
+                  <ul className="list-disc pl-6 space-y-1 text-gray-700">
+                    <li>Administrative access is limited to essential personnel only</li>
+                    <li>All access is logged with full audit trails including timestamps and justification</li>
+                    <li>Administrators are bound by strict confidentiality agreements</li>
+                    <li>Unauthorized access attempts are treated as security violations and logged</li>
+                    <li>Access is granted only when necessary and for legitimate business purposes</li>
+                    <li>You may request access logs through our support channels</li>
+                  </ul>
+                  <p className="text-gray-700 mt-2">
+                    Administrative access does not grant us ownership or rights to your data beyond what is necessary to provide and maintain the service.
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -532,6 +709,149 @@ export const TermsOfService: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Footer - Modern Floating Capsule Style */}
+      <footer className="relative py-16 bg-gray-50 overflow-hidden">
+        {/* Background Glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-purple-100 rounded-full blur-3xl opacity-30"></div>
+        </div>
+
+        <div className="container mx-auto px-4 md:px-6 lg:px-8 relative z-10">
+          {/* Main Footer Card - Floating Capsule */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-7xl mx-auto bg-white rounded-3xl p-8 md:p-12 lg:p-16 border border-gray-200 shadow-2xl"
+          >
+            <div className="grid lg:grid-cols-3 gap-12 mb-12">
+              {/* Brand Section */}
+              <div className="lg:col-span-1">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
+                    <img
+                      src="https://ik.imagekit.io/mctozv7td/SmartCFO/smartcfo%20logo%20bg.png?updatedAt=1752387790717"
+                      className="h-7"
+                      alt="SmartCFO"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl font-black text-gray-900">
+                        SmartCFO
+                      </span>
+                      <BetaBadge size="small" variant="subtle" />
+                    </div>
+                    <span className="block text-xs text-purple-600">
+                      AI Financial Brain
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                  Transform your business finances with AI-powered automation.
+                </p>
+
+                {/* Social Links */}
+                <div className="flex gap-3">
+                  {[
+                    { icon: Globe, label: "Website" },
+                    { icon: MessageSquare, label: "Support" },
+                    { icon: Mail, label: "Email" },
+                  ].map((social, index) => (
+                    <motion.a
+                      key={index}
+                      href="#"
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="w-10 h-10 bg-gray-100 hover:bg-purple-50 rounded-xl flex items-center justify-center text-gray-600 hover:text-purple-600 transition-all border border-gray-200"
+                    >
+                      <social.icon className="w-4 h-4" />
+                    </motion.a>
+                  ))}
+                </div>
+              </div>
+
+              {/* Links */}
+              <div className="lg:col-span-2 grid sm:grid-cols-2 gap-8">
+                {/* Product */}
+                <div>
+                  <h4 className="text-gray-900 font-bold mb-4 text-xs uppercase tracking-wider">
+                    Product
+                  </h4>
+                  <ul className="space-y-3">
+                    {[
+                      { name: "Features", href: "/#features" },
+                      { name: "Pricing", href: "/#pricing" },
+                      { name: "Blog", href: "/blog" },
+                    ].map((link) => (
+                      <li key={link.name}>
+                        <a
+                          href={link.href}
+                          className="text-gray-600 hover:text-purple-600 transition-colors text-sm group inline-flex items-center gap-2"
+                        >
+                          <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                          {link.name}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Legal */}
+                <div>
+                  <h4 className="text-gray-900 font-bold mb-4 text-xs uppercase tracking-wider">
+                    Legal
+                  </h4>
+                  <ul className="space-y-3">
+                    {[
+                      { name: "Privacy Policy", href: "/privacy" },
+                      { name: "Terms of Service", href: "/terms" },
+                    ].map((link) => (
+                      <li key={link.name}>
+                        <a
+                          href={link.href}
+                          className="text-gray-600 hover:text-purple-600 transition-colors text-sm group inline-flex items-center gap-2"
+                        >
+                          <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                          {link.name}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-gray-200 my-8"></div>
+
+            {/* Bottom */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <span>© 2025 SmartCFO</span>
+                <span className="hidden md:block">•</span>
+                <span className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-green-500" />
+                  Bank-Grade Security
+                </span>
+              </div>
+
+              <div className="text-sm text-gray-600">
+                Crafted with <span className="text-red-500">❤</span> by{" "}
+                <a
+                  href="https://webcraftio.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-600 hover:text-purple-700 transition-colors font-medium"
+                >
+                  WebCraftio
+                </a>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </footer>
     </div>
   );
 };

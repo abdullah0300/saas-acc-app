@@ -31,7 +31,8 @@ import {
   Linkedin,
   AlertCircle,
   Menu,
-  X
+  X,
+  ArrowLeft
 } from "lucide-react";
 
 export const Login: React.FC = () => {
@@ -169,6 +170,15 @@ const handleForgotPassword = async (e: React.FormEvent) => {
     <div className="min-h-screen flex">
       {/* Left Side - Login Form */}
       <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-8 relative overflow-hidden">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate("/")}
+          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-indigo-600 bg-white/80 hover:bg-white backdrop-blur-sm rounded-full shadow-md hover:shadow-lg transition-all duration-300 group z-10"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-medium">Back to Home</span>
+        </button>
+
         {/* Floating Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float"></div>
