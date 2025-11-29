@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Sparkles } from "lucide-react";
 import { AddCategoryModal } from "../Common/AddCategoryModal";
+import { ModernDropdown } from "../Common/ModernDropdown";
 import { getClients, createClient } from "../../services/database";
 import { Client } from "../../types";
 import { Plus, X } from "lucide-react";
@@ -15,8 +16,10 @@ import {
   getProjects,
 } from "../../services/database";
 import { useAuth } from "../../contexts/AuthContext";
-import { useSettings } from "../../contexts/SettingsContext"; // Added useSettings import
+import { useSettings } from "../../contexts/SettingsContext";
 import { Category } from "../../types";
+import { AILearningService } from "../../services/ai/learningService";
+import { SmartSuggestionService, SmartSuggestion } from "../../services/ai/smartSuggestionService";
 
 export const IncomeForm: React.FC = () => {
   const { user } = useAuth();
@@ -58,6 +61,12 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
   });
   const [isAddingClient, setIsAddingClient] = useState(false);
 
+  // Smart AI Suggestion states (unified system)
+  const [smartSuggestion, setSmartSuggestion] = useState<SmartSuggestion | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [suggestedFields, setSuggestedFields] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadCategories();
     loadClients();
@@ -81,6 +90,55 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     fetchExchangeRate();
   }
 }, [formData.currency]);
+
+  // Smart AI Suggestions: Load when description changes (400ms debounce)
+  useEffect(() => {
+    const getSmartSuggestion = async () => {
+      // Don't suggest if: no user, no description, editing existing income, or description too short
+      if (!user || !formData.description || formData.description.length < 5 || isEdit) {
+        return;
+      }
+
+      setLoadingSuggestion(true);
+      setShowSuggestion(true);
+
+      try {
+        console.log('[Smart Suggestion] Getting suggestion for:', formData.description);
+
+        // Get client name for context
+        const clientName = clients.find(c => c.id === formData.client_id)?.name || '';
+
+        const suggestion = await SmartSuggestionService.getIncomeSuggestion(
+          user.id,
+          formData.description,
+          formData.amount,
+          clientName,
+          categories
+        );
+
+        console.log('[Smart Suggestion] Received:', suggestion);
+        setSmartSuggestion(suggestion);
+
+        // Auto-fill high-confidence suggestions (>85%)
+        if (suggestion && suggestion.confidence > 85 && suggestion.category_id && !formData.category_id) {
+          setFormData(prev => ({
+            ...prev,
+            category_id: suggestion.category_id!
+          }));
+          setSuggestedFields(new Set(['category_id']));
+        }
+      } catch (error) {
+        console.error('[Smart Suggestion] Error:', error);
+        setSmartSuggestion(null);
+      } finally {
+        setLoadingSuggestion(false);
+      }
+    };
+
+    // Debounce: wait 400ms after user stops typing
+    const timeout = setTimeout(getSmartSuggestion, 400);
+    return () => clearTimeout(timeout);
+  }, [formData.description, formData.amount, formData.client_id, user, isEdit, categories, clients]);
 
   const [showAddCategory, setShowAddCategory] = useState(false);
 
@@ -206,6 +264,72 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     }
   };
 
+  // Handle smart suggestion acceptance
+  const handleAcceptSuggestion = async () => {
+    if (!user || !smartSuggestion || !smartSuggestion.category_id) return;
+
+    // Apply suggestion to form
+    setFormData(prev => ({ ...prev, category_id: smartSuggestion.category_id! }));
+    setSuggestedFields(new Set(['category_id']));
+
+    // Log acceptance for AI learning
+    await AILearningService.logInteraction({
+      user_id: user.id,
+      interaction_type: 'confirmation',
+      entity_type: 'income',
+      ai_suggested_value: {
+        category_id: smartSuggestion.category_id,
+        category_name: smartSuggestion.category_name
+      },
+      user_chosen_value: {
+        category_id: smartSuggestion.category_id,
+        category_name: smartSuggestion.category_name
+      },
+      context_data: {
+        description: formData.description,
+        amount: formData.amount,
+        client_id: formData.client_id
+      }
+    });
+
+    setShowSuggestion(false);
+    console.log('[Smart Suggestion] Accepted:', smartSuggestion.category_name);
+  };
+
+  // Handle smart suggestion rejection
+  const handleRejectSuggestion = async () => {
+    if (!user || !smartSuggestion) return;
+
+    // Log rejection for AI learning
+    await AILearningService.logInteraction({
+      user_id: user.id,
+      interaction_type: 'rejection',
+      entity_type: 'income',
+      ai_suggested_value: {
+        category_id: smartSuggestion.category_id,
+        category_name: smartSuggestion.category_name
+      },
+      user_chosen_value: null,
+      context_data: {
+        description: formData.description,
+        amount: formData.amount,
+        client_id: formData.client_id
+      }
+    });
+
+    setShowSuggestion(false);
+    setSmartSuggestion(null);
+    console.log('[Smart Suggestion] Rejected:', smartSuggestion.category_name);
+  };
+
+  const clearSuggestion = (field: string) => {
+    setSuggestedFields(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(field);
+      return newSet;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -214,6 +338,29 @@ const [useHistoricalRate, setUseHistoricalRate] = useState(true);
     setError("");
 
     try {
+      // Log AI interaction if suggestions were used
+      if (suggestedFields.size > 0 && smartSuggestion) {
+        await AILearningService.logInteraction({
+          user_id: user.id,
+          interaction_type: 'confirmation',
+          entity_type: 'income',
+          ai_suggested_value: {
+            category_id: smartSuggestion?.category_id,
+            category_name: smartSuggestion?.category_name,
+          },
+          user_chosen_value: {
+            category_id: formData.category_id,
+            category_name: categories.find(c => c.id === formData.category_id)?.name
+          },
+          context_data: {
+            description: formData.description,
+            amount: formData.amount,
+            client_id: formData.client_id,
+            used_suggestions: Array.from(suggestedFields),
+            source: 'income_form'
+          }
+        });
+      }
       // Calculate base amount CORRECTLY (excluding VAT)
      // REPLACE Lines 186-203 with:
 // Calculate amounts correctly for VAT-exclusive entry
@@ -302,12 +449,57 @@ if (!isUserSettingsReady) {
           </div>
         )}
 
+        {/* Smart AI Suggestion Banner (Medium Confidence 50-85%) */}
+        {showSuggestion && smartSuggestion && smartSuggestion.confidence >= 50 && smartSuggestion.confidence < 85 && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-purple-900 mb-1">
+                  💡 AI Suggestion ({smartSuggestion.confidence}% confident)
+                </h4>
+                <p className="text-sm text-purple-700 mb-2">
+                  {smartSuggestion.reason}
+                </p>
+                <div className="space-y-1 text-sm text-purple-800">
+                  {smartSuggestion.category_name && <div>• Category: <strong>{smartSuggestion.category_name}</strong></div>}
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleAcceptSuggestion}
+                    disabled={loadingSuggestion}
+                    className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                  >
+                    ✓ Use This
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRejectSuggestion}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    ✗ Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                 Amount (excluding {taxLabel}) *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Amount (excluding {taxLabel}) *
+                </label>
+                {suggestedFields.has('amount') && (
+                  <span className="flex items-center gap-1 text-xs text-purple-600">
+                    <Sparkles className="h-3 w-3" />
+                    AI Suggested
+                  </span>
+                )}
+              </div>
               <input
   type="number"
   step="0.01"
@@ -317,17 +509,24 @@ if (!isUserSettingsReady) {
     const newAmount = e.target.value;
     const rate = parseFloat(formData.tax_rate) || 0;
     const netAmount = parseFloat(newAmount) || 0;
-    
+
+    // Clear AI suggestion when user edits
+    clearSuggestion('amount');
+
     // Recalculate tax when amount changes
     const taxAmount = ((netAmount * rate) / 100).toFixed(2);
-    
-    setFormData({ 
-      ...formData, 
+
+    setFormData({
+      ...formData,
       amount: newAmount,
       tax_amount: taxAmount
     });
   }}
-  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+    suggestedFields.has('amount')
+      ? 'border-purple-300 bg-purple-50/30'
+      : 'border-gray-300'
+  }`}
   placeholder="0.00"
 />
             </div>
@@ -349,65 +548,98 @@ if (!isUserSettingsReady) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description *
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Description *
+              </label>
+              {suggestedFields.has('description') && (
+                <span className="flex items-center gap-1 text-xs text-purple-600">
+                  <Sparkles className="h-3 w-3" />
+                  AI Suggested
+                </span>
+              )}
+            </div>
             <input
               type="text"
               required
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => {
+                const newDescription = e.target.value;
+                clearSuggestion('description');
+                setFormData({ ...formData, description: newDescription });
+
+                // Clear suggestion when user edits (useEffect will trigger new suggestion automatically)
+                if (newDescription.length < 5) {
+                  setShowSuggestion(false);
+                  setSmartSuggestion(null);
+                }
+              }}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                suggestedFields.has('description')
+                  ? 'border-purple-300 bg-purple-50/30'
+                  : 'border-gray-300'
+              }`}
               placeholder="Income description"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
+              <ModernDropdown
+                label="Category"
+                value={formData.category_id}
+                onChange={async (value) => {
+                  clearSuggestion('category_id');
 
-                  <select
-  value={formData.category_id}
-  onChange={(e) => {
-    if (e.target.value === "new") {
-      setShowAddCategory(true);
-    } else {
-      setFormData({ ...formData, category_id: e.target.value });
-    }
-  }}
-  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
->
-  <option value="new" className="font-semibold text-blue-600 border-t">
-    ➕ Add or delete category ...
-  </option>
-  <option value="">Select category</option>
-  {categories.map((category) => (
-    <option key={category.id} value={category.id}>
-      {category.name}
-    </option>
-  ))}
-</select>
+                  // Log correction if user chose different category than AI suggested
+                  if (user && smartSuggestion && smartSuggestion.category_id && value !== smartSuggestion.category_id) {
+                    const selectedCategory = categories.find(cat => cat.id === value);
+
+                    await AILearningService.logInteraction({
+                      user_id: user.id,
+                      interaction_type: 'correction',
+                      entity_type: 'income',
+                      ai_suggested_value: {
+                        category_id: smartSuggestion.category_id,
+                        category_name: smartSuggestion.category_name
+                      },
+                      user_chosen_value: {
+                        category_id: value,
+                        category_name: selectedCategory?.name
+                      },
+                      context_data: {
+                        description: formData.description,
+                        amount: formData.amount,
+                        client_id: formData.client_id
+                      }
+                    });
+                  }
+
+                  setFormData({ ...formData, category_id: value });
+                  setShowSuggestion(false);
+                }}
+                options={categories.map(cat => ({
+                  id: cat.id,
+                  name: cat.name,
+                }))}
+                placeholder="Select category"
+                aiSuggested={suggestedFields.has('category_id')}
+                onAddNew={() => setShowAddCategory(true)}
+                addNewLabel="➕ Add or delete category..."
+              />
             </div>
             {/* Currency Selection */}
 <div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Currency
-  </label>
-  <select
+  <ModernDropdown
+    label="Currency"
     value={formData.currency}
-    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-  >
-    {userSettings?.enabled_currencies?.map(currency => (
-      <option key={currency} value={currency}>
-        {currency} - {getCurrencySymbol(currency)}
-      </option>
-    ))}
-  </select>
+    onChange={(value) => setFormData({ ...formData, currency: value })}
+    options={userSettings?.enabled_currencies?.map(currency => ({
+      id: currency,
+      name: `${currency} - ${getCurrencySymbol(currency)}`,
+    })) || []}
+    placeholder="Select currency"
+  />
   {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
     <p className="text-xs text-gray-500 mt-1">
       Rate: 1 {baseCurrency} = {exchangeRates[formData.currency].toFixed(4)} {formData.currency}
@@ -460,30 +692,28 @@ if (!isUserSettingsReady) {
 
             {/* Tax Rate - Added this section */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {taxLabel} Rate
-              </label>
-              <select
+              <ModernDropdown
+                label={`${taxLabel} Rate`}
                 value={formData.tax_rate}
-                onChange={(e) => {
-                  const rate = parseFloat(e.target.value) || 0;
+                onChange={(value) => {
+                  const rate = parseFloat(value) || 0;
                   const amount = parseFloat(formData.amount) || 0;
                   const taxAmount = ((amount * rate) / 100).toFixed(2);
                   setFormData({
                     ...formData,
-                    tax_rate: e.target.value,
+                    tax_rate: value,
                     tax_amount: taxAmount,
                   });
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-              <option value="0">No {taxLabel}</option>
-                {taxRates.map((tax) => (
-                  <option key={tax.id} value={tax.rate}>
-                    {tax.name} ({tax.rate}%)
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { id: '0', name: `No ${taxLabel}` },
+                  ...taxRates.map((tax) => ({
+                    id: tax.rate.toString(),
+                    name: `${tax.name} (${tax.rate}%)`,
+                  }))
+                ]}
+                placeholder={`Select ${taxLabel} rate`}
+              />
               {parseFloat(formData.tax_rate) > 0 && (
                 <p className="text-sm text-gray-500 mt-1">
                 {taxLabel} Amount: {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
@@ -507,59 +737,40 @@ if (!isUserSettingsReady) {
             </div>
           </div>
 
-          {/* Client Selection - ADD THIS ENTIRE BLOCK */}
+          {/* Client Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Client
-            </label>
             <div className="flex gap-2">
-              <select
-                value={formData.client_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, client_id: e.target.value })
-                }
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a client (optional)</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}{client.company_name ? ` (${client.company_name})` : ''}
-                  </option>
-                ))}
-              </select>
-              {/* // In your client selection field, update the button: */}
-              <button
-                type="button"
-                onClick={() => {
-                  console.log("Button clicked!"); // Add this for debugging
-                  setShowClientModal(true);
-                }}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+              <div className="flex-1">
+                <ModernDropdown
+                  label="Client"
+                  value={formData.client_id}
+                  onChange={(value) => setFormData({ ...formData, client_id: value })}
+                  options={clients.map(client => ({
+                    id: client.id,
+                    name: `${client.name}${client.company_name ? ` (${client.company_name})` : ''}`,
+                  }))}
+                  placeholder="Select a client (optional)"
+                  onAddNew={() => setShowClientModal(true)}
+                  addNewLabel="➕ Add new client..."
+                />
+              </div>
             </div>
           </div>
 
           {/* Project Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project (Optional)
-            </label>
-            <select
+            <ModernDropdown
+              label="Project (Optional)"
               value={formData.project_id}
-              onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">No project</option>
-              {projects
+              onChange={(value) => setFormData({ ...formData, project_id: value })}
+              options={projects
                 .filter(p => !formData.client_id || p.client_id === formData.client_id)
-                .map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-            </select>
+                .map((project) => ({
+                  id: project.id,
+                  name: project.name,
+                }))}
+              placeholder="No project"
+            />
             {formData.client_id && (
               <p className="text-xs text-gray-500 mt-1">
                 {projects.filter(p => p.client_id === formData.client_id).length > 0

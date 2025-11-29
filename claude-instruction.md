@@ -1,744 +1,1636 @@
-FULL IMPLEMENTATION INSTRUCTIONS: ADMIN DASHBOARD + IMPERSONATION
-
-📋 PROJECT OVERVIEW:
-Add two admin features to SmartCFO:
-
-Admin Dashboard - View users, stats, manage platform
-Impersonation System - Login as any user for debugging
-
-Target Time: 2-3 hours
-Approach: Use existing authentication, add new admin-only pages
-
-⚠️ CRITICAL RULES - READ FIRST:
-
-READ ALL CODE FIRST - Understand existing structure before coding
-DO NOT BREAK existing user features (dashboard, income, expenses, etc.)
-DO NOT MODIFY existing authentication flow
-REUSE existing components and patterns
-TEST after each step - ensure nothing breaks
-FOLLOW existing code style and naming conventions
-USE existing platform_admins table (already created)
-ADD ONLY - don't refactor working code
-
-
-🔍 PHASE 0: UNDERSTAND EXISTING CODE (30 MIN)
-Read these files carefully:
-Authentication & Authorization:
-
-src/contexts/AuthContext.tsx - How auth works
-src/components/Auth/PlatformAdminRoute.tsx - How admin access is checked
-src/services/database.ts - Database queries
-
-Layout & Navigation:
-
-src/components/Layout/Layout.tsx - Main app layout
-src/components/Layout/Sidebar.tsx - Navigation menu
-src/App.tsx - Routing structure
-
-Existing Admin Components:
-
-Look for any files in src/components/Admin/ folder
-Check if platform_admins table access exists
-
-Styling:
-
-Check existing component styles
-Note: You're using Tailwind CSS with glassmorphism effects
-Match existing color scheme (purple/blue gradients)
-
-Key Questions to Answer:
-
-✅ Where is platform_admins table checked?
-✅ How does PlatformAdminRoute work?
-✅ Where should admin menu items go?
-✅ What's the routing pattern?
-✅ How are stats/cards styled in existing dashboard?
-
-DON'T CODE ANYTHING YET - JUST READ AND UNDERSTAND
-
-🎯 PHASE 1: ADMIN ROUTES & NAVIGATION (30 MIN)
-STEP 1.1: Add Admin Routes
-File: src/App.tsx
-Action: Add admin routes AFTER existing routes, before closing Routes tag
-Add these imports at top:
-tsximport { AdminDashboard } from './components/Admin/AdminDashboard';
-import { PlatformAdminRoute } from './components/Auth/PlatformAdminRoute';
-Add these routes (find where other routes are, add these):
-tsx{/* Admin Routes - Platform Admin Only */}
-<Route
-  path="/admin"
-  element={
-    <ProtectedRoute>
-      <PlatformAdminRoute>
-        <Layout />
-      </PlatformAdminRoute>
-    </ProtectedRoute>
-  }
->
-  <Route path="dashboard" element={<AdminDashboard />} />
-</Route>
-Note: Match the pattern you see for other routes. Don't change existing routes.
-
-STEP 1.2: Add Admin Menu Item to Sidebar
-File: src/components/Layout/Sidebar.tsx (or wherever navigation is)
-Action: Find where menu items are defined (Dashboard, Income, Expenses, etc.)
-Add this check at the top of component:
-tsxconst [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
-
-useEffect(() => {
-  const checkAdminStatus = async () => {
-    if (!user) return;
-    
-    const { data } = await supabase
-      .from('platform_admins')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-    
-    setIsPlatformAdmin(!!data);
-  };
-  
-  checkAdminStatus();
-}, [user]);
-Add menu item conditionally (AFTER your existing menu items):
-tsx{isPlatformAdmin && (
-  <Link
-    to="/admin/dashboard"
-    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-      location.pathname.startsWith('/admin')
-        ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg'
-        : 'text-gray-700 hover:bg-gray-100'
-    }`}
-  >
-    <Crown className="h-5 w-5" />
-    <span className="font-medium">Admin Dashboard</span>
-  </Link>
-)}
-Add import:
-tsximport { Crown } from 'lucide-react';
-
-🏗️ PHASE 2: BUILD ADMIN DASHBOARD (1 HOUR)
-STEP 2.1: Create Admin Dashboard Component
-File: src/components/Admin/AdminDashboard.tsx (CREATE NEW FILE)
-Full component code:
-tsximport React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  TrendingUp, 
-  DollarSign, 
-  UserPlus,
-  Search,
-  Crown,
-  LogIn,
-  Calendar,
-  CreditCard
-} from 'lucide-react';
-import { supabase } from '../../services/supabaseClient';
-import { useAuth } from '../../contexts/AuthContext';
-import { format } from 'date-fns';
-
-interface UserWithSubscription {
-  id: string;
-  email: string;
-  created_at: string;
-  last_sign_in_at: string;
-  user_metadata: any;
-  subscription?: {
-    plan: string;
-    status: string;
-  };
-  profile?: {
-    full_name: string;
-    company_name: string;
-  };
-}
-
-interface DashboardStats {
-  totalUsers: number;
-  activeUsers: number;
-  inactiveUsers: number;
-  newThisMonth: number;
-  freeUsers: number;
-  paidUsers: number;
-  mrr: number;
-}
-
-export const AdminDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    activeUsers: 0,
-    inactiveUsers: 0,
-    newThisMonth: 0,
-    freeUsers: 0,
-    paidUsers: 0,
-    mrr: 0,
-  });
-  const [users, setUsers] = useState<UserWithSubscription[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        loadStats(),
-        loadUsers(),
-      ]);
-    } catch (error) {
-      console.error('Error loading admin dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStats = async () => {
-    // Get all users from auth.users via Supabase admin
-    const { data: allUsers, error: usersError } = await supabase.auth.admin.listUsers();
-    
-    if (usersError) {
-      console.error('Error fetching users:', usersError);
-      return;
-    }
-
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const totalUsers = allUsers.users.length;
-    const activeUsers = allUsers.users.filter(u => 
-      u.last_sign_in_at && new Date(u.last_sign_in_at) > thirtyDaysAgo
-    ).length;
-    const inactiveUsers = totalUsers - activeUsers;
-    const newThisMonth = allUsers.users.filter(u => 
-      new Date(u.created_at) > firstOfMonth
-    ).length;
-
-    // Get subscription stats
-    const { data: subscriptions } = await supabase
-      .from('subscriptions')
-      .select('plan, status');
-
-    const freeUsers = subscriptions?.filter(s => s.plan === 'free').length || 0;
-    const paidUsers = subscriptions?.filter(s => s.plan !== 'free' && s.status === 'active').length || 0;
-
-    // Calculate MRR (Monthly Recurring Revenue)
-    const planPrices: Record<string, number> = {
-      'free': 0,
-      'basic': 5,
-      'professional': 25,
-    };
-    
-    const mrr = subscriptions?.reduce((sum, sub) => {
-      if (sub.status === 'active') {
-        return sum + (planPrices[sub.plan] || 0);
-      }
-      return sum;
-    }, 0) || 0;
-
-    setStats({
-      totalUsers,
-      activeUsers,
-      inactiveUsers,
-      newThisMonth,
-      freeUsers,
-      paidUsers,
-      mrr,
-    });
-  };
-
-  const loadUsers = async () => {
-    // Get all users
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-    
-    if (authError) {
-      console.error('Error fetching users:', authError);
-      return;
-    }
-
-    // Get profiles
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name, company_name');
-
-    // Get subscriptions
-    const { data: subscriptions } = await supabase
-      .from('subscriptions')
-      .select('user_id, plan, status');
-
-    // Combine data
-    const combinedUsers = authUsers.users.map(u => ({
-      id: u.id,
-      email: u.email || '',
-      created_at: u.created_at,
-      last_sign_in_at: u.last_sign_in_at || '',
-      user_metadata: u.user_metadata,
-      profile: profiles?.find(p => p.user_id === u.id),
-      subscription: subscriptions?.find(s => s.user_id === u.id),
-    }));
-
-    setUsers(combinedUsers);
-  };
-
-  const handleImpersonate = async (targetUserId: string) => {
-    if (!user) return;
-
-    // Log impersonation start
-    await supabase.from('audit_logs').insert({
-      user_id: user.id,
-      action: 'impersonation_start',
-      entity_type: 'user',
-      entity_id: targetUserId,
-      metadata: {
-        admin_id: user.id,
-        reason: 'customer_support',
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // Store impersonation in localStorage
-    localStorage.setItem('impersonating_user_id', targetUserId);
-    localStorage.setItem('admin_user_id', user.id);
-    
-    // Redirect to dashboard
-    window.location.href = '/dashboard';
-  };
-
-  const filteredUsers = users.filter(u =>
-    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.profile?.company_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading admin dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl">
-            <Crown className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        </div>
-        <p className="text-gray-600">Platform overview and user management</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Users */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-blue-500 rounded-xl">
-              <Users className="h-6 w-6 text-white" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-blue-900 mb-1">Total Users</h3>
-          <p className="text-3xl font-bold text-blue-900">{stats.totalUsers}</p>
-        </div>
-
-        {/* Active Users */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-500 rounded-xl">
-              <TrendingUp className="h-6 w-6 text-white" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-green-900 mb-1">Active Users</h3>
-          <p className="text-3xl font-bold text-green-900">{stats.activeUsers}</p>
-          <p className="text-xs text-green-700 mt-1">Logged in last 30 days</p>
-        </div>
-
-        {/* New This Month */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-500 rounded-xl">
-              <UserPlus className="h-6 w-6 text-white" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-purple-900 mb-1">New This Month</h3>
-          <p className="text-3xl font-bold text-purple-900">{stats.newThisMonth}</p>
-        </div>
-
-        {/* MRR */}
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-6 border border-amber-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-amber-500 rounded-xl">
-              <DollarSign className="h-6 w-6 text-white" />
-            </div>
-          </div>
-          <h3 className="text-sm font-medium text-amber-900 mb-1">MRR</h3>
-          <p className="text-3xl font-bold text-amber-900">${stats.mrr}</p>
-          <p className="text-xs text-amber-700 mt-1">{stats.paidUsers} paying users</p>
-        </div>
-      </div>
-
-      {/* User List */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">User Management</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search users..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">User</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Plan</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Last Sign In</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((u) => (
-                <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-4 px-4">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {u.profile?.full_name || u.email}
-                      </p>
-                      <p className="text-sm text-gray-600">{u.email}</p>
-                      {u.profile?.company_name && (
-                        <p className="text-xs text-gray-500">{u.profile.company_name}</p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      u.subscription?.plan === 'professional'
-                        ? 'bg-purple-100 text-purple-700'
-                        : u.subscription?.plan === 'basic'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {u.subscription?.plan || 'free'}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      u.last_sign_in_at && 
-                      new Date(u.last_sign_in_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {u.last_sign_in_at && 
-                       new Date(u.last_sign_in_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-                        ? 'Active'
-                        : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-sm text-gray-600">
-                    {u.last_sign_in_at
-                      ? format(new Date(u.last_sign_in_at), 'MMM dd, yyyy')
-                      : 'Never'}
-                  </td>
-                  <td className="py-4 px-4">
-                    <button
-                      onClick={() => handleImpersonate(u.id)}
-                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium"
-                    >
-                      <LogIn className="h-4 w-4" />
-                      Login as User
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {filteredUsers.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">No users found</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-🔐 PHASE 3: IMPLEMENT IMPERSONATION SYSTEM (30 MIN)
-STEP 3.1: Modify AuthContext to Handle Impersonation
-File: src/contexts/AuthContext.tsx
-Find the AuthContext component and ADD these functions:
-Add state for impersonation:
-tsxconst [isImpersonating, setIsImpersonating] = useState(false);
-const [impersonatedUser, setImpersonatedUser] = useState<User | null>(null);
-const [realAdmin, setRealAdmin] = useState<User | null>(null);
-Add check on mount (in existing useEffect):
-tsxuseEffect(() => {
-  // ... existing session check code ...
-  
-  // Check for impersonation
-  const impersonatingUserId = localStorage.getItem('impersonating_user_id');
-  const adminUserId = localStorage.getItem('admin_user_id');
-  
-  if (impersonatingUserId && adminUserId && session) {
-    setIsImpersonating(true);
-    setRealAdmin(session.user);
-    // Fetch impersonated user details
-    supabase.auth.admin.getUserById(impersonatingUserId).then(({ data }) => {
-      if (data?.user) {
-        setImpersonatedUser(data.user);
-        setUser(data.user); // Set as current user
-      }
-    });
-  }
-}, []);
-Add exit impersonation function:
-tsxconst exitImpersonation = async () => {
-  if (!realAdmin) return;
-  
-  const targetUserId = user?.id;
-  
-  // Log impersonation end
-  await supabase.from('audit_logs').insert({
-    user_id: realAdmin.id,
-    action: 'impersonation_end',
-    entity_type: 'user',
-    entity_id: targetUserId,
-    metadata: {
-      admin_id: realAdmin.id,
-      duration: 'N/A', // Calculate if needed
-      timestamp: new Date().toISOString(),
-    },
-  });
-  
-  // Clear impersonation
-  localStorage.removeItem('impersonating_user_id');
-  localStorage.removeItem('admin_user_id');
-  
-  // Redirect to admin dashboard
-  window.location.href = '/admin/dashboard';
-};
-Update the context value to include new functions:
-tsxconst value = {
-  user,
-  loading,
-  signIn,
-  signOut,
-  isImpersonating,
-  impersonatedUser,
-  realAdmin,
-  exitImpersonation,
-};
-Update AuthContextType interface:
-tsxinterface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  isImpersonating: boolean;
-  impersonatedUser: User | null;
-  realAdmin: User | null;
-  exitImpersonation: () => Promise<void>;
-}
-
-STEP 3.2: Add Impersonation Banner
-File: src/components/Layout/Layout.tsx
-Add banner at the VERY TOP of the layout (before sidebar/content):
-tsximport { useAuth } from '../../contexts/AuthContext';
-import { AlertCircle, LogOut } from 'lucide-react';
-
-// Inside Layout component, at the top:
-const { isImpersonating, impersonatedUser, exitImpersonation } = useAuth();
-
-// Add this banner BEFORE your main layout content:
-{isImpersonating && (
-  <div className="fixed top-0 left-0 right-0 z-50 bg-red-500 text-white px-4 py-3 shadow-lg">
-    <div className="max-w-7xl mx-auto flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <AlertCircle className="h-5 w-5" />
-        <span className="font-semibold">
-          ⚠️ Admin Mode Active - Viewing as: {impersonatedUser?.email}
-        </span>
-      </div>
-      <button
-        onClick={exitImpersonation}
-        className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium"
-      >
-        <LogOut className="h-4 w-4" />
-        Exit Impersonation
-      </button>
-    </div>
-  </div>
-)}
-
-{/* Add padding-top when impersonating */}
-<div className={isImpersonating ? 'pt-14' : ''}>
-  {/* Your existing layout content */}
-</div>
-
-🧪 PHASE 4: TESTING (30 MIN)
-STEP 4.1: Test Admin Dashboard
-Test Checklist:
-
- Admin menu item shows ONLY for platform_admins
- /admin/dashboard route requires admin access
- Regular users can't access /admin/dashboard
- Stats cards show correct numbers
- User list loads and displays
- Search filters users correctly
- Stats calculate properly (active/inactive/mrr)
-
-STEP 4.2: Test Impersonation
-Test Flow:
-
- Login as admin
- Go to admin dashboard
- Click "Login as User" for a test user
- Verify you see THEIR dashboard
- Verify red banner shows at top
- Verify you see their data (income, expenses)
- Click "Exit Impersonation"
- Verify you return to admin dashboard
- Check audit_logs table for impersonation records
-
-STEP 4.3: Test Existing Features Still Work
-Regression Testing:
-
- Regular login/logout works
- User dashboard loads
- Income page works
- Expense page works
- Invoice page works
- Settings work
- AI chat widget works
-
-
-⚠️ IMPORTANT SECURITY CHECKS:
-Before Deploying:
-
-RLS Policies:
-
-sql-- Verify admin can query auth.users
--- This might need Supabase service_role access
--- Check your Supabase dashboard settings
-
-Audit Logging:
-
-sql-- Check audit_logs table has entries:
-SELECT * FROM audit_logs 
-WHERE action LIKE 'impersonation%' 
-ORDER BY created_at DESC;
-
-Platform Admin Check:
-
-sql-- Verify your account is in platform_admins:
-SELECT * FROM platform_admins WHERE user_id = 'your-user-id';
-
-📝 ADDITIONAL NOTES:
-Supabase Admin API Access:
-The admin dashboard uses supabase.auth.admin.listUsers() which requires service_role key.
-If you get permission errors:
-Option A: Use Supabase service_role key (backend only!)
-
-Never expose this in frontend
-Create edge function to fetch users securely
-
-Option B: Query profiles table instead (if you sync users there)
-tsx// Alternative approach:
-const { data: profiles } = await supabase
-  .from('profiles')
-  .select('*, subscriptions(*)');
-Performance Considerations:
-
-User list loads all users - consider pagination for 100+ users
-Stats queries run on every page load - consider caching
-Search is client-side - consider server-side for large datasets
-
-Future Enhancements:
-
-Export users to CSV
-Filter by plan/status
-User detail modal
-Activity timeline per user
-Revenue charts
-Cohort analysis
-
-
-🎯 FINAL CHECKLIST:
-Before marking as complete:
-Admin Dashboard:
-
- Route protected with PlatformAdminRoute
- Menu item shows only for admins
- Stats cards display correctly
- User list loads
- Search works
- Impersonate button visible
-
-Impersonation:
-
- Login as user works
- See user's exact view
- Red banner shows
- Exit button works
- Audit logs created
- Returns to admin dashboard
-
-No Breaking Changes:
-
- Regular users unaffected
- Login/logout works
- All pages load
- Chat widget works
- Subscriptions work
-
-
-🚀 DEPLOYMENT NOTES:
-
-Environment Variables: None needed (uses existing Supabase)
-Database Changes: None (uses existing tables)
-Build: Run npm run build and verify no errors
-Test Production: Test impersonation in production carefully
-
-
-📞 IF YOU ENCOUNTER ISSUES:
-"Cannot read users" error:
-
-Check Supabase RLS policies
-May need service_role key
-Consider edge function approach
-
-Stats showing 0:
-
-Check if subscriptions table has data
-Verify platform_admins table exists
-Check console for errors
-
-Impersonation not working:
-
-Check localStorage values
-Verify audit_logs table exists
-Check AuthContext modifications
-
-
-NOW BEGIN IMPLEMENTATION. READ CODE FIRST, THEN CODE CAREFULLY. TEST AFTER EACH PHASE. 🚀
-REMEMBER: DO NOT BREAK EXISTING FEATURES. ADD ONLY. ⚠️
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.ai_credits (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  credits_used_today integer NOT NULL DEFAULT 0 CHECK (credits_used_today >= 0),
+  daily_limit integer NOT NULL DEFAULT 50 CHECK (daily_limit > 0),
+  last_reset_date date NOT NULL DEFAULT CURRENT_DATE,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_credits_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_credits_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ai_insights (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  insight_date date NOT NULL DEFAULT CURRENT_DATE,
+  insights_json jsonb NOT NULL,
+  generated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_insights_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_insights_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ai_interactions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  action_type text NOT NULL,
+  context_data jsonb DEFAULT '{}'::jsonb,
+  ai_suggestion text,
+  user_choice text,
+  outcome text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_interactions_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_interactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ai_suggestions_cache (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  feature_type text NOT NULL,
+  context_hash text NOT NULL,
+  suggestions_json jsonb NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_suggestions_cache_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_suggestions_cache_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.ai_user_context (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  business_type text,
+  location text,
+  business_stage text DEFAULT 'startup'::text,
+  monthly_revenue_range text,
+  patterns_json jsonb DEFAULT '{}'::jsonb,
+  preferences_json jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_user_context_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_user_context_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.audit_logs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  team_id uuid,
+  action text NOT NULL CHECK (action = ANY (ARRAY['login'::text, 'logout'::text, 'login_failed'::text, 'create'::text, 'update'::text, 'delete'::text, 'view'::text, 'export'::text, 'invite_sent'::text, 'invite_accepted'::text, 'invite_rejected'::text, 'subscription_changed'::text, 'payment_processed'::text, 'settings_updated'::text, 'password_changed'::text])),
+  entity_type text CHECK (entity_type = ANY (ARRAY['income'::text, 'expense'::text, 'invoice'::text, 'client'::text, 'category'::text, 'team_member'::text, 'subscription'::text, 'settings'::text, 'report'::text, 'recurring_invoice'::text, 'budget'::text, 'tax_rate'::text, 'user'::text])),
+  entity_id uuid,
+  entity_name text,
+  changes jsonb,
+  metadata jsonb,
+  ip_address inet,
+  user_agent text,
+  created_at timestamp with time zone DEFAULT now(),
+  team_member_id uuid,
+  CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT audit_logs_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.blog_posts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  slug text NOT NULL UNIQUE,
+  title text NOT NULL,
+  excerpt text,
+  content text NOT NULL,
+  featured_image_url text,
+  author_id uuid,
+  status text DEFAULT 'draft'::text,
+  published_at timestamp with time zone,
+  view_count integer DEFAULT 0,
+  reading_time_minutes integer,
+  category text,
+  tags ARRAY,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT blog_posts_pkey PRIMARY KEY (id),
+  CONSTRAINT blog_posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.blog_seo (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  blog_post_id uuid,
+  meta_title text,
+  meta_description text,
+  meta_keywords text,
+  og_title text,
+  og_description text,
+  og_image_url text,
+  twitter_title text,
+  twitter_description text,
+  canonical_url text,
+  structured_data jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT blog_seo_pkey PRIMARY KEY (id),
+  CONSTRAINT blog_seo_blog_post_id_fkey FOREIGN KEY (blog_post_id) REFERENCES public.blog_posts(id)
+);
+CREATE TABLE public.budgets (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  category_id uuid,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  period text NOT NULL CHECK (period = ANY (ARRAY['monthly'::text, 'quarterly'::text, 'yearly'::text])),
+  start_date date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT budgets_pkey PRIMARY KEY (id),
+  CONSTRAINT budgets_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT budgets_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+);
+CREATE TABLE public.calendar_events (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  external_id text UNIQUE,
+  title text NOT NULL,
+  description text,
+  start_time timestamp with time zone NOT NULL,
+  end_time timestamp with time zone,
+  attendees jsonb DEFAULT '[]'::jsonb,
+  is_client_meeting boolean DEFAULT false,
+  related_client_id uuid,
+  related_invoice_id uuid,
+  ai_suggested_actions jsonb DEFAULT '[]'::jsonb,
+  sync_status text DEFAULT 'pending'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT calendar_events_pkey PRIMARY KEY (id),
+  CONSTRAINT calendar_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT calendar_events_related_client_id_fkey FOREIGN KEY (related_client_id) REFERENCES public.clients(id),
+  CONSTRAINT calendar_events_related_invoice_id_fkey FOREIGN KEY (related_invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.categories (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  type USER-DEFINED NOT NULL,
+  color text DEFAULT '#3B82F6'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  import_session_id uuid,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  description text,
+  CONSTRAINT categories_pkey PRIMARY KEY (id),
+  CONSTRAINT categories_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT categories_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT categories_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.category_summaries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  month date NOT NULL,
+  category_id uuid,
+  category_name text NOT NULL,
+  category_type text NOT NULL CHECK (category_type = ANY (ARRAY['income'::text, 'expense'::text])),
+  total_amount numeric DEFAULT 0,
+  transaction_count integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT category_summaries_pkey PRIMARY KEY (id),
+  CONSTRAINT category_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT category_summaries_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+);
+CREATE TABLE public.chat_conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  messages jsonb DEFAULT '[]'::jsonb,
+  current_context jsonb DEFAULT '{}'::jsonb,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'cancelled'::text])),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT chat_conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.chat_pending_actions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid,
+  user_id uuid,
+  action_type text NOT NULL CHECK (action_type = ANY (ARRAY['expense'::text, 'income'::text, 'invoice'::text, 'query'::text])),
+  action_data jsonb NOT NULL,
+  confidence_score numeric,
+  user_confirmed boolean DEFAULT false,
+  executed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT chat_pending_actions_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_pending_actions_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id),
+  CONSTRAINT chat_pending_actions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.client_summaries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  client_id uuid,
+  month date NOT NULL,
+  client_name text NOT NULL,
+  revenue numeric DEFAULT 0,
+  invoice_count integer DEFAULT 0,
+  paid_invoices integer DEFAULT 0,
+  pending_amount numeric DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT client_summaries_pkey PRIMARY KEY (id),
+  CONSTRAINT client_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT client_summaries_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id)
+);
+CREATE TABLE public.clients (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  email text,
+  phone text,
+  address text,
+  created_at timestamp with time zone DEFAULT now(),
+  phone_country_code text DEFAULT '+1'::text,
+  import_session_id uuid,
+  vat_number character varying,
+  country_code character varying,
+  is_vat_registered boolean DEFAULT false,
+  credit_balance numeric DEFAULT 0,
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  company_name text,
+  CONSTRAINT clients_pkey PRIMARY KEY (id),
+  CONSTRAINT clients_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT clients_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT clients_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.compliance_reports (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  report_type text NOT NULL CHECK (report_type = ANY (ARRAY['monthly_compliance'::text, 'annual_review'::text, 'data_inventory'::text, 'risk_assessment'::text, 'custom'::text])),
+  report_period_start date NOT NULL,
+  report_period_end date NOT NULL,
+  generated_at timestamp with time zone NOT NULL DEFAULT now(),
+  generated_by uuid,
+  report_data jsonb NOT NULL,
+  compliance_score integer CHECK (compliance_score >= 0 AND compliance_score <= 100),
+  file_url text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT compliance_reports_pkey PRIMARY KEY (id),
+  CONSTRAINT compliance_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT compliance_reports_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.country_configs (
+  country_code character varying NOT NULL,
+  country_name text NOT NULL,
+  default_currency character varying NOT NULL,
+  default_tax_rate numeric DEFAULT 0,
+  default_tax_name text DEFAULT 'Tax'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT country_configs_pkey PRIMARY KEY (country_code)
+);
+CREATE TABLE public.credit_note_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  credit_note_id uuid NOT NULL,
+  invoice_item_id uuid,
+  description text NOT NULL,
+  quantity numeric NOT NULL DEFAULT 1,
+  rate numeric NOT NULL,
+  amount numeric NOT NULL,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  net_amount numeric NOT NULL,
+  gross_amount numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT credit_note_items_pkey PRIMARY KEY (id),
+  CONSTRAINT credit_note_items_invoice_item_id_fkey FOREIGN KEY (invoice_item_id) REFERENCES public.invoice_items(id),
+  CONSTRAINT credit_note_items_credit_note_id_fkey FOREIGN KEY (credit_note_id) REFERENCES public.credit_notes(id)
+);
+CREATE TABLE public.credit_notes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  credit_note_number text NOT NULL,
+  invoice_id uuid NOT NULL,
+  client_id uuid,
+  date date NOT NULL DEFAULT CURRENT_DATE,
+  reason text CHECK (reason = ANY (ARRAY['return'::text, 'adjustment'::text, 'cancellation'::text, 'other'::text])),
+  reason_description text,
+  subtotal numeric NOT NULL DEFAULT 0 CHECK (subtotal >= 0::numeric),
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  total numeric NOT NULL DEFAULT 0 CHECK (total >= 0::numeric),
+  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'issued'::text, 'applied'::text])),
+  notes text,
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  applied_to_income boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  tax_metadata jsonb,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  CONSTRAINT credit_notes_pkey PRIMARY KEY (id),
+  CONSTRAINT credit_notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT credit_notes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT credit_notes_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT credit_notes_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT credit_notes_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT credit_notes_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.currency_exchange_rates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  from_currency character varying NOT NULL,
+  to_currency character varying NOT NULL,
+  rate numeric NOT NULL,
+  provider character varying DEFAULT 'manual'::character varying,
+  valid_from timestamp without time zone DEFAULT now(),
+  valid_to timestamp without time zone,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT currency_exchange_rates_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.data_breach_logs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  incident_id text NOT NULL UNIQUE,
+  detected_at timestamp with time zone NOT NULL,
+  breach_type text NOT NULL,
+  affected_users ARRAY,
+  affected_data_types ARRAY,
+  severity text NOT NULL CHECK (severity = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'critical'::text])),
+  description text NOT NULL,
+  ico_notified_at timestamp with time zone,
+  users_notified_at timestamp with time zone,
+  mitigation_steps text,
+  status text NOT NULL DEFAULT 'investigating'::text CHECK (status = ANY (ARRAY['investigating'::text, 'contained'::text, 'resolved'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT data_breach_logs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.data_deletion_requests (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  request_date timestamp with time zone NOT NULL DEFAULT now(),
+  scheduled_date timestamp with time zone,
+  deletion_type text NOT NULL CHECK (deletion_type = ANY (ARRAY['immediate'::text, 'scheduled'::text])),
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'cancelled'::text])),
+  reason text,
+  confirmation_text text,
+  ip_address inet,
+  user_agent text,
+  completed_at timestamp with time zone,
+  cancelled_at timestamp with time zone,
+  cancellation_reason text,
+  records_deleted jsonb DEFAULT '{}'::jsonb,
+  records_anonymized jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT data_deletion_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT data_deletion_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.data_export_requests (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  request_date timestamp with time zone NOT NULL DEFAULT now(),
+  format text NOT NULL CHECK (format = ANY (ARRAY['json'::text, 'csv'::text])),
+  status text NOT NULL DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text])),
+  file_url text,
+  expires_at timestamp with time zone,
+  ip_address inet,
+  user_agent text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT data_export_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT data_export_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.data_protection_complaints (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  reference_number text NOT NULL UNIQUE,
+  complaint_type text NOT NULL CHECK (complaint_type = ANY (ARRAY['data_access'::text, 'data_correction'::text, 'data_deletion'::text, 'data_portability'::text, 'consent_withdrawal'::text, 'data_breach'::text, 'unauthorized_processing'::text, 'other'::text])),
+  description text NOT NULL,
+  status text NOT NULL DEFAULT 'open'::text CHECK (status = ANY (ARRAY['open'::text, 'investigating'::text, 'resolved'::text, 'closed'::text, 'escalated_to_ico'::text])),
+  priority text NOT NULL DEFAULT 'medium'::text CHECK (priority = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'urgent'::text])),
+  ico_reference_number text,
+  resolution text,
+  resolved_at timestamp with time zone,
+  resolved_by uuid,
+  auto_acknowledged boolean DEFAULT true,
+  acknowledgment_sent_at timestamp with time zone,
+  follow_up_required boolean DEFAULT false,
+  follow_up_date timestamp with time zone,
+  ip_address inet,
+  user_agent text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT data_protection_complaints_pkey PRIMARY KEY (id),
+  CONSTRAINT data_protection_complaints_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT data_protection_complaints_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.data_protection_impact_assessments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  project_name text NOT NULL,
+  project_description text NOT NULL,
+  processing_type text NOT NULL,
+  necessity_assessment text,
+  risk_score integer CHECK (risk_score >= 0 AND risk_score <= 100),
+  risk_level text CHECK (risk_level = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'very_high'::text])),
+  identified_risks jsonb,
+  mitigation_measures jsonb,
+  residual_risk_level text,
+  requires_ico_consultation boolean DEFAULT false,
+  ico_consulted_at timestamp with time zone,
+  status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'in_review'::text, 'completed'::text, 'requires_consultation'::text])),
+  conducted_by text,
+  conducted_at timestamp with time zone,
+  reviewed_by text,
+  reviewed_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT data_protection_impact_assessments_pkey PRIMARY KEY (id),
+  CONSTRAINT data_protection_impact_assessments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.data_retention_jobs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  executed_at timestamp with time zone NOT NULL,
+  records_deleted integer NOT NULL DEFAULT 0,
+  records_anonymized integer NOT NULL DEFAULT 0,
+  status text NOT NULL CHECK (status = ANY (ARRAY['success'::text, 'completed_with_errors'::text, 'failed'::text])),
+  metadata jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT data_retention_jobs_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.email_logs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid,
+  recipient_email text NOT NULL,
+  subject text NOT NULL,
+  status text DEFAULT 'sent'::text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'bounced'::text, 'opened'::text, 'clicked'::text])),
+  sent_at timestamp with time zone DEFAULT now(),
+  opened_at timestamp with time zone,
+  clicked_at timestamp with time zone,
+  error_message text,
+  metadata jsonb,
+  CONSTRAINT email_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT email_logs_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.email_templates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  subject text NOT NULL,
+  body_html text NOT NULL,
+  body_text text,
+  template_type text DEFAULT 'invoice'::text CHECK (template_type = ANY (ARRAY['invoice'::text, 'reminder'::text, 'receipt'::text, 'custom'::text])),
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT email_templates_pkey PRIMARY KEY (id),
+  CONSTRAINT email_templates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.exchange_rates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  from_currency text NOT NULL,
+  to_currency text NOT NULL,
+  rate numeric NOT NULL CHECK (rate > 0::numeric),
+  date date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT exchange_rates_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.expenses (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  category_id uuid,
+  description text NOT NULL,
+  date date NOT NULL,
+  vendor text,
+  receipt_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  total_with_tax numeric DEFAULT (amount + COALESCE(tax_amount, (0)::numeric)),
+  vendor_id uuid,
+  import_session_id uuid,
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  ec_acquisition boolean DEFAULT false,
+  reverse_charge_applicable boolean DEFAULT false,
+  base_tax_amount numeric DEFAULT 0,
+  is_tax_deductible boolean DEFAULT true,
+  tax_point_date date,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  is_vat_reclaimable boolean DEFAULT true,
+  reference_number text,
+  project_id uuid,
+  CONSTRAINT expenses_pkey PRIMARY KEY (id),
+  CONSTRAINT expenses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT expenses_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT expenses_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT expenses_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT expenses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT expenses_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
+  CONSTRAINT expenses_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.import_history (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  import_session_id uuid NOT NULL UNIQUE,
+  import_date timestamp with time zone NOT NULL,
+  file_name text,
+  import_type text NOT NULL DEFAULT 'ai_csv_import'::text,
+  import_summary jsonb NOT NULL DEFAULT '{}'::jsonb,
+  can_undo_until timestamp with time zone NOT NULL,
+  is_undone boolean DEFAULT false,
+  undone_at timestamp with time zone,
+  undo_results jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT import_history_pkey PRIMARY KEY (id),
+  CONSTRAINT import_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.income (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  category_id uuid,
+  description text NOT NULL,
+  date date NOT NULL,
+  reference_number text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  total_with_tax numeric DEFAULT (amount + COALESCE(tax_amount, (0)::numeric)),
+  client_id uuid,
+  import_session_id uuid,
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  credit_note_id uuid,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  is_credit_adjustment boolean DEFAULT false,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  base_tax_amount numeric DEFAULT 0,
+  project_id uuid,
+  CONSTRAINT income_pkey PRIMARY KEY (id),
+  CONSTRAINT income_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT income_credit_note_id_fkey FOREIGN KEY (credit_note_id) REFERENCES public.credit_notes(id),
+  CONSTRAINT income_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT income_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT income_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT income_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT income_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT income_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.invoice_access_tokens (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  token uuid NOT NULL UNIQUE,
+  invoice_id uuid NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  can_accept boolean DEFAULT false,
+  accepted_at timestamp with time zone,
+  CONSTRAINT invoice_access_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_access_tokens_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_activities (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL,
+  user_id uuid,
+  action text NOT NULL,
+  details jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT invoice_activities_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT invoice_activities_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_credit_tracking (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  invoice_id uuid NOT NULL UNIQUE,
+  total_credited numeric DEFAULT 0,
+  credit_note_count integer DEFAULT 0,
+  last_credit_date timestamp without time zone,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT invoice_credit_tracking_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_credit_tracking_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_items (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid,
+  description text NOT NULL,
+  quantity numeric NOT NULL DEFAULT 1,
+  rate numeric NOT NULL,
+  amount numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  tax_rate numeric DEFAULT 0,
+  tax_amount numeric DEFAULT 0,
+  net_amount numeric NOT NULL,
+  gross_amount numeric NOT NULL,
+  CONSTRAINT invoice_items_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_payment_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL UNIQUE,
+  payment_enabled boolean DEFAULT false,
+  payment_providers ARRAY DEFAULT ARRAY[]::text[],
+  accepted_currencies ARRAY DEFAULT ARRAY[]::text[],
+  platform_fee_percentage numeric DEFAULT 0,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT invoice_payment_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_payment_settings_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_payments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  payment_date timestamp with time zone DEFAULT now(),
+  payment_method text,
+  reference_number text,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  user_id uuid NOT NULL,
+  CONSTRAINT invoice_payments_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT invoice_payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_reminders (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL,
+  reminder_type text CHECK (reminder_type = ANY (ARRAY['due_soon'::text, 'overdue'::text, 'sent'::text, 'paid'::text])),
+  sent_date timestamp with time zone DEFAULT now(),
+  sent_via text CHECK (sent_via = ANY (ARRAY['email'::text, 'whatsapp'::text, 'both'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT invoice_reminders_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_reminders_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.invoice_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  company_name text,
+  company_logo text,
+  company_address text,
+  company_phone text,
+  company_email text,
+  company_website text,
+  tax_number text,
+  invoice_prefix text DEFAULT 'INV-'::text,
+  invoice_color text DEFAULT '#3B82F6'::text,
+  payment_terms integer DEFAULT 30,
+  invoice_notes text,
+  invoice_footer text,
+  default_tax_rate numeric DEFAULT 0,
+  email_notifications boolean DEFAULT true,
+  whatsapp_notifications boolean DEFAULT false,
+  notification_email text,
+  notification_phone text,
+  reminder_days integer DEFAULT 3,
+  payment_instructions text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  next_number integer DEFAULT 1,
+  due_days integer DEFAULT 30,
+  auto_send_recurring boolean DEFAULT false,
+  payment_info jsonb DEFAULT '{}'::jsonb,
+  bank_name text,
+  account_number text,
+  routing_number text,
+  paypal_email text,
+  fill_number_gaps boolean DEFAULT true,
+  credit_note_prefix text DEFAULT 'CN-'::text,
+  next_credit_note_number integer DEFAULT 1,
+  CONSTRAINT invoice_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.invoice_templates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  template_data jsonb NOT NULL,
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT invoice_templates_pkey PRIMARY KEY (id),
+  CONSTRAINT invoice_templates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.invoices (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  invoice_number text NOT NULL,
+  client_id uuid,
+  date date NOT NULL,
+  due_date date NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'draft'::invoice_status,
+  subtotal numeric NOT NULL DEFAULT 0 CHECK (subtotal >= 0::numeric),
+  tax_rate numeric DEFAULT 0 CHECK (tax_rate >= 0::numeric AND tax_rate <= 100::numeric),
+  tax_amount numeric DEFAULT 0,
+  total numeric NOT NULL DEFAULT 0 CHECK (total >= 0::numeric),
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  template_id uuid,
+  sent_date timestamp with time zone,
+  viewed_date timestamp with time zone,
+  paid_date timestamp with time zone,
+  last_emailed_at timestamp with time zone,
+  email_count integer DEFAULT 0,
+  income_category_id uuid,
+  invoice_type text DEFAULT 'simple'::text CHECK (invoice_type = ANY (ARRAY['simple'::text, 'detailed'::text])),
+  detailed_data jsonb DEFAULT '{}'::jsonb,
+  has_discount boolean DEFAULT false,
+  discount_type text CHECK (discount_type = ANY (ARRAY['percentage'::text, 'fixed'::text])),
+  discount_value numeric DEFAULT 0,
+  discount_amount numeric DEFAULT 0,
+  shipping_amount numeric DEFAULT 0,
+  has_payment_schedule boolean DEFAULT false,
+  payment_schedule jsonb,
+  amount_paid numeric DEFAULT 0,
+  balance_due numeric DEFAULT 0,
+  additional_charges jsonb DEFAULT '[]'::jsonb,
+  viewed_at timestamp with time zone,
+  partially_paid_at timestamp with time zone,
+  draft_accepted_at timestamp with time zone,
+  draft_accepted_by text,
+  import_session_id uuid,
+  base_amount numeric,
+  tax_metadata jsonb DEFAULT '{}'::jsonb,
+  tax_scheme text,
+  is_reverse_charge boolean DEFAULT false,
+  intra_eu_supply boolean DEFAULT false,
+  has_credit_notes boolean DEFAULT false,
+  total_credited numeric DEFAULT 0,
+  tax_point_date date,
+  actual_paid_date date,
+  vat_return_id uuid,
+  vat_locked_at timestamp without time zone,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  base_tax_amount numeric DEFAULT 0,
+  deleted_by uuid,
+  payment_locked_at timestamp with time zone,
+  project_id uuid,
+  CONSTRAINT invoices_pkey PRIMARY KEY (id),
+  CONSTRAINT invoices_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT invoices_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
+  CONSTRAINT invoices_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT invoices_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
+  CONSTRAINT invoices_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT invoices_income_category_id_fkey FOREIGN KEY (income_category_id) REFERENCES public.categories(id),
+  CONSTRAINT invoices_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES auth.users(id),
+  CONSTRAINT invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);
+CREATE TABLE public.learned_patterns (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  pattern_type text NOT NULL CHECK (pattern_type = ANY (ARRAY['client_payment_speed'::text, 'client_order_frequency'::text, 'client_typical_amount'::text, 'expense_recurring'::text, 'expense_vendor_average'::text, 'revenue_seasonal'::text, 'revenue_monthly_trend'::text, 'invoice_payment_pattern'::text, 'category_spending_trend'::text])),
+  entity_id uuid,
+  entity_type text CHECK (entity_type = ANY (ARRAY['client'::text, 'vendor'::text, 'category'::text, 'general'::text])),
+  pattern_data jsonb NOT NULL,
+  confidence_score numeric DEFAULT 0.5 CHECK (confidence_score >= 0::numeric AND confidence_score <= 1::numeric),
+  sample_size integer DEFAULT 1,
+  last_updated timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT learned_patterns_pkey PRIMARY KEY (id),
+  CONSTRAINT learned_patterns_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.loan_payments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  loan_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  payment_number integer NOT NULL CHECK (payment_number > 0),
+  payment_date date NOT NULL,
+  due_date date NOT NULL,
+  principal_amount numeric NOT NULL CHECK (principal_amount >= 0::numeric),
+  interest_amount numeric NOT NULL CHECK (interest_amount >= 0::numeric),
+  total_payment numeric NOT NULL CHECK (total_payment >= 0::numeric),
+  remaining_balance numeric NOT NULL CHECK (remaining_balance >= 0::numeric),
+  status text DEFAULT 'scheduled'::text CHECK (status = ANY (ARRAY['scheduled'::text, 'paid'::text, 'late'::text, 'missed'::text, 'partial'::text])),
+  paid_date date,
+  expense_id uuid,
+  payment_method text CHECK (payment_method = ANY (ARRAY['cash'::text, 'bank_transfer'::text, 'credit_card'::text, 'check'::text, 'other'::text])),
+  reference_number text,
+  notes text,
+  created_by uuid,
+  updated_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  payment_proof_url text,
+  CONSTRAINT loan_payments_pkey PRIMARY KEY (id),
+  CONSTRAINT loan_payments_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id),
+  CONSTRAINT loan_payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT loan_payments_expense_id_fkey FOREIGN KEY (expense_id) REFERENCES public.expenses(id),
+  CONSTRAINT loan_payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT loan_payments_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.loan_schedules (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  loan_id uuid NOT NULL UNIQUE,
+  schedule_data jsonb NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT loan_schedules_pkey PRIMARY KEY (id),
+  CONSTRAINT loan_schedules_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id)
+);
+CREATE TABLE public.loans (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  loan_number text NOT NULL,
+  lender_name text NOT NULL,
+  vendor_id uuid,
+  principal_amount numeric NOT NULL CHECK (principal_amount > 0::numeric),
+  interest_rate numeric NOT NULL CHECK (interest_rate >= 0::numeric AND interest_rate <= 100::numeric),
+  term_months integer NOT NULL CHECK (term_months > 0),
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  first_payment_date date NOT NULL,
+  payment_frequency text NOT NULL CHECK (payment_frequency = ANY (ARRAY['monthly'::text, 'quarterly'::text, 'yearly'::text])),
+  monthly_payment numeric NOT NULL CHECK (monthly_payment >= 0::numeric),
+  current_balance numeric NOT NULL DEFAULT 0,
+  total_paid numeric DEFAULT 0 CHECK (total_paid >= 0::numeric),
+  total_interest_paid numeric DEFAULT 0 CHECK (total_interest_paid >= 0::numeric),
+  total_principal_paid numeric DEFAULT 0 CHECK (total_principal_paid >= 0::numeric),
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'paid_off'::text, 'defaulted'::text, 'closed'::text])),
+  currency text DEFAULT 'USD'::text,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  loan_type text,
+  collateral text,
+  notes text,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  version integer DEFAULT 1,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT loans_pkey PRIMARY KEY (id),
+  CONSTRAINT loans_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT loans_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
+  CONSTRAINT loans_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT loans_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.manual_exchange_rates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  from_currency text NOT NULL,
+  to_currency text NOT NULL,
+  rate numeric NOT NULL,
+  reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  expires_at timestamp with time zone,
+  is_active boolean DEFAULT true,
+  CONSTRAINT manual_exchange_rates_pkey PRIMARY KEY (id),
+  CONSTRAINT manual_exchange_rates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.media_library (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  file_name text NOT NULL,
+  file_url text NOT NULL,
+  file_type text NOT NULL,
+  file_size integer,
+  alt_text text,
+  caption text,
+  uploaded_by uuid,
+  folder text DEFAULT 'general'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT media_library_pkey PRIMARY KEY (id),
+  CONSTRAINT media_library_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.monthly_summaries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  month date NOT NULL,
+  total_income numeric DEFAULT 0,
+  total_expenses numeric DEFAULT 0,
+  net_profit numeric DEFAULT 0,
+  invoice_count integer DEFAULT 0,
+  client_count integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT monthly_summaries_pkey PRIMARY KEY (id),
+  CONSTRAINT monthly_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.mtd_credentials (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  access_token text,
+  refresh_token text,
+  expires_at timestamp without time zone,
+  vrn text,
+  test_mode boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT mtd_credentials_pkey PRIMARY KEY (id),
+  CONSTRAINT mtd_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.notification_email_queue (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  notification_id uuid,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])),
+  attempts integer DEFAULT 0,
+  last_attempt_at timestamp with time zone,
+  error_message text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notification_email_queue_pkey PRIMARY KEY (id),
+  CONSTRAINT notification_email_queue_notification_id_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  type text NOT NULL,
+  title text NOT NULL,
+  message text NOT NULL,
+  action_url text,
+  action_label text DEFAULT 'View'::text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  priority text DEFAULT 'normal'::text CHECK (priority = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'urgent'::text])),
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  read_at timestamp with time zone,
+  expires_at timestamp with time zone,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.pattern_updates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  pattern_id uuid NOT NULL,
+  update_type text NOT NULL CHECK (update_type = ANY (ARRAY['new_data_point'::text, 'accuracy_adjustment'::text, 'manual_correction'::text, 'confidence_change'::text])),
+  old_value jsonb,
+  new_value jsonb,
+  update_reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT pattern_updates_pkey PRIMARY KEY (id),
+  CONSTRAINT pattern_updates_pattern_id_fkey FOREIGN KEY (pattern_id) REFERENCES public.learned_patterns(id)
+);
+CREATE TABLE public.payment_methods (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL CHECK (user_id IS NOT NULL),
+  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['local_bank'::character varying, 'international_wire'::character varying, 'uk_bank'::character varying, 'sepa'::character varying, 'ach'::character varying, 'paypal'::character varying, 'crypto'::character varying, 'custom'::character varying, 'us_bank'::character varying, 'canada_bank'::character varying, 'australia_bank'::character varying, 'india_bank'::character varying, 'pakistan_bank'::character varying, 'other'::character varying]::text[])),
+  display_name text NOT NULL,
+  fields jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_primary boolean DEFAULT false,
+  display_order integer DEFAULT 0,
+  is_enabled boolean DEFAULT true,
+  instructions text,
+  supported_currencies ARRAY DEFAULT ARRAY['USD'::text],
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT payment_methods_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_methods_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.payment_providers (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name character varying NOT NULL,
+  display_name character varying NOT NULL,
+  is_active boolean DEFAULT false,
+  supported_countries ARRAY DEFAULT ARRAY[]::text[],
+  supported_currencies ARRAY DEFAULT ARRAY[]::text[],
+  configuration jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT payment_providers_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.payment_transactions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  invoice_id uuid NOT NULL,
+  provider character varying NOT NULL,
+  provider_payment_id character varying UNIQUE,
+  provider_session_id character varying UNIQUE,
+  amount numeric NOT NULL,
+  currency character varying NOT NULL,
+  exchange_rate numeric DEFAULT 1,
+  base_amount numeric,
+  platform_fee numeric DEFAULT 0,
+  provider_fee numeric DEFAULT 0,
+  net_amount numeric,
+  status character varying NOT NULL,
+  payment_method character varying,
+  customer_email character varying,
+  customer_name character varying,
+  country character varying,
+  failure_reason text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp without time zone DEFAULT now(),
+  completed_at timestamp without time zone,
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT payment_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_transactions_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.payment_webhooks (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  provider character varying NOT NULL,
+  event_type character varying NOT NULL,
+  event_id character varying UNIQUE,
+  payload jsonb NOT NULL,
+  processed boolean DEFAULT false,
+  error text,
+  created_at timestamp without time zone DEFAULT now(),
+  processed_at timestamp without time zone,
+  status text DEFAULT 'processing'::text,
+  error_message text,
+  stripe_account_id text,
+  CONSTRAINT payment_webhooks_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.payments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  invoice_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  payment_date date NOT NULL DEFAULT CURRENT_DATE,
+  payment_method text CHECK (payment_method = ANY (ARRAY['cash'::text, 'bank_transfer'::text, 'credit_card'::text, 'paypal'::text, 'other'::text])),
+  reference_number text,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT payments_pkey PRIMARY KEY (id),
+  CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.pending_invites (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  team_id uuid NOT NULL,
+  email text NOT NULL,
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
+  invited_by uuid NOT NULL,
+  invite_code text NOT NULL UNIQUE,
+  expires_at timestamp with time zone NOT NULL,
+  accepted boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT pending_invites_pkey PRIMARY KEY (id),
+  CONSTRAINT pending_invites_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
+  CONSTRAINT pending_invites_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.plan_features (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  feature_key text NOT NULL,
+  feature_value text NOT NULL,
+  feature_limit integer,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT plan_features_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.platform_admins (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  granted_at timestamp with time zone NOT NULL DEFAULT now(),
+  granted_by uuid,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  admin_role text NOT NULL DEFAULT 'platform_admin'::text CHECK (admin_role = ANY (ARRAY['platform_admin'::text, 'seo_admin'::text])),
+  CONSTRAINT platform_admins_pkey PRIMARY KEY (id),
+  CONSTRAINT platform_admins_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT platform_admins_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.processing_activities (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  name text NOT NULL,
+  purpose text NOT NULL,
+  legal_basis text NOT NULL CHECK (legal_basis = ANY (ARRAY['consent'::text, 'contract'::text, 'legal_obligation'::text, 'vital_interests'::text, 'public_task'::text, 'legitimate_interests'::text])),
+  data_categories ARRAY NOT NULL,
+  data_subjects ARRAY NOT NULL,
+  recipients ARRAY,
+  retention_period text NOT NULL,
+  security_measures text,
+  international_transfers boolean DEFAULT false,
+  transfer_safeguards text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT processing_activities_pkey PRIMARY KEY (id),
+  CONSTRAINT processing_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  email text NOT NULL UNIQUE,
+  full_name text,
+  company_name text,
+  company_logo text,
+  company_address text,
+  phone text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  first_name text,
+  last_name text,
+  tax_regime character varying,
+  tax_registration_number text,
+  setup_completed boolean DEFAULT false,
+  setup_completed_at timestamp with time zone,
+  privacy_preference text CHECK (privacy_preference = ANY (ARRAY['show'::text, 'hide'::text])),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.project_attachments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  file_name text NOT NULL,
+  file_path text NOT NULL,
+  file_size bigint NOT NULL CHECK (file_size > 0),
+  file_type text NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  deleted_at timestamp with time zone,
+  CONSTRAINT project_attachments_pkey PRIMARY KEY (id),
+  CONSTRAINT project_attachments_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_attachments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.project_goals (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  status text NOT NULL DEFAULT 'todo'::text CHECK (status = ANY (ARRAY['todo'::text, 'in_progress'::text, 'done'::text])),
+  order_index integer NOT NULL DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  deleted_at timestamp with time zone,
+  CONSTRAINT project_goals_pkey PRIMARY KEY (id),
+  CONSTRAINT project_goals_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.project_milestones (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  description text,
+  due_date date,
+  target_amount numeric,
+  currency text DEFAULT 'USD'::text,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'completed'::text, 'paid'::text])),
+  completion_date timestamp with time zone,
+  invoice_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  deleted_at timestamp with time zone,
+  CONSTRAINT project_milestones_pkey PRIMARY KEY (id),
+  CONSTRAINT project_milestones_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_milestones_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT project_milestones_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.project_notes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  type text NOT NULL DEFAULT 'note'::text CHECK (type = ANY (ARRAY['note'::text, 'meeting'::text, 'call'::text, 'email'::text, 'change_request'::text, 'milestone'::text, 'other'::text])),
+  title text NOT NULL,
+  content text,
+  date date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  deleted_at timestamp with time zone,
+  CONSTRAINT project_notes_pkey PRIMARY KEY (id),
+  CONSTRAINT project_notes_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.project_time_entries (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  date date NOT NULL,
+  hours numeric NOT NULL CHECK (hours > 0::numeric),
+  description text,
+  billable boolean NOT NULL DEFAULT true,
+  hourly_rate numeric,
+  amount numeric DEFAULT 
+CASE
+    WHEN (billable AND (hourly_rate IS NOT NULL)) THEN (hours * hourly_rate)
+    ELSE NULL::numeric
+END,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  deleted_at timestamp with time zone,
+  CONSTRAINT project_time_entries_pkey PRIMARY KEY (id),
+  CONSTRAINT project_time_entries_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_time_entries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.projects (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  description text,
+  client_id uuid,
+  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'on_hold'::text, 'cancelled'::text])),
+  start_date date,
+  end_date date,
+  budget_amount numeric CHECK (budget_amount IS NULL OR budget_amount >= 0::numeric),
+  budget_currency text DEFAULT 'USD'::text,
+  color text DEFAULT '#6366F1'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  deleted_at timestamp with time zone,
+  CONSTRAINT projects_pkey PRIMARY KEY (id),
+  CONSTRAINT projects_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT projects_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id)
+);
+CREATE TABLE public.recurring_invoices (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  client_id uuid,
+  template_data jsonb NOT NULL,
+  frequency text NOT NULL CHECK (frequency = ANY (ARRAY['weekly'::text, 'biweekly'::text, 'monthly'::text, 'quarterly'::text, 'yearly'::text])),
+  next_date date NOT NULL,
+  last_generated date,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  invoice_id uuid,
+  end_date date,
+  CONSTRAINT recurring_invoices_pkey PRIMARY KEY (id),
+  CONSTRAINT recurring_invoices_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT recurring_invoices_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT recurring_invoices_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+CREATE TABLE public.security_events (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['failed_login'::text, 'suspicious_activity'::text, 'multiple_failed_attempts'::text, 'unusual_location'::text, 'session_anomaly'::text, 'password_changed'::text, 'mfa_enabled'::text, 'mfa_disabled'::text])),
+  severity text NOT NULL CHECK (severity = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'critical'::text])),
+  description text NOT NULL,
+  ip_address inet,
+  user_agent text,
+  location text,
+  metadata jsonb,
+  resolved boolean DEFAULT false,
+  resolved_at timestamp with time zone,
+  resolved_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT security_events_pkey PRIMARY KEY (id),
+  CONSTRAINT security_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT security_events_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.seo_metadata (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  page_path text NOT NULL UNIQUE,
+  page_name text NOT NULL,
+  meta_title text NOT NULL,
+  meta_description text,
+  meta_keywords text,
+  og_title text,
+  og_description text,
+  og_image_url text,
+  og_type text DEFAULT 'website'::text,
+  twitter_card text DEFAULT 'summary_large_image'::text,
+  twitter_title text,
+  twitter_description text,
+  twitter_image_url text,
+  canonical_url text,
+  robots_directive text DEFAULT 'index, follow'::text,
+  structured_data jsonb,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  updated_by uuid,
+  CONSTRAINT seo_metadata_pkey PRIMARY KEY (id),
+  CONSTRAINT seo_metadata_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.subscriptions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  interval USER-DEFINED NOT NULL DEFAULT 'monthly'::subscription_interval,
+  status text NOT NULL DEFAULT 'trialing'::text,
+  trial_end timestamp with time zone DEFAULT (now() + '30 days'::interval),
+  current_period_start timestamp with time zone DEFAULT now(),
+  current_period_end timestamp with time zone DEFAULT (now() + '30 days'::interval),
+  cancel_at_period_end boolean DEFAULT false,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  plan USER-DEFINED NOT NULL DEFAULT 'simple_start'::subscription_plan_new,
+  seats_used integer DEFAULT 1,
+  CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.subscriptions_backup_advanced (
+  id uuid,
+  user_id uuid,
+  plan text,
+  interval text,
+  status text,
+  trial_end timestamp with time zone,
+  current_period_start timestamp with time zone,
+  current_period_end timestamp with time zone,
+  cancel_at_period_end boolean,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
+  backed_up_at timestamp with time zone DEFAULT now()
+);
+CREATE TABLE public.tax_audit_trail (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  country_code text NOT NULL,
+  source_type text NOT NULL,
+  source_id uuid NOT NULL,
+  target_type text NOT NULL,
+  target_id uuid NOT NULL,
+  transformation text,
+  metadata jsonb,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT tax_audit_trail_pkey PRIMARY KEY (id),
+  CONSTRAINT tax_audit_trail_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.tax_rates (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  rate numeric NOT NULL CHECK (rate >= 0::numeric AND rate <= 100::numeric),
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tax_rates_pkey PRIMARY KEY (id),
+  CONSTRAINT tax_rates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.team_invites (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  team_id uuid NOT NULL,
+  email text NOT NULL,
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
+  invited_by uuid NOT NULL,
+  token uuid NOT NULL UNIQUE,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_invites_pkey PRIMARY KEY (id),
+  CONSTRAINT team_invites_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
+  CONSTRAINT team_invites_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.team_members (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  team_id uuid NOT NULL,
+  email text NOT NULL,
+  full_name text,
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])),
+  status text NOT NULL DEFAULT 'invited'::text CHECK (status = ANY (ARRAY['active'::text, 'invited'::text, 'disabled'::text])),
+  invited_by uuid NOT NULL,
+  invited_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  permissions jsonb DEFAULT '{"canDeleteData": false, "canExportData": false, "canManageTeam": false, "canViewReports": false, "canManageClients": false, "canManageExpenses": false, "canManageInvoices": false, "canManageSettings": false}'::jsonb,
+  accepted_at timestamp with time zone,
+  last_active timestamp with time zone,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_members_pkey PRIMARY KEY (id),
+  CONSTRAINT team_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT team_members_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
+  CONSTRAINT team_members_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.third_party_processors (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  name text NOT NULL,
+  service text NOT NULL,
+  contact_email text,
+  contact_phone text,
+  address text,
+  processing_purpose text NOT NULL,
+  data_categories ARRAY NOT NULL,
+  dpa_signed boolean DEFAULT false,
+  dpa_signed_at timestamp with time zone,
+  dpa_expires_at timestamp with time zone,
+  dpa_document_url text,
+  iso_certified boolean DEFAULT false,
+  certifications ARRAY,
+  data_location text,
+  subprocessors ARRAY,
+  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'under_review'::text, 'suspended'::text, 'terminated'::text])),
+  last_audit_date timestamp with time zone,
+  next_audit_date timestamp with time zone,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT third_party_processors_pkey PRIMARY KEY (id),
+  CONSTRAINT third_party_processors_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.uk_vat_returns (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  period_start date NOT NULL,
+  period_end date NOT NULL,
+  period_key text,
+  box1_vat_due_sales numeric DEFAULT 0,
+  box2_vat_due_acquisitions numeric DEFAULT 0,
+  box3_total_vat_due numeric DEFAULT 0,
+  box4_vat_reclaimed numeric DEFAULT 0,
+  box5_net_vat_due numeric DEFAULT 0,
+  box6_total_sales_ex_vat numeric DEFAULT 0 CHECK (box6_total_sales_ex_vat = round(box6_total_sales_ex_vat)),
+  box7_total_purchases_ex_vat numeric DEFAULT 0 CHECK (box7_total_purchases_ex_vat = round(box7_total_purchases_ex_vat)),
+  box8_total_supplies_ex_vat numeric DEFAULT 0,
+  box9_total_acquisitions_ex_vat numeric DEFAULT 0,
+  base_currency text NOT NULL,
+  status text DEFAULT 'draft'::text,
+  submitted_at timestamp without time zone,
+  hmrc_receipt text,
+  notes text,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  mtd_submission_id text,
+  mtd_correlation_id text,
+  mtd_response jsonb,
+  CONSTRAINT uk_vat_returns_pkey PRIMARY KEY (id),
+  CONSTRAINT uk_vat_returns_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.unbilled_items (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  client_id uuid,
+  item_type character varying NOT NULL CHECK (item_type::text = ANY (ARRAY['expense'::character varying, 'income'::character varying, 'service'::character varying, 'product'::character varying]::text[])),
+  source_type character varying,
+  source_id uuid,
+  description text NOT NULL,
+  quantity numeric DEFAULT 1,
+  cost_amount numeric NOT NULL DEFAULT 0 CHECK (cost_amount >= 0::numeric),
+  markup_percentage numeric DEFAULT 0 CHECK (markup_percentage >= 0::numeric AND markup_percentage <= 1000::numeric),
+  billable_amount numeric NOT NULL CHECK (billable_amount >= 0::numeric),
+  currency character varying DEFAULT 'USD'::character varying,
+  date date NOT NULL,
+  expected_invoice_date date,
+  is_billed boolean DEFAULT false,
+  invoice_id uuid,
+  billed_at timestamp with time zone,
+  notes text,
+  project_id uuid,
+  category_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT unbilled_items_pkey PRIMARY KEY (id),
+  CONSTRAINT unbilled_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT unbilled_items_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
+  CONSTRAINT unbilled_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id),
+  CONSTRAINT unbilled_items_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT unbilled_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+);
+CREATE TABLE public.user_consents (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  consent_type text NOT NULL CHECK (consent_type = ANY (ARRAY['essential'::text, 'analytics'::text, 'marketing'::text, 'marketing_email'::text, 'terms_of_service'::text, 'personalization'::text, 'third_party'::text])),
+  consent_given boolean NOT NULL DEFAULT false,
+  consent_version text DEFAULT 'v1.0'::text,
+  ip_address inet,
+  user_agent text,
+  consent_method text CHECK (consent_method = ANY (ARRAY['explicit'::text, 'implied'::text, 'opt_in'::text, 'opt_out'::text])),
+  purpose text,
+  expires_at timestamp with time zone,
+  withdrawn_at timestamp with time zone,
+  withdrawal_reason text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  granted boolean NOT NULL DEFAULT false,
+  granted_at timestamp with time zone,
+  version text DEFAULT '1.0'::text,
+  CONSTRAINT user_consents_pkey PRIMARY KEY (id),
+  CONSTRAINT user_consents_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_goals (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  goal_type text NOT NULL CHECK (goal_type = ANY (ARRAY['revenue_target'::text, 'expense_reduction'::text, 'client_acquisition'::text, 'profit_margin'::text, 'cash_flow'::text, 'custom'::text])),
+  goal_name text NOT NULL,
+  target_value numeric,
+  target_date date,
+  current_value numeric DEFAULT 0,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'paused'::text, 'cancelled'::text])),
+  progress_data jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_goals_pkey PRIMARY KEY (id),
+  CONSTRAINT user_goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_payment_accounts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  provider character varying NOT NULL,
+  provider_account_id character varying UNIQUE,
+  country character varying NOT NULL,
+  default_currency character varying NOT NULL,
+  supported_currencies ARRAY DEFAULT ARRAY[]::text[],
+  onboarding_completed boolean DEFAULT false,
+  charges_enabled boolean DEFAULT false,
+  payouts_enabled boolean DEFAULT false,
+  business_type character varying,
+  business_name character varying,
+  capabilities jsonb DEFAULT '{}'::jsonb,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp without time zone DEFAULT now(),
+  updated_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT user_payment_accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT user_payment_accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL UNIQUE,
+  date_format text DEFAULT 'MM/DD/YYYY'::text,
+  time_zone text DEFAULT 'America/New_York'::text,
+  fiscal_year_start integer DEFAULT 1,
+  notification_preferences jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  country character varying,
+  state character varying,
+  mfa_backup_codes ARRAY,
+  security_notifications boolean DEFAULT true,
+  base_currency text DEFAULT 'USD'::text,
+  enabled_currencies ARRAY DEFAULT ARRAY['USD'::text],
+  vat_registration_number character varying,
+  vat_scheme character varying DEFAULT 'standard'::character varying CHECK (vat_scheme::text = ANY (ARRAY['standard'::character varying, 'flat_rate'::character varying, 'cash'::character varying]::text[])),
+  flat_rate_percentage numeric,
+  vat_period_type character varying DEFAULT 'quarterly'::character varying CHECK (vat_period_type::text = ANY (ARRAY['monthly'::character varying, 'quarterly'::character varying]::text[])),
+  mtd_enabled boolean DEFAULT false,
+  tax_registration_number text,
+  tax_scheme text DEFAULT 'standard'::text,
+  tax_return_period text DEFAULT 'quarterly'::text,
+  is_tax_registered boolean DEFAULT false,
+  uk_vat_scheme text DEFAULT 'standard'::text,
+  uk_vat_flat_rate numeric DEFAULT 0,
+  uk_vat_registration_date date,
+  us_tax_id text,
+  au_abn text,
+  ca_gst_number text,
+  tax_id text,
+  uk_flat_rate_limited_cost_trader boolean DEFAULT false,
+  uk_vat_cash_accounting boolean DEFAULT false,
+  uk_vat_annual_accounting boolean DEFAULT false,
+  inherits_from uuid,
+  is_team_settings boolean DEFAULT false,
+  use_new_payment_methods boolean DEFAULT false,
+  CONSTRAINT user_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.user_settings_backup_before_revert (
+  id uuid,
+  user_id uuid,
+  date_format text,
+  time_zone text,
+  fiscal_year_start integer,
+  notification_preferences jsonb,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
+  country character varying,
+  state character varying,
+  mfa_backup_codes ARRAY,
+  security_notifications boolean,
+  base_currency text,
+  enabled_currencies jsonb
+);
+CREATE TABLE public.vat_periods (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  period_start date NOT NULL,
+  period_end date NOT NULL,
+  status character varying DEFAULT 'open'::character varying CHECK (status::text = ANY (ARRAY['open'::character varying, 'locked'::character varying, 'submitted'::character varying]::text[])),
+  locked_at timestamp with time zone,
+  vat_return_data jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT vat_periods_pkey PRIMARY KEY (id),
+  CONSTRAINT vat_periods_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.vat_submissions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  period_id uuid NOT NULL,
+  submission_date timestamp with time zone DEFAULT now(),
+  boxes_data jsonb NOT NULL,
+  mtd_receipt character varying,
+  status character varying DEFAULT 'draft'::character varying CHECK (status::text = ANY (ARRAY['draft'::character varying, 'submitted'::character varying, 'accepted'::character varying, 'rejected'::character varying]::text[])),
+  error_message text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT vat_submissions_pkey PRIMARY KEY (id),
+  CONSTRAINT vat_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT vat_submissions_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.vat_periods(id)
+);
+CREATE TABLE public.vendors (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  email text,
+  phone text,
+  address text,
+  tax_id text,
+  payment_terms integer DEFAULT 30,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  import_session_id uuid,
+  created_by uuid,
+  updated_by uuid,
+  deleted_at timestamp with time zone,
+  CONSTRAINT vendors_pkey PRIMARY KEY (id),
+  CONSTRAINT vendors_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT vendors_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
+  CONSTRAINT vendors_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.whatsapp_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  invoice_id uuid,
+  phone_number text NOT NULL,
+  status text NOT NULL,
+  message_id text,
+  error_message text,
+  response_data jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT whatsapp_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT whatsapp_logs_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);

@@ -41,6 +41,7 @@ import { reportInstructions } from './instructions/report';
 
 // Import user settings
 import { getUserSettings, getInvoiceSettings } from './userSettingsService';
+import { AILearningService } from './learningService';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
@@ -688,18 +689,87 @@ Use parseDateQueryTool first for date queries.`,
 };
 
 /**
- * Build system prompt with user context
+ * Build system prompt with user context and learned patterns
  */
 const buildSystemPrompt = async (userId: string): Promise<string> => {
   try {
     const userSettings = await getUserSettings(userId);
     const invoiceSettings = await getInvoiceSettings(userId);
 
+    // Load learned patterns
+    const learnedPatterns = await AILearningService.getLearnedPatterns(userId);
+
+    // Build expense patterns section
+    let expensePatternsText = '';
+    if (learnedPatterns.expense_patterns && Object.keys(learnedPatterns.expense_patterns).length > 0) {
+      expensePatternsText = '\n## Learned Expense Patterns (vendor → category auto-match):\n';
+      Object.entries(learnedPatterns.expense_patterns).forEach(([vendor, pattern]) => {
+        if (pattern.confidence > 0.5) {
+          expensePatternsText += `• "${vendor}" always goes to ${pattern.category_name} [${pattern.frequency}x used, ${(pattern.confidence * 100).toFixed(0)}% confident]\n`;
+        }
+      });
+    }
+
+    // Build income patterns section
+    let incomePatternsText = '';
+    if (learnedPatterns.income_patterns && Object.keys(learnedPatterns.income_patterns).length > 0) {
+      incomePatternsText = '\n## Learned Income Patterns (what user typically charges per client):\n';
+      Object.entries(learnedPatterns.income_patterns).forEach(([clientKey, pattern]) => {
+        if (pattern.confidence > 0.5) {
+          // Show pattern in human-readable format (use client name if available, otherwise show it's an ID)
+          const clientDisplay = clientKey.includes('-') ? `[Client ID: ${clientKey.substring(0, 8)}...]` : clientKey;
+          incomePatternsText += `• ${clientDisplay}: Usually $${pattern.typical_amount.toFixed(0)}`;
+          if (pattern.typical_category_name) {
+            incomePatternsText += ` → ${pattern.typical_category_name}`;
+          }
+          if (pattern.typical_description) {
+            incomePatternsText += ` ("${pattern.typical_description}")`;
+          }
+          incomePatternsText += ` [${pattern.frequency}x recorded, ${(pattern.confidence * 100).toFixed(0)}% confident]\n`;
+        }
+      });
+    }
+
+    // Build common descriptions section
+    let descriptionsText = '';
+    if (learnedPatterns.description_templates && learnedPatterns.description_templates.length > 0) {
+      descriptionsText = '\n## Common Descriptions (user frequently uses):\n';
+      learnedPatterns.description_templates.slice(0, 5).forEach(template => {
+        descriptionsText += `• "${template.description}" [used ${template.count}x]\n`;
+      });
+    }
+
     const userContext = `
 # User Context
 - Base Currency: ${userSettings.base_currency || 'USD'}
 - Country: ${userSettings.country || 'US'}
 - Default Tax Rate: ${invoiceSettings.default_tax_rate || 0}%
+${expensePatternsText}${incomePatternsText}${descriptionsText}
+
+# 🧠 How to Use Learned Patterns (IMPORTANT):
+
+**For Expenses:**
+- When user mentions a vendor name (e.g., "Starbucks", "Amazon"), check expense patterns above
+- If vendor matches and confidence ≥85%, suggest that category in your response
+- Example: "I'll create the expense. Since you usually categorize Starbucks as Meals..."
+
+**For Income:**
+- When user mentions creating income, do NOT try to match client names to patterns yourself
+- The patterns show typical amounts/categories, but client matching happens automatically in the form
+- Just create the income normally - the UI will auto-fill based on selected client
+
+**General Rules:**
+- Confidence 90%+: Say "You always use..." or "You consistently..."
+- Confidence 70-89%: Say "You usually..." or "You typically..."
+- Confidence 50-69%: Say "You sometimes..." or "You often..."
+- Confidence <50%: Don't mention the pattern at all
+- NEVER force a suggestion - always let user decide
+- If user provides different values than pattern, respect their choice
+
+**❌ DON'T:**
+- Don't hallucinate patterns that aren't listed above
+- Don't suggest patterns with confidence <50%
+- Don't override user's explicit values with patterns
 `;
 
     return `${sharedInstructions}\n\n${incomeInstructions}\n\n${expenseInstructions}\n\n${budgetInstructions}\n\n${invoiceInstructions}\n\n${projectInstructions}\n\n${reportInstructions}\n\n${userContext}`.trim();

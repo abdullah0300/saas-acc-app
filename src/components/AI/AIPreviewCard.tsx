@@ -4,6 +4,7 @@ import { confirmPendingAction, cancelPendingAction } from '../../services/ai/pen
 import { executePendingAction } from '../../services/ai/aiTools';
 import { getUserSettings } from '../../services/ai/userSettingsService';
 import { useSettings } from '../../contexts/SettingsContext';
+import { AILearningService } from '../../services/ai/learningService';
 
 interface AIPreviewCardProps {
   pendingAction: any;
@@ -356,6 +357,30 @@ export const AIPreviewCard: React.FC<AIPreviewCardProps> = ({
         throw new Error(result.error || 'Failed to execute action');
       }
 
+      // Log user confirmation for AI learning
+      await AILearningService.logInteraction({
+        user_id: userId,
+        interaction_type: 'confirmation',
+        query_text: `Create ${pendingAction.action_type}`,
+        entity_type: pendingAction.action_type,
+        entity_id: result.result?.id, // ID of created entity
+        ai_suggested_value: pendingAction.action_data,
+        user_chosen_value: pendingAction.action_data, // Same as suggested since user confirmed
+        context_data: {
+          conversation_id: conversationId,
+          client_id: pendingAction.action_data?.client_id,
+          client_name: pendingAction.action_data?.client_name,
+          vendor: pendingAction.action_data?.vendor_name,
+          category_id: pendingAction.action_data?.category_id,
+          category_name: pendingAction.action_data?.category_name,
+        }
+      });
+
+      // Trigger pattern analysis if needed (runs max once per 24h)
+      AILearningService.maybeAnalyzePatterns(userId).catch(err =>
+        console.error('[AI Learning] Pattern analysis failed:', err)
+      );
+
       // Notify parent to refresh with success
       onUpdate('confirmed', getActionTitle().toLowerCase());
     } catch (err: any) {
@@ -371,6 +396,19 @@ export const AIPreviewCard: React.FC<AIPreviewCardProps> = ({
     setError(null);
 
     try {
+      // Log user rejection for AI learning
+      await AILearningService.logInteraction({
+        user_id: userId,
+        interaction_type: 'rejection',
+        query_text: `Create ${pendingAction.action_type}`,
+        entity_type: pendingAction.action_type,
+        ai_suggested_value: pendingAction.action_data,
+        context_data: {
+          conversation_id: conversationId,
+          reason: 'user_cancelled'
+        }
+      });
+
       await cancelPendingAction(pendingAction.id);
       onUpdate('cancelled', getActionTitle().toLowerCase());
     } catch (err: any) {
