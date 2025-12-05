@@ -1,1636 +1,1060 @@
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
+# Edge Function - AI Assistant with Chat Support
 
-CREATE TABLE public.ai_credits (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL UNIQUE,
-  credits_used_today integer NOT NULL DEFAULT 0 CHECK (credits_used_today >= 0),
-  daily_limit integer NOT NULL DEFAULT 50 CHECK (daily_limit > 0),
-  last_reset_date date NOT NULL DEFAULT CURRENT_DATE,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT ai_credits_pkey PRIMARY KEY (id),
-  CONSTRAINT ai_credits_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.ai_insights (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  insight_date date NOT NULL DEFAULT CURRENT_DATE,
-  insights_json jsonb NOT NULL,
-  generated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT ai_insights_pkey PRIMARY KEY (id),
-  CONSTRAINT ai_insights_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.ai_interactions (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  action_type text NOT NULL,
-  context_data jsonb DEFAULT '{}'::jsonb,
-  ai_suggestion text,
-  user_choice text,
-  outcome text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT ai_interactions_pkey PRIMARY KEY (id),
-  CONSTRAINT ai_interactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.ai_suggestions_cache (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  feature_type text NOT NULL,
-  context_hash text NOT NULL,
-  suggestions_json jsonb NOT NULL,
-  expires_at timestamp with time zone NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT ai_suggestions_cache_pkey PRIMARY KEY (id),
-  CONSTRAINT ai_suggestions_cache_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.ai_user_context (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL UNIQUE,
-  business_type text,
-  location text,
-  business_stage text DEFAULT 'startup'::text,
-  monthly_revenue_range text,
-  patterns_json jsonb DEFAULT '{}'::jsonb,
-  preferences_json jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT ai_user_context_pkey PRIMARY KEY (id),
-  CONSTRAINT ai_user_context_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.audit_logs (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  team_id uuid,
-  action text NOT NULL CHECK (action = ANY (ARRAY['login'::text, 'logout'::text, 'login_failed'::text, 'create'::text, 'update'::text, 'delete'::text, 'view'::text, 'export'::text, 'invite_sent'::text, 'invite_accepted'::text, 'invite_rejected'::text, 'subscription_changed'::text, 'payment_processed'::text, 'settings_updated'::text, 'password_changed'::text])),
-  entity_type text CHECK (entity_type = ANY (ARRAY['income'::text, 'expense'::text, 'invoice'::text, 'client'::text, 'category'::text, 'team_member'::text, 'subscription'::text, 'settings'::text, 'report'::text, 'recurring_invoice'::text, 'budget'::text, 'tax_rate'::text, 'user'::text])),
-  entity_id uuid,
-  entity_name text,
-  changes jsonb,
-  metadata jsonb,
-  ip_address inet,
-  user_agent text,
-  created_at timestamp with time zone DEFAULT now(),
-  team_member_id uuid,
-  CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
-  CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT audit_logs_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.blog_posts (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  slug text NOT NULL UNIQUE,
-  title text NOT NULL,
-  excerpt text,
-  content text NOT NULL,
-  featured_image_url text,
-  author_id uuid,
-  status text DEFAULT 'draft'::text,
-  published_at timestamp with time zone,
-  view_count integer DEFAULT 0,
-  reading_time_minutes integer,
-  category text,
-  tags ARRAY,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT blog_posts_pkey PRIMARY KEY (id),
-  CONSTRAINT blog_posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.blog_seo (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  blog_post_id uuid,
-  meta_title text,
-  meta_description text,
-  meta_keywords text,
-  og_title text,
-  og_description text,
-  og_image_url text,
-  twitter_title text,
-  twitter_description text,
-  canonical_url text,
-  structured_data jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT blog_seo_pkey PRIMARY KEY (id),
-  CONSTRAINT blog_seo_blog_post_id_fkey FOREIGN KEY (blog_post_id) REFERENCES public.blog_posts(id)
-);
-CREATE TABLE public.budgets (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  category_id uuid,
-  amount numeric NOT NULL CHECK (amount > 0::numeric),
-  period text NOT NULL CHECK (period = ANY (ARRAY['monthly'::text, 'quarterly'::text, 'yearly'::text])),
-  start_date date NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT budgets_pkey PRIMARY KEY (id),
-  CONSTRAINT budgets_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT budgets_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
-);
-CREATE TABLE public.calendar_events (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  external_id text UNIQUE,
-  title text NOT NULL,
-  description text,
-  start_time timestamp with time zone NOT NULL,
-  end_time timestamp with time zone,
-  attendees jsonb DEFAULT '[]'::jsonb,
-  is_client_meeting boolean DEFAULT false,
-  related_client_id uuid,
-  related_invoice_id uuid,
-  ai_suggested_actions jsonb DEFAULT '[]'::jsonb,
-  sync_status text DEFAULT 'pending'::text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT calendar_events_pkey PRIMARY KEY (id),
-  CONSTRAINT calendar_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT calendar_events_related_client_id_fkey FOREIGN KEY (related_client_id) REFERENCES public.clients(id),
-  CONSTRAINT calendar_events_related_invoice_id_fkey FOREIGN KEY (related_invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.categories (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  type USER-DEFINED NOT NULL,
-  color text DEFAULT '#3B82F6'::text,
-  created_at timestamp with time zone DEFAULT now(),
-  import_session_id uuid,
-  updated_at timestamp with time zone DEFAULT now(),
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  description text,
-  CONSTRAINT categories_pkey PRIMARY KEY (id),
-  CONSTRAINT categories_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT categories_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT categories_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.category_summaries (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  month date NOT NULL,
-  category_id uuid,
-  category_name text NOT NULL,
-  category_type text NOT NULL CHECK (category_type = ANY (ARRAY['income'::text, 'expense'::text])),
-  total_amount numeric DEFAULT 0,
-  transaction_count integer DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT category_summaries_pkey PRIMARY KEY (id),
-  CONSTRAINT category_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT category_summaries_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
-);
-CREATE TABLE public.chat_conversations (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  messages jsonb DEFAULT '[]'::jsonb,
-  current_context jsonb DEFAULT '{}'::jsonb,
-  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'cancelled'::text])),
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT chat_conversations_pkey PRIMARY KEY (id),
-  CONSTRAINT chat_conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.chat_pending_actions (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  conversation_id uuid,
-  user_id uuid,
-  action_type text NOT NULL CHECK (action_type = ANY (ARRAY['expense'::text, 'income'::text, 'invoice'::text, 'query'::text])),
-  action_data jsonb NOT NULL,
-  confidence_score numeric,
-  user_confirmed boolean DEFAULT false,
-  executed_at timestamp with time zone,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT chat_pending_actions_pkey PRIMARY KEY (id),
-  CONSTRAINT chat_pending_actions_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.chat_conversations(id),
-  CONSTRAINT chat_pending_actions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.client_summaries (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  client_id uuid,
-  month date NOT NULL,
-  client_name text NOT NULL,
-  revenue numeric DEFAULT 0,
-  invoice_count integer DEFAULT 0,
-  paid_invoices integer DEFAULT 0,
-  pending_amount numeric DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT client_summaries_pkey PRIMARY KEY (id),
-  CONSTRAINT client_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT client_summaries_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id)
-);
-CREATE TABLE public.clients (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  email text,
-  phone text,
-  address text,
-  created_at timestamp with time zone DEFAULT now(),
-  phone_country_code text DEFAULT '+1'::text,
-  import_session_id uuid,
-  vat_number character varying,
-  country_code character varying,
-  is_vat_registered boolean DEFAULT false,
-  credit_balance numeric DEFAULT 0,
-  updated_at timestamp with time zone DEFAULT now(),
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  company_name text,
-  CONSTRAINT clients_pkey PRIMARY KEY (id),
-  CONSTRAINT clients_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT clients_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT clients_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.compliance_reports (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  report_type text NOT NULL CHECK (report_type = ANY (ARRAY['monthly_compliance'::text, 'annual_review'::text, 'data_inventory'::text, 'risk_assessment'::text, 'custom'::text])),
-  report_period_start date NOT NULL,
-  report_period_end date NOT NULL,
-  generated_at timestamp with time zone NOT NULL DEFAULT now(),
-  generated_by uuid,
-  report_data jsonb NOT NULL,
-  compliance_score integer CHECK (compliance_score >= 0 AND compliance_score <= 100),
-  file_url text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT compliance_reports_pkey PRIMARY KEY (id),
-  CONSTRAINT compliance_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT compliance_reports_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.country_configs (
-  country_code character varying NOT NULL,
-  country_name text NOT NULL,
-  default_currency character varying NOT NULL,
-  default_tax_rate numeric DEFAULT 0,
-  default_tax_name text DEFAULT 'Tax'::text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT country_configs_pkey PRIMARY KEY (country_code)
-);
-CREATE TABLE public.credit_note_items (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  credit_note_id uuid NOT NULL,
-  invoice_item_id uuid,
-  description text NOT NULL,
-  quantity numeric NOT NULL DEFAULT 1,
-  rate numeric NOT NULL,
-  amount numeric NOT NULL,
-  tax_rate numeric DEFAULT 0,
-  tax_amount numeric DEFAULT 0,
-  net_amount numeric NOT NULL,
-  gross_amount numeric NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT credit_note_items_pkey PRIMARY KEY (id),
-  CONSTRAINT credit_note_items_invoice_item_id_fkey FOREIGN KEY (invoice_item_id) REFERENCES public.invoice_items(id),
-  CONSTRAINT credit_note_items_credit_note_id_fkey FOREIGN KEY (credit_note_id) REFERENCES public.credit_notes(id)
-);
-CREATE TABLE public.credit_notes (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  credit_note_number text NOT NULL,
-  invoice_id uuid NOT NULL,
-  client_id uuid,
-  date date NOT NULL DEFAULT CURRENT_DATE,
-  reason text CHECK (reason = ANY (ARRAY['return'::text, 'adjustment'::text, 'cancellation'::text, 'other'::text])),
-  reason_description text,
-  subtotal numeric NOT NULL DEFAULT 0 CHECK (subtotal >= 0::numeric),
-  tax_rate numeric DEFAULT 0,
-  tax_amount numeric DEFAULT 0,
-  total numeric NOT NULL DEFAULT 0 CHECK (total >= 0::numeric),
-  status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'issued'::text, 'applied'::text])),
-  notes text,
-  currency text DEFAULT 'USD'::text,
-  exchange_rate numeric DEFAULT 1,
-  base_amount numeric,
-  applied_to_income boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  tax_metadata jsonb,
-  vat_return_id uuid,
-  vat_locked_at timestamp without time zone,
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  version integer DEFAULT 1,
-  CONSTRAINT credit_notes_pkey PRIMARY KEY (id),
-  CONSTRAINT credit_notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT credit_notes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
-  CONSTRAINT credit_notes_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
-  CONSTRAINT credit_notes_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT credit_notes_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
-  CONSTRAINT credit_notes_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.currency_exchange_rates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  from_currency character varying NOT NULL,
-  to_currency character varying NOT NULL,
-  rate numeric NOT NULL,
-  provider character varying DEFAULT 'manual'::character varying,
-  valid_from timestamp without time zone DEFAULT now(),
-  valid_to timestamp without time zone,
-  created_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT currency_exchange_rates_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.data_breach_logs (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  incident_id text NOT NULL UNIQUE,
-  detected_at timestamp with time zone NOT NULL,
-  breach_type text NOT NULL,
-  affected_users ARRAY,
-  affected_data_types ARRAY,
-  severity text NOT NULL CHECK (severity = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'critical'::text])),
-  description text NOT NULL,
-  ico_notified_at timestamp with time zone,
-  users_notified_at timestamp with time zone,
-  mitigation_steps text,
-  status text NOT NULL DEFAULT 'investigating'::text CHECK (status = ANY (ARRAY['investigating'::text, 'contained'::text, 'resolved'::text])),
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT data_breach_logs_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.data_deletion_requests (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  request_date timestamp with time zone NOT NULL DEFAULT now(),
-  scheduled_date timestamp with time zone,
-  deletion_type text NOT NULL CHECK (deletion_type = ANY (ARRAY['immediate'::text, 'scheduled'::text])),
-  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'processing'::text, 'completed'::text, 'cancelled'::text])),
-  reason text,
-  confirmation_text text,
-  ip_address inet,
-  user_agent text,
-  completed_at timestamp with time zone,
-  cancelled_at timestamp with time zone,
-  cancellation_reason text,
-  records_deleted jsonb DEFAULT '{}'::jsonb,
-  records_anonymized jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT data_deletion_requests_pkey PRIMARY KEY (id),
-  CONSTRAINT data_deletion_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.data_export_requests (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  request_date timestamp with time zone NOT NULL DEFAULT now(),
-  format text NOT NULL CHECK (format = ANY (ARRAY['json'::text, 'csv'::text])),
-  status text NOT NULL DEFAULT 'completed'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'failed'::text])),
-  file_url text,
-  expires_at timestamp with time zone,
-  ip_address inet,
-  user_agent text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT data_export_requests_pkey PRIMARY KEY (id),
-  CONSTRAINT data_export_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.data_protection_complaints (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  reference_number text NOT NULL UNIQUE,
-  complaint_type text NOT NULL CHECK (complaint_type = ANY (ARRAY['data_access'::text, 'data_correction'::text, 'data_deletion'::text, 'data_portability'::text, 'consent_withdrawal'::text, 'data_breach'::text, 'unauthorized_processing'::text, 'other'::text])),
-  description text NOT NULL,
-  status text NOT NULL DEFAULT 'open'::text CHECK (status = ANY (ARRAY['open'::text, 'investigating'::text, 'resolved'::text, 'closed'::text, 'escalated_to_ico'::text])),
-  priority text NOT NULL DEFAULT 'medium'::text CHECK (priority = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'urgent'::text])),
-  ico_reference_number text,
-  resolution text,
-  resolved_at timestamp with time zone,
-  resolved_by uuid,
-  auto_acknowledged boolean DEFAULT true,
-  acknowledgment_sent_at timestamp with time zone,
-  follow_up_required boolean DEFAULT false,
-  follow_up_date timestamp with time zone,
-  ip_address inet,
-  user_agent text,
-  metadata jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT data_protection_complaints_pkey PRIMARY KEY (id),
-  CONSTRAINT data_protection_complaints_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT data_protection_complaints_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.data_protection_impact_assessments (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  project_name text NOT NULL,
-  project_description text NOT NULL,
-  processing_type text NOT NULL,
-  necessity_assessment text,
-  risk_score integer CHECK (risk_score >= 0 AND risk_score <= 100),
-  risk_level text CHECK (risk_level = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'very_high'::text])),
-  identified_risks jsonb,
-  mitigation_measures jsonb,
-  residual_risk_level text,
-  requires_ico_consultation boolean DEFAULT false,
-  ico_consulted_at timestamp with time zone,
-  status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'in_review'::text, 'completed'::text, 'requires_consultation'::text])),
-  conducted_by text,
-  conducted_at timestamp with time zone,
-  reviewed_by text,
-  reviewed_at timestamp with time zone,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT data_protection_impact_assessments_pkey PRIMARY KEY (id),
-  CONSTRAINT data_protection_impact_assessments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.data_retention_jobs (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  executed_at timestamp with time zone NOT NULL,
-  records_deleted integer NOT NULL DEFAULT 0,
-  records_anonymized integer NOT NULL DEFAULT 0,
-  status text NOT NULL CHECK (status = ANY (ARRAY['success'::text, 'completed_with_errors'::text, 'failed'::text])),
-  metadata jsonb,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT data_retention_jobs_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.email_logs (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  invoice_id uuid,
-  recipient_email text NOT NULL,
-  subject text NOT NULL,
-  status text DEFAULT 'sent'::text CHECK (status = ANY (ARRAY['sent'::text, 'failed'::text, 'bounced'::text, 'opened'::text, 'clicked'::text])),
-  sent_at timestamp with time zone DEFAULT now(),
-  opened_at timestamp with time zone,
-  clicked_at timestamp with time zone,
-  error_message text,
-  metadata jsonb,
-  CONSTRAINT email_logs_pkey PRIMARY KEY (id),
-  CONSTRAINT email_logs_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.email_templates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  subject text NOT NULL,
-  body_html text NOT NULL,
-  body_text text,
-  template_type text DEFAULT 'invoice'::text CHECK (template_type = ANY (ARRAY['invoice'::text, 'reminder'::text, 'receipt'::text, 'custom'::text])),
-  is_default boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT email_templates_pkey PRIMARY KEY (id),
-  CONSTRAINT email_templates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.exchange_rates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  from_currency text NOT NULL,
-  to_currency text NOT NULL,
-  rate numeric NOT NULL CHECK (rate > 0::numeric),
-  date date NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT exchange_rates_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.expenses (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  amount numeric NOT NULL CHECK (amount > 0::numeric),
-  category_id uuid,
-  description text NOT NULL,
-  date date NOT NULL,
-  vendor text,
-  receipt_url text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  currency text DEFAULT 'USD'::text,
-  exchange_rate numeric DEFAULT 1,
-  base_amount numeric,
-  tax_rate numeric DEFAULT 0,
-  tax_amount numeric DEFAULT 0,
-  total_with_tax numeric DEFAULT (amount + COALESCE(tax_amount, (0)::numeric)),
-  vendor_id uuid,
-  import_session_id uuid,
-  tax_metadata jsonb DEFAULT '{}'::jsonb,
-  ec_acquisition boolean DEFAULT false,
-  reverse_charge_applicable boolean DEFAULT false,
-  base_tax_amount numeric DEFAULT 0,
-  is_tax_deductible boolean DEFAULT true,
-  tax_point_date date,
-  vat_return_id uuid,
-  vat_locked_at timestamp without time zone,
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  version integer DEFAULT 1,
-  is_vat_reclaimable boolean DEFAULT true,
-  reference_number text,
-  project_id uuid,
-  CONSTRAINT expenses_pkey PRIMARY KEY (id),
-  CONSTRAINT expenses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT expenses_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
-  CONSTRAINT expenses_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT expenses_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
-  CONSTRAINT expenses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
-  CONSTRAINT expenses_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
-  CONSTRAINT expenses_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
-);
-CREATE TABLE public.import_history (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  import_session_id uuid NOT NULL UNIQUE,
-  import_date timestamp with time zone NOT NULL,
-  file_name text,
-  import_type text NOT NULL DEFAULT 'ai_csv_import'::text,
-  import_summary jsonb NOT NULL DEFAULT '{}'::jsonb,
-  can_undo_until timestamp with time zone NOT NULL,
-  is_undone boolean DEFAULT false,
-  undone_at timestamp with time zone,
-  undo_results jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT import_history_pkey PRIMARY KEY (id),
-  CONSTRAINT import_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.income (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  amount numeric NOT NULL,
-  category_id uuid,
-  description text NOT NULL,
-  date date NOT NULL,
-  reference_number text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  currency text DEFAULT 'USD'::text,
-  exchange_rate numeric DEFAULT 1,
-  base_amount numeric,
-  tax_rate numeric DEFAULT 0,
-  tax_amount numeric DEFAULT 0,
-  total_with_tax numeric DEFAULT (amount + COALESCE(tax_amount, (0)::numeric)),
-  client_id uuid,
-  import_session_id uuid,
-  tax_metadata jsonb DEFAULT '{}'::jsonb,
-  credit_note_id uuid,
-  vat_return_id uuid,
-  vat_locked_at timestamp without time zone,
-  is_credit_adjustment boolean DEFAULT false,
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  version integer DEFAULT 1,
-  base_tax_amount numeric DEFAULT 0,
-  project_id uuid,
-  CONSTRAINT income_pkey PRIMARY KEY (id),
-  CONSTRAINT income_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT income_credit_note_id_fkey FOREIGN KEY (credit_note_id) REFERENCES public.credit_notes(id),
-  CONSTRAINT income_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
-  CONSTRAINT income_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT income_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
-  CONSTRAINT income_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
-  CONSTRAINT income_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
-  CONSTRAINT income_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
-);
-CREATE TABLE public.invoice_access_tokens (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  token uuid NOT NULL UNIQUE,
-  invoice_id uuid NOT NULL,
-  expires_at timestamp with time zone NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  can_accept boolean DEFAULT false,
-  accepted_at timestamp with time zone,
-  CONSTRAINT invoice_access_tokens_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_access_tokens_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.invoice_activities (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  invoice_id uuid NOT NULL,
-  user_id uuid,
-  action text NOT NULL,
-  details jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT invoice_activities_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT invoice_activities_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.invoice_credit_tracking (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  invoice_id uuid NOT NULL UNIQUE,
-  total_credited numeric DEFAULT 0,
-  credit_note_count integer DEFAULT 0,
-  last_credit_date timestamp without time zone,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT invoice_credit_tracking_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_credit_tracking_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.invoice_items (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  invoice_id uuid,
-  description text NOT NULL,
-  quantity numeric NOT NULL DEFAULT 1,
-  rate numeric NOT NULL,
-  amount numeric NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  tax_metadata jsonb DEFAULT '{}'::jsonb,
-  tax_rate numeric DEFAULT 0,
-  tax_amount numeric DEFAULT 0,
-  net_amount numeric NOT NULL,
-  gross_amount numeric NOT NULL,
-  CONSTRAINT invoice_items_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.invoice_payment_settings (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  invoice_id uuid NOT NULL UNIQUE,
-  payment_enabled boolean DEFAULT false,
-  payment_providers ARRAY DEFAULT ARRAY[]::text[],
-  accepted_currencies ARRAY DEFAULT ARRAY[]::text[],
-  platform_fee_percentage numeric DEFAULT 0,
-  metadata jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT invoice_payment_settings_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_payment_settings_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.invoice_payments (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  invoice_id uuid NOT NULL,
-  amount numeric NOT NULL,
-  payment_date timestamp with time zone DEFAULT now(),
-  payment_method text,
-  reference_number text,
-  notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  user_id uuid NOT NULL,
-  CONSTRAINT invoice_payments_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT invoice_payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.invoice_reminders (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  invoice_id uuid NOT NULL,
-  reminder_type text CHECK (reminder_type = ANY (ARRAY['due_soon'::text, 'overdue'::text, 'sent'::text, 'paid'::text])),
-  sent_date timestamp with time zone DEFAULT now(),
-  sent_via text CHECK (sent_via = ANY (ARRAY['email'::text, 'whatsapp'::text, 'both'::text])),
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT invoice_reminders_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_reminders_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.invoice_settings (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL UNIQUE,
-  company_name text,
-  company_logo text,
-  company_address text,
-  company_phone text,
-  company_email text,
-  company_website text,
-  tax_number text,
-  invoice_prefix text DEFAULT 'INV-'::text,
-  invoice_color text DEFAULT '#3B82F6'::text,
-  payment_terms integer DEFAULT 30,
-  invoice_notes text,
-  invoice_footer text,
-  default_tax_rate numeric DEFAULT 0,
-  email_notifications boolean DEFAULT true,
-  whatsapp_notifications boolean DEFAULT false,
-  notification_email text,
-  notification_phone text,
-  reminder_days integer DEFAULT 3,
-  payment_instructions text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  next_number integer DEFAULT 1,
-  due_days integer DEFAULT 30,
-  auto_send_recurring boolean DEFAULT false,
-  payment_info jsonb DEFAULT '{}'::jsonb,
-  bank_name text,
-  account_number text,
-  routing_number text,
-  paypal_email text,
-  fill_number_gaps boolean DEFAULT true,
-  credit_note_prefix text DEFAULT 'CN-'::text,
-  next_credit_note_number integer DEFAULT 1,
-  CONSTRAINT invoice_settings_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.invoice_templates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  template_data jsonb NOT NULL,
-  is_default boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT invoice_templates_pkey PRIMARY KEY (id),
-  CONSTRAINT invoice_templates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.invoices (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  invoice_number text NOT NULL,
-  client_id uuid,
-  date date NOT NULL,
-  due_date date NOT NULL,
-  status USER-DEFINED NOT NULL DEFAULT 'draft'::invoice_status,
-  subtotal numeric NOT NULL DEFAULT 0 CHECK (subtotal >= 0::numeric),
-  tax_rate numeric DEFAULT 0 CHECK (tax_rate >= 0::numeric AND tax_rate <= 100::numeric),
-  tax_amount numeric DEFAULT 0,
-  total numeric NOT NULL DEFAULT 0 CHECK (total >= 0::numeric),
-  notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  currency text DEFAULT 'USD'::text,
-  exchange_rate numeric DEFAULT 1,
-  template_id uuid,
-  sent_date timestamp with time zone,
-  viewed_date timestamp with time zone,
-  paid_date timestamp with time zone,
-  last_emailed_at timestamp with time zone,
-  email_count integer DEFAULT 0,
-  income_category_id uuid,
-  invoice_type text DEFAULT 'simple'::text CHECK (invoice_type = ANY (ARRAY['simple'::text, 'detailed'::text])),
-  detailed_data jsonb DEFAULT '{}'::jsonb,
-  has_discount boolean DEFAULT false,
-  discount_type text CHECK (discount_type = ANY (ARRAY['percentage'::text, 'fixed'::text])),
-  discount_value numeric DEFAULT 0,
-  discount_amount numeric DEFAULT 0,
-  shipping_amount numeric DEFAULT 0,
-  has_payment_schedule boolean DEFAULT false,
-  payment_schedule jsonb,
-  amount_paid numeric DEFAULT 0,
-  balance_due numeric DEFAULT 0,
-  additional_charges jsonb DEFAULT '[]'::jsonb,
-  viewed_at timestamp with time zone,
-  partially_paid_at timestamp with time zone,
-  draft_accepted_at timestamp with time zone,
-  draft_accepted_by text,
-  import_session_id uuid,
-  base_amount numeric,
-  tax_metadata jsonb DEFAULT '{}'::jsonb,
-  tax_scheme text,
-  is_reverse_charge boolean DEFAULT false,
-  intra_eu_supply boolean DEFAULT false,
-  has_credit_notes boolean DEFAULT false,
-  total_credited numeric DEFAULT 0,
-  tax_point_date date,
-  actual_paid_date date,
-  vat_return_id uuid,
-  vat_locked_at timestamp without time zone,
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  version integer DEFAULT 1,
-  base_tax_amount numeric DEFAULT 0,
-  deleted_by uuid,
-  payment_locked_at timestamp with time zone,
-  project_id uuid,
-  CONSTRAINT invoices_pkey PRIMARY KEY (id),
-  CONSTRAINT invoices_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT invoices_vat_return_id_fkey FOREIGN KEY (vat_return_id) REFERENCES public.uk_vat_returns(id),
-  CONSTRAINT invoices_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT invoices_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id),
-  CONSTRAINT invoices_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
-  CONSTRAINT invoices_income_category_id_fkey FOREIGN KEY (income_category_id) REFERENCES public.categories(id),
-  CONSTRAINT invoices_deleted_by_fkey FOREIGN KEY (deleted_by) REFERENCES auth.users(id),
-  CONSTRAINT invoices_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
-);
-CREATE TABLE public.learned_patterns (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  pattern_type text NOT NULL CHECK (pattern_type = ANY (ARRAY['client_payment_speed'::text, 'client_order_frequency'::text, 'client_typical_amount'::text, 'expense_recurring'::text, 'expense_vendor_average'::text, 'revenue_seasonal'::text, 'revenue_monthly_trend'::text, 'invoice_payment_pattern'::text, 'category_spending_trend'::text])),
-  entity_id uuid,
-  entity_type text CHECK (entity_type = ANY (ARRAY['client'::text, 'vendor'::text, 'category'::text, 'general'::text])),
-  pattern_data jsonb NOT NULL,
-  confidence_score numeric DEFAULT 0.5 CHECK (confidence_score >= 0::numeric AND confidence_score <= 1::numeric),
-  sample_size integer DEFAULT 1,
-  last_updated timestamp with time zone DEFAULT now(),
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT learned_patterns_pkey PRIMARY KEY (id),
-  CONSTRAINT learned_patterns_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.loan_payments (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  loan_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  payment_number integer NOT NULL CHECK (payment_number > 0),
-  payment_date date NOT NULL,
-  due_date date NOT NULL,
-  principal_amount numeric NOT NULL CHECK (principal_amount >= 0::numeric),
-  interest_amount numeric NOT NULL CHECK (interest_amount >= 0::numeric),
-  total_payment numeric NOT NULL CHECK (total_payment >= 0::numeric),
-  remaining_balance numeric NOT NULL CHECK (remaining_balance >= 0::numeric),
-  status text DEFAULT 'scheduled'::text CHECK (status = ANY (ARRAY['scheduled'::text, 'paid'::text, 'late'::text, 'missed'::text, 'partial'::text])),
-  paid_date date,
-  expense_id uuid,
-  payment_method text CHECK (payment_method = ANY (ARRAY['cash'::text, 'bank_transfer'::text, 'credit_card'::text, 'check'::text, 'other'::text])),
-  reference_number text,
-  notes text,
-  created_by uuid,
-  updated_by uuid,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  payment_proof_url text,
-  CONSTRAINT loan_payments_pkey PRIMARY KEY (id),
-  CONSTRAINT loan_payments_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id),
-  CONSTRAINT loan_payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT loan_payments_expense_id_fkey FOREIGN KEY (expense_id) REFERENCES public.expenses(id),
-  CONSTRAINT loan_payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT loan_payments_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.loan_schedules (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  loan_id uuid NOT NULL UNIQUE,
-  schedule_data jsonb NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT loan_schedules_pkey PRIMARY KEY (id),
-  CONSTRAINT loan_schedules_loan_id_fkey FOREIGN KEY (loan_id) REFERENCES public.loans(id)
-);
-CREATE TABLE public.loans (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  loan_number text NOT NULL,
-  lender_name text NOT NULL,
-  vendor_id uuid,
-  principal_amount numeric NOT NULL CHECK (principal_amount > 0::numeric),
-  interest_rate numeric NOT NULL CHECK (interest_rate >= 0::numeric AND interest_rate <= 100::numeric),
-  term_months integer NOT NULL CHECK (term_months > 0),
-  start_date date NOT NULL,
-  end_date date NOT NULL,
-  first_payment_date date NOT NULL,
-  payment_frequency text NOT NULL CHECK (payment_frequency = ANY (ARRAY['monthly'::text, 'quarterly'::text, 'yearly'::text])),
-  monthly_payment numeric NOT NULL CHECK (monthly_payment >= 0::numeric),
-  current_balance numeric NOT NULL DEFAULT 0,
-  total_paid numeric DEFAULT 0 CHECK (total_paid >= 0::numeric),
-  total_interest_paid numeric DEFAULT 0 CHECK (total_interest_paid >= 0::numeric),
-  total_principal_paid numeric DEFAULT 0 CHECK (total_principal_paid >= 0::numeric),
-  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'paid_off'::text, 'defaulted'::text, 'closed'::text])),
-  currency text DEFAULT 'USD'::text,
-  exchange_rate numeric DEFAULT 1,
-  base_amount numeric,
-  loan_type text,
-  collateral text,
-  notes text,
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  version integer DEFAULT 1,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT loans_pkey PRIMARY KEY (id),
-  CONSTRAINT loans_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT loans_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
-  CONSTRAINT loans_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT loans_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.manual_exchange_rates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  from_currency text NOT NULL,
-  to_currency text NOT NULL,
-  rate numeric NOT NULL,
-  reason text,
-  created_at timestamp with time zone DEFAULT now(),
-  expires_at timestamp with time zone,
-  is_active boolean DEFAULT true,
-  CONSTRAINT manual_exchange_rates_pkey PRIMARY KEY (id),
-  CONSTRAINT manual_exchange_rates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.media_library (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  file_name text NOT NULL,
-  file_url text NOT NULL,
-  file_type text NOT NULL,
-  file_size integer,
-  alt_text text,
-  caption text,
-  uploaded_by uuid,
-  folder text DEFAULT 'general'::text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT media_library_pkey PRIMARY KEY (id),
-  CONSTRAINT media_library_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.monthly_summaries (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  month date NOT NULL,
-  total_income numeric DEFAULT 0,
-  total_expenses numeric DEFAULT 0,
-  net_profit numeric DEFAULT 0,
-  invoice_count integer DEFAULT 0,
-  client_count integer DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT monthly_summaries_pkey PRIMARY KEY (id),
-  CONSTRAINT monthly_summaries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.mtd_credentials (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL UNIQUE,
-  access_token text,
-  refresh_token text,
-  expires_at timestamp without time zone,
-  vrn text,
-  test_mode boolean DEFAULT true,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT mtd_credentials_pkey PRIMARY KEY (id),
-  CONSTRAINT mtd_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.notification_email_queue (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  notification_id uuid,
-  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])),
-  attempts integer DEFAULT 0,
-  last_attempt_at timestamp with time zone,
-  error_message text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT notification_email_queue_pkey PRIMARY KEY (id),
-  CONSTRAINT notification_email_queue_notification_id_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id)
-);
-CREATE TABLE public.notifications (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  type text NOT NULL,
-  title text NOT NULL,
-  message text NOT NULL,
-  action_url text,
-  action_label text DEFAULT 'View'::text,
-  metadata jsonb DEFAULT '{}'::jsonb,
-  priority text DEFAULT 'normal'::text CHECK (priority = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'urgent'::text])),
-  is_read boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now(),
-  read_at timestamp with time zone,
-  expires_at timestamp with time zone,
-  CONSTRAINT notifications_pkey PRIMARY KEY (id),
-  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.pattern_updates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  pattern_id uuid NOT NULL,
-  update_type text NOT NULL CHECK (update_type = ANY (ARRAY['new_data_point'::text, 'accuracy_adjustment'::text, 'manual_correction'::text, 'confidence_change'::text])),
-  old_value jsonb,
-  new_value jsonb,
-  update_reason text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT pattern_updates_pkey PRIMARY KEY (id),
-  CONSTRAINT pattern_updates_pattern_id_fkey FOREIGN KEY (pattern_id) REFERENCES public.learned_patterns(id)
-);
-CREATE TABLE public.payment_methods (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL CHECK (user_id IS NOT NULL),
-  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['local_bank'::character varying, 'international_wire'::character varying, 'uk_bank'::character varying, 'sepa'::character varying, 'ach'::character varying, 'paypal'::character varying, 'crypto'::character varying, 'custom'::character varying, 'us_bank'::character varying, 'canada_bank'::character varying, 'australia_bank'::character varying, 'india_bank'::character varying, 'pakistan_bank'::character varying, 'other'::character varying]::text[])),
-  display_name text NOT NULL,
-  fields jsonb NOT NULL DEFAULT '{}'::jsonb,
-  is_primary boolean DEFAULT false,
-  display_order integer DEFAULT 0,
-  is_enabled boolean DEFAULT true,
-  instructions text,
-  supported_currencies ARRAY DEFAULT ARRAY['USD'::text],
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT payment_methods_pkey PRIMARY KEY (id),
-  CONSTRAINT payment_methods_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.payment_providers (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  name character varying NOT NULL,
-  display_name character varying NOT NULL,
-  is_active boolean DEFAULT false,
-  supported_countries ARRAY DEFAULT ARRAY[]::text[],
-  supported_currencies ARRAY DEFAULT ARRAY[]::text[],
-  configuration jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT payment_providers_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.payment_transactions (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  invoice_id uuid NOT NULL,
-  provider character varying NOT NULL,
-  provider_payment_id character varying UNIQUE,
-  provider_session_id character varying UNIQUE,
-  amount numeric NOT NULL,
-  currency character varying NOT NULL,
-  exchange_rate numeric DEFAULT 1,
-  base_amount numeric,
-  platform_fee numeric DEFAULT 0,
-  provider_fee numeric DEFAULT 0,
-  net_amount numeric,
-  status character varying NOT NULL,
-  payment_method character varying,
-  customer_email character varying,
-  customer_name character varying,
-  country character varying,
-  failure_reason text,
-  metadata jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp without time zone DEFAULT now(),
-  completed_at timestamp without time zone,
-  updated_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT payment_transactions_pkey PRIMARY KEY (id),
-  CONSTRAINT payment_transactions_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.payment_webhooks (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  provider character varying NOT NULL,
-  event_type character varying NOT NULL,
-  event_id character varying UNIQUE,
-  payload jsonb NOT NULL,
-  processed boolean DEFAULT false,
-  error text,
-  created_at timestamp without time zone DEFAULT now(),
-  processed_at timestamp without time zone,
-  status text DEFAULT 'processing'::text,
-  error_message text,
-  stripe_account_id text,
-  CONSTRAINT payment_webhooks_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.payments (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  invoice_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  amount numeric NOT NULL,
-  payment_date date NOT NULL DEFAULT CURRENT_DATE,
-  payment_method text CHECK (payment_method = ANY (ARRAY['cash'::text, 'bank_transfer'::text, 'credit_card'::text, 'paypal'::text, 'other'::text])),
-  reference_number text,
-  notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT payments_pkey PRIMARY KEY (id),
-  CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT payments_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.pending_invites (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  team_id uuid NOT NULL,
-  email text NOT NULL,
-  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
-  invited_by uuid NOT NULL,
-  invite_code text NOT NULL UNIQUE,
-  expires_at timestamp with time zone NOT NULL,
-  accepted boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT pending_invites_pkey PRIMARY KEY (id),
-  CONSTRAINT pending_invites_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
-  CONSTRAINT pending_invites_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.plan_features (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  feature_key text NOT NULL,
-  feature_value text NOT NULL,
-  feature_limit integer,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT plan_features_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.platform_admins (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL UNIQUE,
-  granted_at timestamp with time zone NOT NULL DEFAULT now(),
-  granted_by uuid,
-  notes text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  admin_role text NOT NULL DEFAULT 'platform_admin'::text CHECK (admin_role = ANY (ARRAY['platform_admin'::text, 'seo_admin'::text])),
-  CONSTRAINT platform_admins_pkey PRIMARY KEY (id),
-  CONSTRAINT platform_admins_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT platform_admins_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.processing_activities (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  name text NOT NULL,
-  purpose text NOT NULL,
-  legal_basis text NOT NULL CHECK (legal_basis = ANY (ARRAY['consent'::text, 'contract'::text, 'legal_obligation'::text, 'vital_interests'::text, 'public_task'::text, 'legitimate_interests'::text])),
-  data_categories ARRAY NOT NULL,
-  data_subjects ARRAY NOT NULL,
-  recipients ARRAY,
-  retention_period text NOT NULL,
-  security_measures text,
-  international_transfers boolean DEFAULT false,
-  transfer_safeguards text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT processing_activities_pkey PRIMARY KEY (id),
-  CONSTRAINT processing_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.profiles (
-  id uuid NOT NULL,
-  email text NOT NULL UNIQUE,
-  full_name text,
-  company_name text,
-  company_logo text,
-  company_address text,
-  phone text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  first_name text,
-  last_name text,
-  tax_regime character varying,
-  tax_registration_number text,
-  setup_completed boolean DEFAULT false,
-  setup_completed_at timestamp with time zone,
-  privacy_preference text CHECK (privacy_preference = ANY (ARRAY['show'::text, 'hide'::text])),
-  CONSTRAINT profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.project_attachments (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  project_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  file_name text NOT NULL,
-  file_path text NOT NULL,
-  file_size bigint NOT NULL CHECK (file_size > 0),
-  file_type text NOT NULL,
-  description text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  deleted_at timestamp with time zone,
-  CONSTRAINT project_attachments_pkey PRIMARY KEY (id),
-  CONSTRAINT project_attachments_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT project_attachments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.project_goals (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  project_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  title text NOT NULL,
-  description text,
-  status text NOT NULL DEFAULT 'todo'::text CHECK (status = ANY (ARRAY['todo'::text, 'in_progress'::text, 'done'::text])),
-  order_index integer NOT NULL DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  deleted_at timestamp with time zone,
-  CONSTRAINT project_goals_pkey PRIMARY KEY (id),
-  CONSTRAINT project_goals_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT project_goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.project_milestones (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  project_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  description text,
-  due_date date,
-  target_amount numeric,
-  currency text DEFAULT 'USD'::text,
-  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'in_progress'::text, 'completed'::text, 'paid'::text])),
-  completion_date timestamp with time zone,
-  invoice_id uuid,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  deleted_at timestamp with time zone,
-  CONSTRAINT project_milestones_pkey PRIMARY KEY (id),
-  CONSTRAINT project_milestones_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT project_milestones_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT project_milestones_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.project_notes (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  project_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  type text NOT NULL DEFAULT 'note'::text CHECK (type = ANY (ARRAY['note'::text, 'meeting'::text, 'call'::text, 'email'::text, 'change_request'::text, 'milestone'::text, 'other'::text])),
-  title text NOT NULL,
-  content text,
-  date date NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  deleted_at timestamp with time zone,
-  CONSTRAINT project_notes_pkey PRIMARY KEY (id),
-  CONSTRAINT project_notes_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT project_notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.project_time_entries (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  project_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  date date NOT NULL,
-  hours numeric NOT NULL CHECK (hours > 0::numeric),
-  description text,
-  billable boolean NOT NULL DEFAULT true,
-  hourly_rate numeric,
-  amount numeric DEFAULT 
-CASE
-    WHEN (billable AND (hourly_rate IS NOT NULL)) THEN (hours * hourly_rate)
-    ELSE NULL::numeric
-END,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  deleted_at timestamp with time zone,
-  CONSTRAINT project_time_entries_pkey PRIMARY KEY (id),
-  CONSTRAINT project_time_entries_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT project_time_entries_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.projects (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  description text,
-  client_id uuid,
-  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'on_hold'::text, 'cancelled'::text])),
-  start_date date,
-  end_date date,
-  budget_amount numeric CHECK (budget_amount IS NULL OR budget_amount >= 0::numeric),
-  budget_currency text DEFAULT 'USD'::text,
-  color text DEFAULT '#6366F1'::text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  deleted_at timestamp with time zone,
-  CONSTRAINT projects_pkey PRIMARY KEY (id),
-  CONSTRAINT projects_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT projects_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id)
-);
-CREATE TABLE public.recurring_invoices (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  client_id uuid,
-  template_data jsonb NOT NULL,
-  frequency text NOT NULL CHECK (frequency = ANY (ARRAY['weekly'::text, 'biweekly'::text, 'monthly'::text, 'quarterly'::text, 'yearly'::text])),
-  next_date date NOT NULL,
-  last_generated date,
-  is_active boolean DEFAULT true,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  invoice_id uuid,
-  end_date date,
-  CONSTRAINT recurring_invoices_pkey PRIMARY KEY (id),
-  CONSTRAINT recurring_invoices_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT recurring_invoices_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
-  CONSTRAINT recurring_invoices_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
-CREATE TABLE public.security_events (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['failed_login'::text, 'suspicious_activity'::text, 'multiple_failed_attempts'::text, 'unusual_location'::text, 'session_anomaly'::text, 'password_changed'::text, 'mfa_enabled'::text, 'mfa_disabled'::text])),
-  severity text NOT NULL CHECK (severity = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text, 'critical'::text])),
-  description text NOT NULL,
-  ip_address inet,
-  user_agent text,
-  location text,
-  metadata jsonb,
-  resolved boolean DEFAULT false,
-  resolved_at timestamp with time zone,
-  resolved_by uuid,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT security_events_pkey PRIMARY KEY (id),
-  CONSTRAINT security_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT security_events_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.seo_metadata (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  page_path text NOT NULL UNIQUE,
-  page_name text NOT NULL,
-  meta_title text NOT NULL,
-  meta_description text,
-  meta_keywords text,
-  og_title text,
-  og_description text,
-  og_image_url text,
-  og_type text DEFAULT 'website'::text,
-  twitter_card text DEFAULT 'summary_large_image'::text,
-  twitter_title text,
-  twitter_description text,
-  twitter_image_url text,
-  canonical_url text,
-  robots_directive text DEFAULT 'index, follow'::text,
-  structured_data jsonb,
-  is_active boolean DEFAULT true,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  updated_by uuid,
-  CONSTRAINT seo_metadata_pkey PRIMARY KEY (id),
-  CONSTRAINT seo_metadata_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.subscriptions (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL UNIQUE,
-  interval USER-DEFINED NOT NULL DEFAULT 'monthly'::subscription_interval,
-  status text NOT NULL DEFAULT 'trialing'::text,
-  trial_end timestamp with time zone DEFAULT (now() + '30 days'::interval),
-  current_period_start timestamp with time zone DEFAULT now(),
-  current_period_end timestamp with time zone DEFAULT (now() + '30 days'::interval),
-  cancel_at_period_end boolean DEFAULT false,
-  stripe_customer_id text,
-  stripe_subscription_id text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  plan USER-DEFINED NOT NULL DEFAULT 'simple_start'::subscription_plan_new,
-  seats_used integer DEFAULT 1,
-  CONSTRAINT subscriptions_pkey PRIMARY KEY (id),
-  CONSTRAINT subscriptions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.subscriptions_backup_advanced (
-  id uuid,
-  user_id uuid,
-  plan text,
-  interval text,
-  status text,
-  trial_end timestamp with time zone,
-  current_period_start timestamp with time zone,
-  current_period_end timestamp with time zone,
-  cancel_at_period_end boolean,
-  stripe_customer_id text,
-  stripe_subscription_id text,
-  created_at timestamp with time zone,
-  updated_at timestamp with time zone,
-  backed_up_at timestamp with time zone DEFAULT now()
-);
-CREATE TABLE public.tax_audit_trail (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  country_code text NOT NULL,
-  source_type text NOT NULL,
-  source_id uuid NOT NULL,
-  target_type text NOT NULL,
-  target_id uuid NOT NULL,
-  transformation text,
-  metadata jsonb,
-  created_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT tax_audit_trail_pkey PRIMARY KEY (id),
-  CONSTRAINT tax_audit_trail_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.tax_rates (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  rate numeric NOT NULL CHECK (rate >= 0::numeric AND rate <= 100::numeric),
-  is_default boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT tax_rates_pkey PRIMARY KEY (id),
-  CONSTRAINT tax_rates_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.team_invites (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  team_id uuid NOT NULL,
-  email text NOT NULL,
-  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
-  invited_by uuid NOT NULL,
-  token uuid NOT NULL UNIQUE,
-  expires_at timestamp with time zone NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT team_invites_pkey PRIMARY KEY (id),
-  CONSTRAINT team_invites_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
-  CONSTRAINT team_invites_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.team_members (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  team_id uuid NOT NULL,
-  email text NOT NULL,
-  full_name text,
-  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['owner'::text, 'admin'::text, 'member'::text])),
-  status text NOT NULL DEFAULT 'invited'::text CHECK (status = ANY (ARRAY['active'::text, 'invited'::text, 'disabled'::text])),
-  invited_by uuid NOT NULL,
-  invited_at timestamp with time zone,
-  created_at timestamp with time zone DEFAULT now(),
-  permissions jsonb DEFAULT '{"canDeleteData": false, "canExportData": false, "canManageTeam": false, "canViewReports": false, "canManageClients": false, "canManageExpenses": false, "canManageInvoices": false, "canManageSettings": false}'::jsonb,
-  accepted_at timestamp with time zone,
-  last_active timestamp with time zone,
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT team_members_pkey PRIMARY KEY (id),
-  CONSTRAINT team_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT team_members_team_id_fkey FOREIGN KEY (team_id) REFERENCES auth.users(id),
-  CONSTRAINT team_members_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.third_party_processors (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid,
-  name text NOT NULL,
-  service text NOT NULL,
-  contact_email text,
-  contact_phone text,
-  address text,
-  processing_purpose text NOT NULL,
-  data_categories ARRAY NOT NULL,
-  dpa_signed boolean DEFAULT false,
-  dpa_signed_at timestamp with time zone,
-  dpa_expires_at timestamp with time zone,
-  dpa_document_url text,
-  iso_certified boolean DEFAULT false,
-  certifications ARRAY,
-  data_location text,
-  subprocessors ARRAY,
-  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'under_review'::text, 'suspended'::text, 'terminated'::text])),
-  last_audit_date timestamp with time zone,
-  next_audit_date timestamp with time zone,
-  notes text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT third_party_processors_pkey PRIMARY KEY (id),
-  CONSTRAINT third_party_processors_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.uk_vat_returns (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  period_start date NOT NULL,
-  period_end date NOT NULL,
-  period_key text,
-  box1_vat_due_sales numeric DEFAULT 0,
-  box2_vat_due_acquisitions numeric DEFAULT 0,
-  box3_total_vat_due numeric DEFAULT 0,
-  box4_vat_reclaimed numeric DEFAULT 0,
-  box5_net_vat_due numeric DEFAULT 0,
-  box6_total_sales_ex_vat numeric DEFAULT 0 CHECK (box6_total_sales_ex_vat = round(box6_total_sales_ex_vat)),
-  box7_total_purchases_ex_vat numeric DEFAULT 0 CHECK (box7_total_purchases_ex_vat = round(box7_total_purchases_ex_vat)),
-  box8_total_supplies_ex_vat numeric DEFAULT 0,
-  box9_total_acquisitions_ex_vat numeric DEFAULT 0,
-  base_currency text NOT NULL,
-  status text DEFAULT 'draft'::text,
-  submitted_at timestamp without time zone,
-  hmrc_receipt text,
-  notes text,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
-  mtd_submission_id text,
-  mtd_correlation_id text,
-  mtd_response jsonb,
-  CONSTRAINT uk_vat_returns_pkey PRIMARY KEY (id),
-  CONSTRAINT uk_vat_returns_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.unbilled_items (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  client_id uuid,
-  item_type character varying NOT NULL CHECK (item_type::text = ANY (ARRAY['expense'::character varying, 'income'::character varying, 'service'::character varying, 'product'::character varying]::text[])),
-  source_type character varying,
-  source_id uuid,
-  description text NOT NULL,
-  quantity numeric DEFAULT 1,
-  cost_amount numeric NOT NULL DEFAULT 0 CHECK (cost_amount >= 0::numeric),
-  markup_percentage numeric DEFAULT 0 CHECK (markup_percentage >= 0::numeric AND markup_percentage <= 1000::numeric),
-  billable_amount numeric NOT NULL CHECK (billable_amount >= 0::numeric),
-  currency character varying DEFAULT 'USD'::character varying,
-  date date NOT NULL,
-  expected_invoice_date date,
-  is_billed boolean DEFAULT false,
-  invoice_id uuid,
-  billed_at timestamp with time zone,
-  notes text,
-  project_id uuid,
-  category_id uuid,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT unbilled_items_pkey PRIMARY KEY (id),
-  CONSTRAINT unbilled_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT unbilled_items_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.clients(id),
-  CONSTRAINT unbilled_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id),
-  CONSTRAINT unbilled_items_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
-  CONSTRAINT unbilled_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
-);
-CREATE TABLE public.user_consents (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  consent_type text NOT NULL CHECK (consent_type = ANY (ARRAY['essential'::text, 'analytics'::text, 'marketing'::text, 'marketing_email'::text, 'terms_of_service'::text, 'personalization'::text, 'third_party'::text])),
-  consent_given boolean NOT NULL DEFAULT false,
-  consent_version text DEFAULT 'v1.0'::text,
-  ip_address inet,
-  user_agent text,
-  consent_method text CHECK (consent_method = ANY (ARRAY['explicit'::text, 'implied'::text, 'opt_in'::text, 'opt_out'::text])),
-  purpose text,
-  expires_at timestamp with time zone,
-  withdrawn_at timestamp with time zone,
-  withdrawal_reason text,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  granted boolean NOT NULL DEFAULT false,
-  granted_at timestamp with time zone,
-  version text DEFAULT '1.0'::text,
-  CONSTRAINT user_consents_pkey PRIMARY KEY (id),
-  CONSTRAINT user_consents_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.user_goals (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  goal_type text NOT NULL CHECK (goal_type = ANY (ARRAY['revenue_target'::text, 'expense_reduction'::text, 'client_acquisition'::text, 'profit_margin'::text, 'cash_flow'::text, 'custom'::text])),
-  goal_name text NOT NULL,
-  target_value numeric,
-  target_date date,
-  current_value numeric DEFAULT 0,
-  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text, 'paused'::text, 'cancelled'::text])),
-  progress_data jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT user_goals_pkey PRIMARY KEY (id),
-  CONSTRAINT user_goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.user_payment_accounts (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  provider character varying NOT NULL,
-  provider_account_id character varying UNIQUE,
-  country character varying NOT NULL,
-  default_currency character varying NOT NULL,
-  supported_currencies ARRAY DEFAULT ARRAY[]::text[],
-  onboarding_completed boolean DEFAULT false,
-  charges_enabled boolean DEFAULT false,
-  payouts_enabled boolean DEFAULT false,
-  business_type character varying,
-  business_name character varying,
-  capabilities jsonb DEFAULT '{}'::jsonb,
-  metadata jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp without time zone DEFAULT now(),
-  updated_at timestamp without time zone DEFAULT now(),
-  CONSTRAINT user_payment_accounts_pkey PRIMARY KEY (id),
-  CONSTRAINT user_payment_accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.user_settings (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL UNIQUE,
-  date_format text DEFAULT 'MM/DD/YYYY'::text,
-  time_zone text DEFAULT 'America/New_York'::text,
-  fiscal_year_start integer DEFAULT 1,
-  notification_preferences jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  country character varying,
-  state character varying,
-  mfa_backup_codes ARRAY,
-  security_notifications boolean DEFAULT true,
-  base_currency text DEFAULT 'USD'::text,
-  enabled_currencies ARRAY DEFAULT ARRAY['USD'::text],
-  vat_registration_number character varying,
-  vat_scheme character varying DEFAULT 'standard'::character varying CHECK (vat_scheme::text = ANY (ARRAY['standard'::character varying, 'flat_rate'::character varying, 'cash'::character varying]::text[])),
-  flat_rate_percentage numeric,
-  vat_period_type character varying DEFAULT 'quarterly'::character varying CHECK (vat_period_type::text = ANY (ARRAY['monthly'::character varying, 'quarterly'::character varying]::text[])),
-  mtd_enabled boolean DEFAULT false,
-  tax_registration_number text,
-  tax_scheme text DEFAULT 'standard'::text,
-  tax_return_period text DEFAULT 'quarterly'::text,
-  is_tax_registered boolean DEFAULT false,
-  uk_vat_scheme text DEFAULT 'standard'::text,
-  uk_vat_flat_rate numeric DEFAULT 0,
-  uk_vat_registration_date date,
-  us_tax_id text,
-  au_abn text,
-  ca_gst_number text,
-  tax_id text,
-  uk_flat_rate_limited_cost_trader boolean DEFAULT false,
-  uk_vat_cash_accounting boolean DEFAULT false,
-  uk_vat_annual_accounting boolean DEFAULT false,
-  inherits_from uuid,
-  is_team_settings boolean DEFAULT false,
-  use_new_payment_methods boolean DEFAULT false,
-  CONSTRAINT user_settings_pkey PRIMARY KEY (id),
-  CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.user_settings_backup_before_revert (
-  id uuid,
-  user_id uuid,
-  date_format text,
-  time_zone text,
-  fiscal_year_start integer,
-  notification_preferences jsonb,
-  created_at timestamp with time zone,
-  updated_at timestamp with time zone,
-  country character varying,
-  state character varying,
-  mfa_backup_codes ARRAY,
-  security_notifications boolean,
-  base_currency text,
-  enabled_currencies jsonb
-);
-CREATE TABLE public.vat_periods (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  period_start date NOT NULL,
-  period_end date NOT NULL,
-  status character varying DEFAULT 'open'::character varying CHECK (status::text = ANY (ARRAY['open'::character varying, 'locked'::character varying, 'submitted'::character varying]::text[])),
-  locked_at timestamp with time zone,
-  vat_return_data jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT vat_periods_pkey PRIMARY KEY (id),
-  CONSTRAINT vat_periods_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.vat_submissions (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  period_id uuid NOT NULL,
-  submission_date timestamp with time zone DEFAULT now(),
-  boxes_data jsonb NOT NULL,
-  mtd_receipt character varying,
-  status character varying DEFAULT 'draft'::character varying CHECK (status::text = ANY (ARRAY['draft'::character varying, 'submitted'::character varying, 'accepted'::character varying, 'rejected'::character varying]::text[])),
-  error_message text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT vat_submissions_pkey PRIMARY KEY (id),
-  CONSTRAINT vat_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT vat_submissions_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.vat_periods(id)
-);
-CREATE TABLE public.vendors (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  name text NOT NULL,
-  email text,
-  phone text,
-  address text,
-  tax_id text,
-  payment_terms integer DEFAULT 30,
-  notes text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  import_session_id uuid,
-  created_by uuid,
-  updated_by uuid,
-  deleted_at timestamp with time zone,
-  CONSTRAINT vendors_pkey PRIMARY KEY (id),
-  CONSTRAINT vendors_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT vendors_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id),
-  CONSTRAINT vendors_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id)
-);
-CREATE TABLE public.whatsapp_logs (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  invoice_id uuid,
-  phone_number text NOT NULL,
-  status text NOT NULL,
-  message_id text,
-  error_message text,
-  response_data jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT whatsapp_logs_pkey PRIMARY KEY (id),
-  CONSTRAINT whatsapp_logs_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
-);
+## File: supabase/functions/ai-assistant/index.ts
+
+Copy this entire code and paste it into your Supabase Edge Function:
+
+```typescript
+// supabase/functions/ai-assistant/index.ts
+// SmartCFO - Intelligent AI CFO Assistant with DeepSeek Integration
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+
+// DeepSeek API Configuration
+const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    );
+
+    const requestBody = await req.json();
+    const { userId, feature } = requestBody;
+
+    if (!userId && feature !== 'chat') {
+      throw new Error('userId is required');
+    }
+
+    // Route to different features
+    switch (feature) {
+      case 'get_insights':
+        return await generateInsights(supabaseClient, userId);
+      case 'get_missing_context':
+        return await getMissingContext(supabaseClient, userId);
+      case 'update_user_context':
+        return await updateUserContext(supabaseClient, userId, requestBody);
+      case 'regenerate_insights':
+        return await generateInsights(supabaseClient, userId, true);
+      case 'chat':
+        return await handleChat(requestBody);
+      default:
+        throw new Error('Invalid feature requested');
+    }
+
+  } catch (error) {
+    console.error('Error in ai-assistant:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+// ==================== CHAT HANDLER (NEW) ====================
+
+async function handleChat(requestBody: any) {
+  console.log('=¬ Handling chat request...');
+
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error('DEEPSEEK_API_KEY not configured');
+  }
+
+  const { messages, model, tools, temperature, max_tokens } = requestBody;
+
+  if (!messages || !Array.isArray(messages)) {
+    throw new Error('messages array is required');
+  }
+
+  try {
+    // Proxy request to DeepSeek API
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: model || 'deepseek-chat',
+        messages: messages,
+        tools: tools || undefined,
+        tool_choice: tools ? 'auto' : undefined,
+        temperature: temperature || 0.7,
+        max_tokens: max_tokens || 2000,
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('DeepSeek API error:', errorText);
+      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    console.log(' Chat response received from DeepSeek');
+
+    return new Response(
+      JSON.stringify(data),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('L Error in chat handler:', error);
+    throw error;
+  }
+}
+
+// ==================== MAIN INSIGHT GENERATION ====================
+
+async function generateInsights(supabaseClient: any, userId: string, forceRegenerate = false) {
+  try {
+    console.log('>à Starting AI CFO insight generation for user:', userId);
+
+    // Step 1: Gather comprehensive user data
+    const userData = await gatherUserData(supabaseClient, userId);
+
+    // Step 2: Check if we need to generate new insights
+    if (!forceRegenerate) {
+      const cached = await getCachedInsights(supabaseClient, userId);
+      if (cached) {
+        console.log(' Returning cached insights');
+        return new Response(
+          JSON.stringify(cached),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Step 3: Analyze patterns from historical data
+    const patterns = await analyzePatterns(userData);
+
+    // Step 4: Generate AI insights using DeepSeek
+    const insights = await generateAIInsights(userData, patterns);
+
+    // Step 5: Validate insights (prevent hallucination)
+    const validatedInsights = validateInsights(insights, userData);
+
+    // Step 6: Save to database
+    const result = await saveInsights(supabaseClient, userId, validatedInsights);
+
+    console.log(' Successfully generated AI CFO insights');
+
+    return new Response(
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('L Error generating insights:', error);
+    throw error;
+  }
+}
+
+// ==================== DATA GATHERING ====================
+
+async function gatherUserData(supabaseClient: any, userId: string) {
+  console.log('=Ê Gathering comprehensive user data...');
+
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7);
+  const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString();
+
+  // Parallel data fetching for performance
+  const [
+    userSettings,
+    userContext,
+    currentMonthIncome,
+    currentMonthExpenses,
+    currentMonthInvoices,
+    allInvoices,
+    clients,
+    historicalIncome,
+    historicalExpenses
+  ] = await Promise.all([
+    // User profile & settings
+    supabaseClient
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .single(),
+
+    // User business context - using ai_user_context table
+    supabaseClient
+      .from('ai_user_context')
+      .select('*')
+      .eq('user_id', userId)
+      .single(),
+
+    // Current month income
+    supabaseClient
+      .from('income')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', `${currentMonth}-01`)
+      .lt('date', `${getNextMonth(currentMonth)}-01`),
+
+    // Current month expenses
+    supabaseClient
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', `${currentMonth}-01`)
+      .lt('date', `${getNextMonth(currentMonth)}-01`),
+
+    // Current month invoices
+    supabaseClient
+      .from('invoices')
+      .select('*, client:clients(*)')
+      .eq('user_id', userId)
+      .gte('date', `${currentMonth}-01`)
+      .lt('date', `${getNextMonth(currentMonth)}-01`),
+
+    // All invoices (for pattern analysis)
+    supabaseClient
+      .from('invoices')
+      .select('*, client:clients(*), items:invoice_items(*)')
+      .eq('user_id', userId)
+      .gte('date', oneYearAgo)
+      .order('date', { ascending: false }),
+
+    // All clients
+    supabaseClient
+      .from('clients')
+      .select('*')
+      .eq('user_id', userId),
+
+    // Historical income (12 months)
+    supabaseClient
+      .from('income')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', oneYearAgo)
+      .order('date', { ascending: false }),
+
+    // Historical expenses (12 months)
+    supabaseClient
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', oneYearAgo)
+      .order('date', { ascending: false })
+  ]);
+
+  // Get all currencies being used
+  const currencies = new Set<string>();
+  currencies.add(userSettings.data?.base_currency || 'USD');
+
+  [...(currentMonthIncome.data || []), ...(currentMonthExpenses.data || []), ...(allInvoices.data || [])]
+    .forEach(item => {
+      if (item.currency) currencies.add(item.currency);
+    });
+
+  return {
+    profile: {
+      userId,
+      baseCurrency: userSettings.data?.base_currency || 'USD',
+      currencies: Array.from(currencies),
+      country: userSettings.data?.country || 'Unknown',
+      taxRate: userSettings.data?.tax_rate || 0,
+      dateFormat: userSettings.data?.date_format || 'MM/DD/YYYY'
+    },
+    context: {
+      businessType: userContext.data?.business_type || 'General Business',
+      industry: userContext.data?.business_type || 'General',
+      businessStage: userContext.data?.business_stage || 'startup',
+      location: userContext.data?.location || userSettings.data?.country || 'Global'
+    },
+    currentMonth: {
+      month: currentMonth,
+      income: currentMonthIncome.data || [],
+      expenses: currentMonthExpenses.data || [],
+      invoices: currentMonthInvoices.data || []
+    },
+    historical: {
+      income: historicalIncome.data || [],
+      expenses: historicalExpenses.data || [],
+      invoices: allInvoices.data || []
+    },
+    clients: clients.data || []
+  };
+}
+
+// ==================== PATTERN ANALYSIS ====================
+
+async function analyzePatterns(userData: any) {
+  console.log('= Analyzing business patterns...');
+
+  const patterns: any = {
+    revenue: analyzeRevenuePatterns(userData),
+    expenses: analyzeExpensePatterns(userData),
+    clients: analyzeClientPatterns(userData),
+    seasonality: analyzeSeasonality(userData),
+    currencies: analyzeCurrencyUsage(userData)
+  };
+
+  return patterns;
+}
+
+function analyzeRevenuePatterns(userData: any) {
+  const { historical, currentMonth, profile } = userData;
+
+  // Calculate monthly revenue for last 12 months
+  const monthlyRevenue: any = {};
+  historical.income.forEach((income: any) => {
+    const month = income.date.slice(0, 7);
+    if (!monthlyRevenue[month]) {
+      monthlyRevenue[month] = 0;
+    }
+    // Convert to base currency
+    const amount = income.currency === profile.baseCurrency
+      ? income.amount
+      : income.base_amount || income.amount;
+    monthlyRevenue[month] += Number(amount);
+  });
+
+  const months = Object.keys(monthlyRevenue).sort();
+  const revenues = months.map(m => monthlyRevenue[m]);
+
+  const avgRevenue = revenues.length > 0
+    ? revenues.reduce((a, b) => a + b, 0) / revenues.length
+    : 0;
+
+  const currentRevenue = currentMonth.income.reduce((sum: number, inc: any) => {
+    const amount = inc.currency === profile.baseCurrency
+      ? inc.amount
+      : inc.base_amount || inc.amount;
+    return sum + Number(amount);
+  }, 0);
+
+  const lastMonthRevenue = monthlyRevenue[months[months.length - 2]] || 0;
+  const growthRate = lastMonthRevenue > 0
+    ? ((currentRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+    : 0;
+
+  return {
+    current: currentRevenue,
+    average: avgRevenue,
+    lastMonth: lastMonthRevenue,
+    growthRate: growthRate,
+    trend: growthRate > 5 ? 'growing' : growthRate < -5 ? 'declining' : 'stable',
+    monthlyData: monthlyRevenue
+  };
+}
+
+function analyzeExpensePatterns(userData: any) {
+  const { historical, currentMonth, profile } = userData;
+
+  // Categorize expenses
+  const categories: any = {};
+  const recurring: any = {};
+
+  historical.expenses.forEach((expense: any) => {
+    const category = expense.category || 'Uncategorized';
+    const description = expense.description?.toLowerCase() || '';
+
+    if (!categories[category]) {
+      categories[category] = 0;
+    }
+
+    const amount = expense.currency === profile.baseCurrency
+      ? expense.amount
+      : expense.base_amount || expense.amount;
+    categories[category] += Number(amount);
+
+    // Detect recurring expenses (same description appears 3+ times)
+    if (description) {
+      if (!recurring[description]) {
+        recurring[description] = { count: 0, totalAmount: 0, category };
+      }
+      recurring[description].count++;
+      recurring[description].totalAmount += Number(amount);
+    }
+  });
+
+  const currentExpenses = currentMonth.expenses.reduce((sum: number, exp: any) => {
+    const amount = exp.currency === profile.baseCurrency
+      ? exp.amount
+      : exp.base_amount || exp.amount;
+    return sum + Number(amount);
+  }, 0);
+
+  // Find top recurring expenses
+  const topRecurring = Object.entries(recurring)
+    .filter(([_, data]: any) => data.count >= 3)
+    .sort((a: any, b: any) => b[1].totalAmount - a[1].totalAmount)
+    .slice(0, 5)
+    .map(([desc, data]: any) => ({
+      description: desc,
+      monthlyAverage: data.totalAmount / data.count,
+      occurrences: data.count,
+      category: data.category
+    }));
+
+  return {
+    current: currentExpenses,
+    byCategory: categories,
+    recurring: topRecurring,
+    topCategory: Object.entries(categories).sort((a: any, b: any) => b[1] - a[1])[0]
+  };
+}
+
+function analyzeClientPatterns(userData: any) {
+  const { historical, clients, profile } = userData;
+
+  const clientData: any = {};
+
+  historical.invoices.forEach((invoice: any) => {
+    const clientId = invoice.client_id;
+    if (!clientId) return;
+
+    if (!clientData[clientId]) {
+      clientData[clientId] = {
+        name: invoice.client?.name || 'Unknown',
+        totalRevenue: 0,
+        invoiceCount: 0,
+        paidCount: 0,
+        avgPaymentDays: 0,
+        lastInvoiceDate: null,
+        currencies: new Set()
+      };
+    }
+
+    const amount = invoice.currency === profile.baseCurrency
+      ? invoice.total_amount
+      : invoice.base_total_amount || invoice.total_amount;
+
+    clientData[clientId].totalRevenue += Number(amount);
+    clientData[clientId].invoiceCount++;
+    clientData[clientId].currencies.add(invoice.currency);
+
+    if (invoice.status === 'paid' && invoice.paid_date) {
+      clientData[clientId].paidCount++;
+      const paymentDays = Math.floor(
+        (new Date(invoice.paid_date).getTime() - new Date(invoice.date).getTime())
+        / (1000 * 60 * 60 * 24)
+      );
+      clientData[clientId].avgPaymentDays += paymentDays;
+    }
+
+    if (!clientData[clientId].lastInvoiceDate || invoice.date > clientData[clientId].lastInvoiceDate) {
+      clientData[clientId].lastInvoiceDate = invoice.date;
+    }
+  });
+
+  // Calculate averages and sort
+  Object.values(clientData).forEach((client: any) => {
+    if (client.paidCount > 0) {
+      client.avgPaymentDays = Math.round(client.avgPaymentDays / client.paidCount);
+    }
+    client.currencies = Array.from(client.currencies);
+  });
+
+  const topClients = Object.values(clientData)
+    .sort((a: any, b: any) => b.totalRevenue - a.totalRevenue)
+    .slice(0, 5);
+
+  return {
+    total: clients.length,
+    topClients,
+    clientData
+  };
+}
+
+function analyzeSeasonality(userData: any) {
+  const { historical } = userData;
+
+  const monthlyStats: any = {};
+
+  historical.income.forEach((income: any) => {
+    const month = new Date(income.date).getMonth(); // 0-11
+    if (!monthlyStats[month]) {
+      monthlyStats[month] = { revenue: 0, count: 0 };
+    }
+    monthlyStats[month].revenue += Number(income.amount);
+    monthlyStats[month].count++;
+  });
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const seasonalData = Object.entries(monthlyStats).map(([month, data]: any) => ({
+    month: monthNames[parseInt(month)],
+    avgRevenue: data.count > 0 ? data.revenue / data.count : 0
+  }));
+
+  const bestMonth = seasonalData.reduce((best, current) =>
+    current.avgRevenue > best.avgRevenue ? current : best,
+    { month: '', avgRevenue: 0 }
+  );
+
+  return {
+    data: seasonalData,
+    bestMonth: bestMonth.month,
+    bestMonthRevenue: bestMonth.avgRevenue
+  };
+}
+
+function analyzeCurrencyUsage(userData: any) {
+  const { profile, historical } = userData;
+
+  const currencyBreakdown: any = {};
+
+  [...historical.income, ...historical.expenses, ...historical.invoices].forEach((item: any) => {
+    const currency = item.currency || profile.baseCurrency;
+    if (!currencyBreakdown[currency]) {
+      currencyBreakdown[currency] = { income: 0, expenses: 0, invoices: 0 };
+    }
+
+    if (item.type === 'income' || item.description) {
+      currencyBreakdown[currency].income++;
+    } else if (item.invoice_number) {
+      currencyBreakdown[currency].invoices++;
+    } else {
+      currencyBreakdown[currency].expenses++;
+    }
+  });
+
+  return {
+    baseCurrency: profile.baseCurrency,
+    currencies: profile.currencies,
+    breakdown: currencyBreakdown,
+    isMultiCurrency: profile.currencies.length > 1
+  };
+}
+
+// ==================== AI INSIGHT GENERATION (DeepSeek) ====================
+
+async function generateAIInsights(userData: any, patterns: any) {
+  console.log('> Generating AI insights with DeepSeek...');
+
+  if (!DEEPSEEK_API_KEY) {
+    console.warn('  DEEPSEEK_API_KEY not configured, returning fallback insights');
+    return getFallbackInsights(userData, patterns);
+  }
+
+  const systemPrompt = buildSystemPrompt(userData, patterns);
+  const userPrompt = buildUserPrompt(userData, patterns);
+
+  try {
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('DeepSeek API error:', error);
+      throw new Error('DeepSeek API failed');
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('No content from DeepSeek');
+    }
+
+    const insights = JSON.parse(content);
+    console.log(' AI insights generated successfully');
+
+    return insights;
+
+  } catch (error) {
+    console.error('L Error calling DeepSeek API:', error);
+    return getFallbackInsights(userData, patterns);
+  }
+}
+
+function buildSystemPrompt(userData: any, patterns: any) {
+  const { profile, context } = userData;
+
+  return `You are SmartCFO - an exceptionally intelligent Chief Financial Officer AI assistant.
+
+**YOUR IDENTITY:**
+You are a trusted business partner, not a robotic accountant. You deeply understand the user's business and provide insights that a $500/hour CFO consultant would give.
+
+**YOUR CAPABILITIES:**
+- Complete access to ALL user financial data (invoices, expenses, clients, income)
+- Deep understanding of their industry: ${context.industry}
+- Knowledge of their business stage: ${context.businessStage}
+- Understanding of their location: ${context.location}
+- Awareness of their currency setup: Base=${profile.baseCurrency}, Working with ${profile.currencies.join(', ')}
+
+**CRITICAL RULES - FOLLOW THESE STRICTLY:**
+
+1. **ACCURACY IS SACRED**:
+   - Every number MUST come from the provided data
+   - NEVER guess, estimate, or hallucinate invoice counts, amounts, or client names
+   - If you say "3 overdue invoices", there MUST be exactly 3 overdue invoices in the data
+   - When mentioning currency amounts, ALWAYS use the user's base currency (${profile.baseCurrency})
+
+2. **BE CONVERSATIONAL & HUMAN**:
+   - Use friendly, warm language like talking to a business partner
+   - Use emojis appropriately (=¡ <‰   =Ê =° =€)
+   - Celebrate wins enthusiastically
+   - Show empathy for challenges
+   - NO corporate jargon - explain like talking to a non-accountant
+
+3. **BE PROACTIVE, NOT REACTIVE**:
+   - Don't just report status - suggest actions
+   - Spot opportunities for cost savings
+   - Identify revenue growth patterns
+   - Warn about unusual behaviors
+   - Example: Don't say "Expenses increased 20%"
+   - Instead say: "=¡ Your expenses jumped 20% this month. I see $500 in new software subscriptions - are these essential?"
+
+4. **BE CONTEXT-AWARE**:
+   - Understand industry norms (photography business vs SaaS vs restaurant)
+   - Consider business stage (startup advice differs from established business)
+   - Account for location (US expenses differ from Pakistan/India)
+   - Remember currency context when discussing amounts
+
+5. **BE SPECIFIC & ACTIONABLE**:
+   - Use actual client names, invoice numbers, dates from their data
+   - Give concrete next steps
+   - Example: "ABC Company usually pays in 7 days, but Invoice #1234 is 15 days overdue"
+   - Not: "Some clients are late on payments"
+
+**BUSINESS CONTEXT:**
+- Industry: ${context.industry}
+- Business Type: ${context.businessType}
+- Stage: ${context.businessStage}
+- Location: ${context.location}
+- Base Currency: ${profile.baseCurrency}
+- All Currencies: ${profile.currencies.join(', ')}
+
+**YOUR RESPONSE FORMAT:**
+Return a JSON object with this EXACT structure:
+{
+  "insights": [
+    {
+      "id": "unique-id",
+      "type": "opportunity" | "warning" | "celebration" | "pattern" | "advice",
+      "emoji": "=¡",
+      "title": "Short catchy title (max 60 chars)",
+      "message": "2-3 sentences with specific details and numbers. Be conversational!",
+      "priority": 1-10 (10 = most important),
+      "actionable": true/false,
+      "action": {
+        "label": "Suggested action button text",
+        "context": "What this action would do"
+      }
+    }
+  ]
+}
+
+**INSIGHT TYPES:**
+- "opportunity": Cost-saving or revenue-growth ideas
+- "warning": Issues needing attention (overdue invoices, unusual patterns)
+- "celebration": Good news, achievements, growth
+- "pattern": Interesting trends or behaviors discovered
+- "advice": Industry-specific or strategic suggestions
+
+Generate 3-5 insights focusing on what's most valuable for this user RIGHT NOW.`;
+}
+
+function buildUserPrompt(userData: any, patterns: any) {
+  const { profile, currentMonth, context } = userData;
+  const now = new Date();
+  const monthName = now.toLocaleString('default', { month: 'long' });
+  const year = now.getFullYear();
+
+  // Format current month data
+  const totalIncome = currentMonth.income.reduce((sum: number, inc: any) => {
+    const amount = inc.currency === profile.baseCurrency ? inc.amount : inc.base_amount || inc.amount;
+    return sum + Number(amount);
+  }, 0);
+
+  const totalExpenses = currentMonth.expenses.reduce((sum: number, exp: any) => {
+    const amount = exp.currency === profile.baseCurrency ? exp.amount : exp.base_amount || exp.amount;
+    return sum + Number(amount);
+  }, 0);
+
+  const netProfit = totalIncome - totalExpenses;
+
+  // Count invoices by status
+  const invoiceStats = {
+    total: currentMonth.invoices.length,
+    paid: currentMonth.invoices.filter((inv: any) => inv.status === 'paid').length,
+    pending: currentMonth.invoices.filter((inv: any) => inv.status === 'sent' || inv.status === 'viewed').length,
+    overdue: currentMonth.invoices.filter((inv: any) => {
+      if (inv.status === 'paid' || inv.status === 'draft') return false;
+      return new Date(inv.due_date) < now;
+    }).length,
+    draft: currentMonth.invoices.filter((inv: any) => inv.status === 'draft').length
+  };
+
+  const overdueAmount = currentMonth.invoices
+    .filter((inv: any) => {
+      if (inv.status === 'paid' || inv.status === 'draft') return false;
+      return new Date(inv.due_date) < now;
+    })
+    .reduce((sum: number, inv: any) => {
+      const amount = inv.currency === profile.baseCurrency ? inv.total_amount : inv.base_total_amount || inv.total_amount;
+      return sum + Number(amount);
+    }, 0);
+
+  return `Analyze my ${context.industry} business for ${monthName} ${year}.
+
+**CURRENT MONTH (${monthName} ${year}):**
+- Total Income: ${formatCurrency(totalIncome, profile.baseCurrency)}
+- Total Expenses: ${formatCurrency(totalExpenses, profile.baseCurrency)}
+- Net Profit: ${formatCurrency(netProfit, profile.baseCurrency)}
+- Invoices: ${invoiceStats.total} total (${invoiceStats.paid} paid, ${invoiceStats.pending} pending, ${invoiceStats.overdue} overdue, ${invoiceStats.draft} draft)
+- Overdue Amount: ${formatCurrency(overdueAmount, profile.baseCurrency)}
+
+**REVENUE PATTERNS:**
+- Current Month: ${formatCurrency(patterns.revenue.current, profile.baseCurrency)}
+- Last Month: ${formatCurrency(patterns.revenue.lastMonth, profile.baseCurrency)}
+- 12-Month Average: ${formatCurrency(patterns.revenue.average, profile.baseCurrency)}
+- Growth Rate: ${patterns.revenue.growthRate.toFixed(1)}%
+- Trend: ${patterns.revenue.trend}
+
+**EXPENSE PATTERNS:**
+- Current Month: ${formatCurrency(patterns.expenses.current, profile.baseCurrency)}
+- Top Category: ${patterns.expenses.topCategory?.[0] || 'None'} (${formatCurrency(patterns.expenses.topCategory?.[1] || 0, profile.baseCurrency)})
+- Recurring Expenses Found: ${patterns.expenses.recurring.length}
+${patterns.expenses.recurring.slice(0, 3).map((rec: any) =>
+  `  - ${rec.description}: ~${formatCurrency(rec.monthlyAverage, profile.baseCurrency)}/month (${rec.occurrences} times)`
+).join('\n')}
+
+**CLIENT INSIGHTS:**
+- Total Clients: ${patterns.clients.total}
+- Top 3 Clients by Revenue:
+${patterns.clients.topClients.slice(0, 3).map((client: any, idx: number) =>
+  `  ${idx + 1}. ${client.name}: ${formatCurrency(client.totalRevenue, profile.baseCurrency)} (${client.invoiceCount} invoices, avg ${client.avgPaymentDays} days to pay)`
+).join('\n')}
+
+**SEASONALITY:**
+- Best Month Historically: ${patterns.seasonality.bestMonth} (avg ${formatCurrency(patterns.seasonality.bestMonthRevenue, profile.baseCurrency)})
+
+**CURRENCY USAGE:**
+- Base Currency: ${profile.baseCurrency}
+- Working with: ${profile.currencies.join(', ')}
+- Multi-currency: ${patterns.currencies.isMultiCurrency ? 'Yes' : 'No'}
+
+**YOUR TASK:**
+Generate 3-5 intelligent, actionable insights for this business. Focus on:
+1. One major opportunity (cost-saving or revenue growth)
+2. Any urgent warnings (overdue invoices, unusual patterns)
+3. One celebration/positive recognition if applicable
+4. One pattern discovery from historical data
+5. One strategic advice for their industry/stage
+
+Make each insight specific, conversational, and valuable. Use actual numbers and client names from the data.`;
+}
+
+function formatCurrency(amount: number, currency: string): string {
+  const symbols: any = {
+    'USD': '$',
+    'GBP': '£',
+    'EUR': '¬',
+    'PKR': 'Rs',
+    'INR': '¹',
+    'AUD': 'A$',
+    'CAD': 'C$',
+    'AED': 'AED'
+  };
+
+  const symbol = symbols[currency] || currency + ' ';
+  return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+// ==================== VALIDATION ====================
+
+function validateInsights(insights: any, userData: any) {
+  console.log(' Validating AI insights against actual data...');
+
+  if (!insights || !insights.insights || !Array.isArray(insights.insights)) {
+    console.warn('Invalid insights format, using fallback');
+    return getFallbackInsights(userData, {});
+  }
+
+  // Validate each insight
+  const validated = insights.insights.filter((insight: any) => {
+    // Must have required fields
+    if (!insight.title || !insight.message || !insight.type) {
+      console.warn('Insight missing required fields:', insight);
+      return false;
+    }
+
+    // Must have priority between 1-10
+    if (!insight.priority || insight.priority < 1 || insight.priority > 10) {
+      insight.priority = 5; // Default priority
+    }
+
+    return true;
+  });
+
+  return {
+    insights: validated,
+    generated_at: new Date().toISOString()
+  };
+}
+
+// ==================== FALLBACK INSIGHTS ====================
+
+function getFallbackInsights(userData: any, patterns: any) {
+  console.log('=Ë Generating fallback insights (DeepSeek unavailable)');
+
+  const insights: any[] = [];
+  const { currentMonth, profile } = userData;
+  const now = new Date();
+
+  // Calculate basic stats
+  const totalIncome = currentMonth.income.reduce((sum: number, inc: any) => sum + Number(inc.amount), 0);
+  const totalExpenses = currentMonth.expenses.reduce((sum: number, exp: any) => sum + Number(exp.amount), 0);
+  const netProfit = totalIncome - totalExpenses;
+
+  const overdueInvoices = currentMonth.invoices.filter((inv: any) => {
+    if (inv.status === 'paid' || inv.status === 'draft') return false;
+    return new Date(inv.due_date) < now;
+  });
+
+  // Insight 1: Overdue invoices warning
+  if (overdueInvoices.length > 0) {
+    const overdueAmount = overdueInvoices.reduce((sum: number, inv: any) => sum + Number(inv.total_amount), 0);
+    insights.push({
+      id: 'overdue-warning',
+      type: 'warning',
+      emoji: ' ',
+      title: 'Overdue Invoices Need Attention',
+      message: `You have ${overdueInvoices.length} overdue invoice${overdueInvoices.length > 1 ? 's' : ''} totaling ${formatCurrency(overdueAmount, profile.baseCurrency)}. Following up could improve cash flow.`,
+      priority: 9,
+      actionable: true,
+      action: {
+        label: 'View Overdue Invoices',
+        context: 'See which clients need a follow-up'
+      }
+    });
+  }
+
+  // Insight 2: Profit status
+  if (netProfit > 0) {
+    insights.push({
+      id: 'profit-celebration',
+      type: 'celebration',
+      emoji: '<‰',
+      title: 'Profitable Month!',
+      message: `You're running a profit of ${formatCurrency(netProfit, profile.baseCurrency)} this month! Income: ${formatCurrency(totalIncome, profile.baseCurrency)}, Expenses: ${formatCurrency(totalExpenses, profile.baseCurrency)}.`,
+      priority: 7,
+      actionable: false
+    });
+  } else if (netProfit < 0) {
+    insights.push({
+      id: 'loss-warning',
+      type: 'warning',
+      emoji: '=Ê',
+      title: 'Expenses Exceed Income',
+      message: `You're at a ${formatCurrency(Math.abs(netProfit), profile.baseCurrency)} loss this month. Consider reviewing expenses or increasing revenue streams.`,
+      priority: 8,
+      actionable: true,
+      action: {
+        label: 'Review Expenses',
+        context: 'Identify areas to reduce costs'
+      }
+    });
+  }
+
+  // Insight 3: Invoice creation reminder
+  if (currentMonth.invoices.length === 0) {
+    insights.push({
+      id: 'no-invoices',
+      type: 'advice',
+      emoji: '=¡',
+      title: 'No Invoices This Month',
+      message: `You haven't created any invoices this month yet. If you have work completed, creating invoices helps track income and get paid faster.`,
+      priority: 6,
+      actionable: true,
+      action: {
+        label: 'Create Invoice',
+        context: 'Start tracking this month\'s revenue'
+      }
+    });
+  }
+
+  return {
+    insights: insights.length > 0 ? insights : [{
+      id: 'welcome',
+      type: 'info',
+      emoji: '=K',
+      title: 'Welcome to SmartCFO!',
+      message: 'Your AI CFO assistant is ready to help. Add more financial data to get personalized insights.',
+      priority: 5,
+      actionable: false
+    }],
+    generated_at: new Date().toISOString()
+  };
+}
+
+// ==================== DATABASE OPERATIONS ====================
+
+async function saveInsights(supabaseClient: any, userId: string, insights: any) {
+  console.log('=¾ Saving insights to database...');
+
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+  // Delete old insights for this user from today (in case regenerating)
+  await supabaseClient
+    .from('ai_insights')
+    .delete()
+    .eq('user_id', userId)
+    .eq('insight_date', today);
+
+  // Insert new insights using your database schema
+  const { error } = await supabaseClient
+    .from('ai_insights')
+    .insert({
+      user_id: userId,
+      insight_date: today,
+      insights_json: insights.insights,
+      generated_at: insights.generated_at
+    });
+
+  if (error) {
+    console.error('Error saving insights:', error);
+    throw error;
+  }
+
+  return insights;
+}
+
+async function getCachedInsights(supabaseClient: any, userId: string) {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+  const { data, error } = await supabaseClient
+    .from('ai_insights')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('insight_date', today)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return {
+    insights: data.insights_json,
+    generated_at: data.generated_at
+  };
+}
+
+// ==================== HELPER FUNCTIONS ====================
+
+function getNextMonth(monthString: string): string {
+  const [year, month] = monthString.split('-').map(Number);
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+}
+
+// ==================== CONTEXT MANAGEMENT ====================
+
+async function getMissingContext(supabaseClient: any, userId: string) {
+  const { data } = await supabaseClient
+    .from('ai_user_context')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  const missingFields = [];
+
+  if (!data?.business_type) {
+    missingFields.push({
+      field: 'business_type',
+      question: 'What type of business do you run?',
+      type: 'text',
+      placeholder: 'e.g., Photography Services, Freelance Design, Restaurant...',
+      examples: ['Photography Services', 'Freelance Web Design', 'Restaurant & Catering', 'Consulting Services', 'E-commerce Store']
+    });
+  }
+
+  if (!data?.business_stage) {
+    missingFields.push({
+      field: 'business_stage',
+      question: 'What stage is your business at?',
+      type: 'dropdown',
+      options: ['startup', 'small_business', 'growing_business', 'established_business']
+    });
+  }
+
+  if (!data?.location) {
+    missingFields.push({
+      field: 'location',
+      question: 'Where is your business located?',
+      type: 'text',
+      placeholder: 'e.g., New York, USA or Lahore, Pakistan',
+      examples: ['New York, USA', 'London, UK', 'Lahore, Pakistan', 'Toronto, Canada', 'Sydney, Australia']
+    });
+  }
+
+  return new Response(
+    JSON.stringify({
+      hasAllContext: missingFields.length === 0,
+      missingFields
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+async function updateUserContext(supabaseClient: any, userId: string, data: any) {
+  const { error } = await supabaseClient
+    .from('ai_user_context')
+    .upsert({
+      user_id: userId,
+      ...data.data,
+      updated_at: new Date().toISOString()
+    });
+
+  if (error) throw error;
+
+  return new Response(
+    JSON.stringify({ success: true }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+```
+
+---
+
+## Deployment Instructions
+
+1. Go to your Supabase Dashboard
+2. Navigate to **Edge Functions** ’ `ai-assistant`
+3. Copy the entire code block above
+4. Paste it into the edge function editor
+5. Click **Deploy**
+
+This will fix the CORS error in your AI Chat Widget!

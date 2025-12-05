@@ -43,27 +43,43 @@ import { reportInstructions } from './instructions/report';
 import { getUserSettings, getInvoiceSettings } from './userSettingsService';
 import { AILearningService } from './learningService';
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 
 /**
- * Get DeepSeek API key
+ * Helper function to call DeepSeek via Supabase Edge Function
+ * This fixes CORS issues and keeps API key secure on the server
  */
-const getDeepSeekApiKey = async (): Promise<string> => {
+const callDeepSeekViaEdgeFunction = async (
+  messages: any[],
+  tools?: any[]
+): Promise<any> => {
   try {
-    const apiKey = process.env.REACT_APP_DEEPSEEK_API_KEY;
+    console.log('[DeepSeek] Calling via edge function...');
 
-    if (!apiKey) {
-      const { data, error } = await supabase.functions.invoke('get-deepseek-key');
-      if (error || !data?.key) {
-        throw new Error('DeepSeek API key not found');
+    const { data, error } = await supabase.functions.invoke('ai-assistant', {
+      body: {
+        userId: 'temp', // Not used for chat feature
+        feature: 'chat',
+        messages: messages,
+        model: DEEPSEEK_MODEL,
+        tools: tools,
+        temperature: 0.7,
+        max_tokens: 2000,
       }
-      return data.key;
+    });
+
+    if (error) {
+      console.error('[DeepSeek] Edge function error:', error);
+      throw new Error(`Edge function error: ${error.message}`);
     }
 
-    return apiKey;
+    if (!data) {
+      throw new Error('No data received from edge function');
+    }
+
+    return data;
   } catch (error) {
-    console.error('Error getting DeepSeek API key:', error);
+    console.error('[DeepSeek] Error calling edge function:', error);
     throw error;
   }
 };
@@ -1011,7 +1027,6 @@ export const chatWithDeepSeek = async (
       console.warn('[DeepSeek] No exchange rates provided - tools will use edge function fallback');
     }
 
-    const apiKey = await getDeepSeekApiKey();
     const systemPrompt = await buildSystemPrompt(userId);
 
     // Build messages array (keep last 20 messages for context)
@@ -1023,31 +1038,10 @@ export const chatWithDeepSeek = async (
       })),
     ];
 
-    console.log('[DeepSeek] Sending request...');
+    console.log('[DeepSeek] Sending request via edge function...');
 
-    // Call DeepSeek API
-    const response = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: apiMessages,
-        tools: getToolsDefinition(),
-        tool_choice: 'auto', // Explicitly enable tool calling
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
+    // ✅ Call DeepSeek via Edge Function (fixes CORS)
+    const data = await callDeepSeekViaEdgeFunction(apiMessages, getToolsDefinition());
     const choice = data.choices[0];
     const assistantMessage = choice.message;
 
@@ -1085,31 +1079,10 @@ export const chatWithDeepSeek = async (
         })),
       ];
 
-      console.log('[DeepSeek] Sending tool results back...');
+      console.log('[DeepSeek] Sending tool results back via edge function...');
 
-      const followUpResponse = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          messages: followUpMessages,
-          tools: getToolsDefinition(),
-          tool_choice: 'auto',
-          temperature: 0.7,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (!followUpResponse.ok) {
-        const errorBody = await followUpResponse.text();
-        console.error('[DeepSeek Streaming] Follow-up error response:', errorBody);
-        throw new Error(`DeepSeek follow-up error: ${followUpResponse.status} - ${errorBody}`);
-      }
-
-      const followUpData = await followUpResponse.json();
+      // ✅ Follow-up call via Edge Function
+      const followUpData = await callDeepSeekViaEdgeFunction(followUpMessages, getToolsDefinition());
       const finalMessage = followUpData.choices[0].message;
 
       // Debug logging for follow-up response
@@ -1152,30 +1125,10 @@ export const chatWithDeepSeek = async (
           })),
         ];
 
-        console.log('[DeepSeek] Sending chained tool results back...');
+        console.log('[DeepSeek] Sending chained tool results back via edge function...');
 
-        // Send results back to API
-        const chainedResponse = await fetch(DEEPSEEK_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: DEEPSEEK_MODEL,
-            messages: currentMessages,
-            tools: getToolsDefinition(),
-            tool_choice: 'auto',
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
-
-        if (!chainedResponse.ok) {
-          throw new Error(`DeepSeek chained tool call error: ${chainedResponse.status}`);
-        }
-
-        const chainedData = await chainedResponse.json();
+        // ✅ Chained call via Edge Function
+        const chainedData = await callDeepSeekViaEdgeFunction(currentMessages, getToolsDefinition());
         currentResponse = chainedData.choices[0].message;
 
         console.log(`[DeepSeek] Chained response (iteration ${iteration}):`, JSON.stringify({
@@ -1225,28 +1178,10 @@ export const chatWithDeepSeek = async (
             })),
           ];
 
-          console.log('[DeepSeek] Sending tool results back...');
+          console.log('[DeepSeek] Sending text-based tool results back via edge function...');
 
-          const followUpResponse = await fetch(DEEPSEEK_API_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: DEEPSEEK_MODEL,
-              messages: followUpMessages,
-              tool_choice: 'auto',
-              temperature: 0.7,
-              max_tokens: 2000,
-            }),
-          });
-
-          if (!followUpResponse.ok) {
-            throw new Error(`DeepSeek follow-up error: ${followUpResponse.status}`);
-          }
-
-          const followUpData = await followUpResponse.json();
+          // ✅ Text-based tool call via Edge Function
+          const followUpData = await callDeepSeekViaEdgeFunction(followUpMessages);
           const finalMessage = followUpData.choices[0].message;
 
           return {
@@ -1284,7 +1219,6 @@ export const chatWithDeepSeekStreaming = async (
   try {
     onProgress?.('💭 SmartCFO is thinking...');
 
-    const apiKey = await getDeepSeekApiKey();
     const systemPrompt = await buildSystemPrompt(userId);
 
     const apiMessages = [
@@ -1297,100 +1231,15 @@ export const chatWithDeepSeekStreaming = async (
 
     onProgress?.('🔍 Looking through your records...');
 
-    // Call DeepSeek API with streaming enabled
-    const response = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: apiMessages,
-        tools: getToolsDefinition(),
-        tool_choice: 'auto',
-        temperature: 0.7,
-        max_tokens: 800, // Shorter responses for speed
-        stream: true, // Enable streaming!
-      }),
-    });
+    // ✅ Call DeepSeek via Edge Function (no streaming support, but we keep progress updates)
+    const data = await callDeepSeekViaEdgeFunction(apiMessages, getToolsDefinition());
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
-    }
+    const choice = data.choices[0];
+    const assistantMessage = choice.message;
 
-    // Process streaming response
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let assistantMessage: any = { content: '', tool_calls: [] };
-    let currentToolCall: any = null;
+    onProgress?.('📋 Analyzing your data...');
 
-    if (!reader) {
-      throw new Error('Response body is not readable');
-    }
-
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-
-          if (data === '[DONE]') {
-            break;
-          }
-
-          try {
-            const parsed = JSON.parse(data);
-            const delta = parsed.choices[0]?.delta;
-
-            if (delta?.content) {
-              assistantMessage.content += delta.content;
-              onProgress?.('📋 Analyzing your data...');
-            }
-
-            if (delta?.tool_calls) {
-              for (const toolCallDelta of delta.tool_calls) {
-                if (toolCallDelta.index !== undefined) {
-                  if (!assistantMessage.tool_calls[toolCallDelta.index]) {
-                    assistantMessage.tool_calls[toolCallDelta.index] = {
-                      id: toolCallDelta.id || '',
-                      type: 'function',
-                      function: { name: '', arguments: '' }
-                    };
-                  }
-
-                  const toolCall = assistantMessage.tool_calls[toolCallDelta.index];
-
-                  if (toolCallDelta.id) {
-                    toolCall.id = toolCallDelta.id;
-                  }
-                  if (toolCallDelta.function?.name) {
-                    toolCall.function.name = toolCallDelta.function.name;
-                    onProgress?.('🔎 Searching...');
-                  }
-                  if (toolCallDelta.function?.arguments) {
-                    toolCall.function.arguments += toolCallDelta.function.arguments;
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.warn('[DeepSeek Streaming] Failed to parse chunk:', e);
-          }
-        }
-      }
-    }
-
-    // If tool calls detected, execute them (WITH CHAINING SUPPORT!)
+    // If tool calls detected, execute them
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       onProgress?.('📊 Gathering your information...');
 
@@ -1430,30 +1279,8 @@ export const chatWithDeepSeekStreaming = async (
       });
       onProgress?.('✨ Almost there...');
 
-      const followUpResponse = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          messages: followUpMessages,
-          tools: getToolsDefinition(),
-          tool_choice: 'auto',
-          temperature: 0.7,
-          max_tokens: 800,
-          // NO streaming for follow-up (faster for tool chains)
-        }),
-      });
-
-      if (!followUpResponse.ok) {
-        const errorBody = await followUpResponse.text();
-        console.error('[DeepSeek Streaming] Follow-up error response:', errorBody);
-        throw new Error(`DeepSeek follow-up error: ${followUpResponse.status} - ${errorBody}`);
-      }
-
-      const followUpData = await followUpResponse.json();
+      // ✅ Follow-up call via Edge Function
+      const followUpData = await callDeepSeekViaEdgeFunction(followUpMessages, getToolsDefinition());
       let currentResponse = followUpData.choices[0].message;
 
       // Handle chained tool calls (AI wants to call more tools)
@@ -1491,30 +1318,8 @@ export const chatWithDeepSeekStreaming = async (
 
         console.log('[DeepSeek Streaming] Sending chained results back...');
 
-        // Send results back
-        const chainedResponse = await fetch(DEEPSEEK_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: DEEPSEEK_MODEL,
-            messages: currentMessages,
-            tools: getToolsDefinition(),
-            tool_choice: 'auto',
-            temperature: 0.7,
-            max_tokens: 800,
-          }),
-        });
-
-        if (!chainedResponse.ok) {
-          const errorBody = await chainedResponse.text();
-          console.error('[DeepSeek Streaming] Chained call error response:', errorBody);
-          throw new Error(`DeepSeek chained error: ${chainedResponse.status} - ${errorBody}`);
-        }
-
-        const chainedData = await chainedResponse.json();
+        // ✅ Chained call via Edge Function
+        const chainedData = await callDeepSeekViaEdgeFunction(currentMessages, getToolsDefinition());
         currentResponse = chainedData.choices[0].message;
 
         console.log(`[DeepSeek Streaming] Chained response (iteration ${iteration}):`, {
