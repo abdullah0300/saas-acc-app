@@ -1,34 +1,46 @@
 // src/components/AI/ChatbotPopup.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../services/supabaseClient';
+import { useAuth } from '../../contexts/AuthContext';
 import { Sparkles } from 'lucide-react';
 
 export function ChatbotPopup() {
+    const { user, loading } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
-    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [iframeReady, setIframeReady] = useState(false);
 
+    // Function to send auth session to iframe
+    const sendAuthToIframe = useCallback(async (iframe: HTMLIFrameElement | null) => {
+        if (!iframe?.contentWindow) {
+            console.log('🔐 Iframe not ready yet');
+            return;
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            iframe.contentWindow.postMessage(
+                { type: 'AUTH_SESSION', session },
+                'https://chat-smartcfo.webcraftio.com' // Production
+                // Use 'http://localhost:3000' for local testing
+            );
+            console.log('🔐 Auth session sent to chatbot iframe');
+        } else {
+            console.log('🔐 No session available to send');
+        }
+    }, []);
+
+    // Handle iframe load event - called from JSX onLoad
+    const handleIframeLoad = useCallback((event: React.SyntheticEvent<HTMLIFrameElement>) => {
+        const iframe = event.currentTarget;
+        console.log('🔐 Iframe loaded, sending auth...');
+        setIframeReady(true);
+        sendAuthToIframe(iframe);
+    }, [sendAuthToIframe]);
+
+    // Listen for session requests from iframe
     useEffect(() => {
         if (!isOpen) return;
 
-        const sendAuthToIframe = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session && iframeRef.current?.contentWindow) {
-                iframeRef.current.contentWindow.postMessage(
-                    { type: 'AUTH_SESSION', session },
-                    'https://chat-smartcfo.webcraftio.com' // Production
-                    // Use 'http://localhost:3000' for local testing
-                );
-                console.log('🔐 Auth session sent to chatbot iframe');
-            }
-        };
-
-        // Send after iframe loads
-        const iframe = iframeRef.current;
-        if (iframe) {
-            iframe.onload = sendAuthToIframe;
-        }
-
-        // Also listen for session requests from iframe
         const handleMessage = async (event: MessageEvent) => {
             // Validate origin
             if (event.origin !== 'https://chat-smartcfo.webcraftio.com' &&
@@ -38,13 +50,27 @@ export function ChatbotPopup() {
 
             if (event.data?.type === 'REQUEST_AUTH_SESSION') {
                 console.log('📨 Chatbot requested auth session');
-                sendAuthToIframe();
+                // Find iframe and send auth
+                const iframe = document.querySelector('iframe[title="SmartCFO AI Chat"]') as HTMLIFrameElement;
+                sendAuthToIframe(iframe);
             }
         };
         window.addEventListener('message', handleMessage);
 
         return () => window.removeEventListener('message', handleMessage);
+    }, [isOpen, sendAuthToIframe]);
+
+    // Reset iframe ready state when closing
+    useEffect(() => {
+        if (!isOpen) {
+            setIframeReady(false);
+        }
     }, [isOpen]);
+
+    // Don't render anything if user is not logged in or still loading
+    if (loading || !user) {
+        return null;
+    }
 
     return (
         <>
@@ -145,11 +171,11 @@ export function ChatbotPopup() {
                             ✕
                         </button>
                         <iframe
-                            ref={iframeRef}
                             src="https://chat-smartcfo.webcraftio.com"
                             style={{ width: '100%', height: '100%', border: 'none' }}
                             allow="microphone"
                             title="SmartCFO AI Chat"
+                            onLoad={handleIframeLoad}
                         />
                     </div>
                 </div>

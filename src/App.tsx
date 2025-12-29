@@ -124,11 +124,10 @@ function App() {
           <ContactSupportProvider>
             <AppRoutes />
           </ContactSupportProvider>
+          {/* AI Chatbot Popup - Inside AuthProvider to access auth state */}
+          <ChatbotPopup />
         </AuthProvider>
       </Router>
-
-      {/* AI Chatbot Popup - Available globally */}
-      <ChatbotPopup />
 
       {/* React Query DevTools - only in development */}
       {process.env.NODE_ENV === 'development' && (
