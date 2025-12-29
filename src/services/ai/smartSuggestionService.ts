@@ -28,21 +28,16 @@ interface Category {
 
 export class SmartSuggestionService {
   /**
-   * Get DeepSeek API key
+   * Get DeepSeek API key from secure edge function
+   * NOTE: Never use REACT_APP_ env vars for API keys - they get exposed in the browser!
    */
   private static async getDeepSeekApiKey(): Promise<string> {
     try {
-      const apiKey = process.env.REACT_APP_DEEPSEEK_API_KEY;
-
-      if (!apiKey) {
-        const { data, error } = await supabase.functions.invoke('get-deepseek-key');
-        if (error || !data?.key) {
-          throw new Error('DeepSeek API key not found');
-        }
-        return data.key;
+      const { data, error } = await supabase.functions.invoke('get-deepseek-key');
+      if (error || !data?.key) {
+        throw new Error('DeepSeek API key not found');
       }
-
-      return apiKey;
+      return data.key;
     } catch (error) {
       console.error('Error getting DeepSeek API key:', error);
       throw error;
