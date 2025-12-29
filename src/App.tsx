@@ -87,6 +87,7 @@ import SEOManagerDashboard from './components/Admin/SEOManager/SEOManagerDashboa
 import BlogManagerDashboard from './components/Admin/BlogManager/BlogManagerDashboard';
 import { SitemapPage } from './components/Sitemap/SitemapPage';
 import { ContactSupportProvider } from './contexts/ContactSupportContext';
+import { ChatbotPopup } from './components/AI/ChatbotPopup';
 
 // Debug: Log environment variables
 console.log('🔧 App.tsx Environment Debug:');
@@ -113,23 +114,26 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
-});   
+});
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-              <Router>
-          <AuthProvider>
-            <ContactSupportProvider>
-              <AppRoutes />
-            </ContactSupportProvider>
-          </AuthProvider>
-        </Router>
-      
+      <Router>
+        <AuthProvider>
+          <ContactSupportProvider>
+            <AppRoutes />
+          </ContactSupportProvider>
+        </AuthProvider>
+      </Router>
+
+      {/* AI Chatbot Popup - Available globally */}
+      <ChatbotPopup />
+
       {/* React Query DevTools - only in development */}
       {process.env.NODE_ENV === 'development' && (
-        <ReactQueryDevtools 
-          initialIsOpen={false} 
+        <ReactQueryDevtools
+          initialIsOpen={false}
           buttonPosition="bottom-right"
         />
       )}
@@ -141,7 +145,7 @@ function App() {
 function AppRoutes() {
   useSessionKeepAlive();
   const { user, loading } = useAuth();
-  
+
   // Show loading screen while checking authentication
   if (loading) {
     return (
@@ -153,7 +157,7 @@ function AppRoutes() {
       </div>
     );
   }
-  
+
   return (
     <>
       <CookieConsent />
@@ -161,178 +165,178 @@ function AppRoutes() {
         {/* Public routes */}
         {/* Landing Page with smart redirect logic */}
         <Route path="/" element={<SmartRedirect fallback={<LandingPageAwwrd />} />} />
-      <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/setup" element={
-        <ProtectedRoute>
-          <SetupWizard />
-        </ProtectedRoute>
-      } />
-
-      {/* Legal pages - public access */}
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/terms" element={<TermsOfService />} />
-
-      {/* Blog - public access */}
-      <Route path="/blog" element={<BlogList />} />
-      <Route path="/blog/:slug" element={<BlogPost />} />
-
-      {/* Sitemap - public access */}
-      <Route path="/sitemap.xml" element={<SitemapPage />} />
-      <Route path="/sitemap" element={<SitemapPage />} />
-
-      {/* Protected routes */}
-      <Route element={
-        <ProtectedRoute>
-          <SubscriptionProvider>
-            <SubscriptionEnforcer>
-            <DataProvider>
-              <SettingsProvider>
-                <NotificationProvider>
-                  <Layout />
-                </NotificationProvider>
-              </SettingsProvider>
-            </DataProvider>
-            </SubscriptionEnforcer>
-          </SubscriptionProvider>
-        </ProtectedRoute>
-      }>
-        <Route path="/app" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        
-        {/* Income */}
-        <Route path="/income" element={<IncomeList />} />
-        <Route path="/income/new" element={<IncomeForm />} />
-        <Route path="/income/edit/:id" element={<IncomeForm />} />
-        
-        {/* Expenses */}
-        <Route path="/expenses" element={<ExpenseList />} />
-        <Route path="/expenses/new" element={<ExpenseForm />} />
-        <Route path="/expenses/edit/:id" element={<ExpenseForm />} />
-        
-        {/* Invoices */}
-        <Route path="/invoices" element={<InvoiceList />} />
-        <Route path="/invoices/new" element={<InvoiceForm />} />
-        <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
-        <Route path="/invoices/:id/view" element={<InvoiceView />} />
-        <Route path="/invoices/templates" element={<InvoiceTemplatesPage />} />
-        <Route path="/reports/vat-return" element={<VATReturn />} />
-        {/* Recurring */}
-        <Route path="/invoices/recurring" element={<RecurringInvoices />} />
-        <Route path="/invoices/recurring/edit/:id" element={<RecurringInvoiceEdit />} />
-        <Route path="/invoices/recurring/template/:id" element={<RecurringInvoiceTemplateEdit />} />
-
-        {/* Projects */}
-        <Route path="/projects" element={<ProjectsList />} />
-        <Route path="/projects/new" element={<ProjectForm />} />
-        <Route path="/projects/:projectId" element={<ProjectDetail />} />
-        <Route path="/projects/:projectId/edit" element={<ProjectForm />} />
-
-        {/* Notifications */}
-        <Route path="/notifications" element={<NotificationCenter />} />
-        
-        {/* Clients */}
-        <Route path="/clients" element={<ClientList />} />
-        <Route path="/clients/new" element={<ClientForm />} />
-        <Route path="/clients/edit/:id" element={<ClientForm />} />
-
-        {/* Credit Notes */}
-        <Route path="/credit-notes" element={<CreditNoteList />} />
-        <Route path="/credit-notes/new/:invoiceId?" element={<CreditNoteForm />} />
-        <Route path="/credit-notes/edit/:id" element={<CreditNoteForm />} />
-        <Route path="/credit-notes/:id" element={<CreditNoteView />} />
-        
-        {/* Vendors */}
-        <Route path="/vendors" element={<VendorList />} />
-        <Route path="/vendors/new" element={<VendorForm />} />
-        <Route path="/vendors/:id/edit" element={<VendorForm />} />
-
-        {/* Loans */}
-        <Route path="/loans" element={<LoanList />} />
-        <Route path="/loans/new" element={<LoanForm />} />
-        <Route path="/loans/:id" element={<LoanView />} />
-        <Route path="/loans/:id/edit" element={<LoanForm />} />
-
-        {/* Reports */}
-        <Route path="/reports" element={<ReportsOverview />} />
-        <Route path="/reports/profit-loss" element={
-          <PlanProtectedRoute feature="profit_loss_statements"
-            featureName="Profit & Loss Statements"
-            fallbackPath="/reports">
-            <ProfitLossReport />
-          </PlanProtectedRoute>
+        <Route path="/invoice/public/:id" element={<PublicInvoiceView />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/setup" element={
+          <ProtectedRoute>
+            <SetupWizard />
+          </ProtectedRoute>
         } />
-        <Route path="/reports/client-profitability" element={
-          <PlanProtectedRoute feature="advanced_reports"
-            featureName="Client Profitability Analysis"
-            fallbackPath="/reports">
-            <ClientProfitability />
-          </PlanProtectedRoute>
-        } />
-        <Route path="/reports/cash-flow" element={
-          <PlanProtectedRoute feature="cash_flow_analysis"
-            featureName="Cash Flow Analysis"
-            fallbackPath="/reports">
-            <CashFlowInsights />
-          </PlanProtectedRoute>
-        } />
-        <Route path="/reports/vat" element={
-          <PlanProtectedRoute feature="advanced_reports"
-            featureName="VAT/Tax Report"
-            fallbackPath="/reports">
-            <VATReport />
-          </PlanProtectedRoute>
-        } />
-        <Route path="/reports/tax" element={
-          <PlanProtectedRoute feature="advanced_tax_reports"
-            featureName="Advanced Tax Reports"
-            fallbackPath="/reports">
-            <TaxReport />
-          </PlanProtectedRoute>
-        } />
-        
-        {/* Budget Planning - Plus only */}
-        <Route path="/budget" element={
-          <PlanProtectedRoute feature="budget_tracking">
-            <BudgetPlanning />
-          </PlanProtectedRoute>
-        } />
-        
-        {/* Settings */}
-        <Route path="/settings" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="/settings/profile" replace />} />
-          {/* Personal Settings - Accessible to all */}
-          <Route path="profile" element={<ProfileSettings />} />
-          <Route path="notifications" element={<NotificationPreferences />} />
-          <Route path="security" element={<SecuritySettings />} />
-          <Route path="data-protection" element={<DataProtectionSettings />} />
-          {/* Company Settings - Owner only */}
-          <Route path="team" element={<OwnerOnlyRoute><TeamManagement /></OwnerOnlyRoute>} />
-          <Route path="subscription" element={<OwnerOnlyRoute><SubscriptionPlans /></OwnerOnlyRoute>} />
-          <Route path="payment-accounts" element={<OwnerOnlyRoute><PaymentSettings /></OwnerOnlyRoute>} />
-          <Route path="tax" element={<OwnerOnlyRoute><TaxSettings /></OwnerOnlyRoute>} />
-          <Route path="currency" element={<OwnerOnlyRoute><CurrencySettings /></OwnerOnlyRoute>} />
-          <Route path="import-history" element={<OwnerOnlyRoute><ImportHistorySettings /></OwnerOnlyRoute>} />
-          <Route path="invoice" element={<OwnerOnlyRoute><InvoiceSettings onClose={() => {}} /></OwnerOnlyRoute>} />
-          <Route path="audit" element={<OwnerOnlyRoute><AuditLogs /></OwnerOnlyRoute>} />
-          <Route path="audit-analytics" element={<PlatformAdminRoute><AuditAnalytics /></PlatformAdminRoute>} />
-          <Route path="retention" element={<PlatformAdminRoute><RetentionDashboard /></PlatformAdminRoute>} />
-          <Route path="breach-management" element={<PlatformAdminRoute><BreachDashboard /></PlatformAdminRoute>} />
-          <Route path="ropa" element={<PlatformAdminRoute><RoPAManager /></PlatformAdminRoute>} />
+
+        {/* Legal pages - public access */}
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+
+        {/* Blog - public access */}
+        <Route path="/blog" element={<BlogList />} />
+        <Route path="/blog/:slug" element={<BlogPost />} />
+
+        {/* Sitemap - public access */}
+        <Route path="/sitemap.xml" element={<SitemapPage />} />
+        <Route path="/sitemap" element={<SitemapPage />} />
+
+        {/* Protected routes */}
+        <Route element={
+          <ProtectedRoute>
+            <SubscriptionProvider>
+              <SubscriptionEnforcer>
+                <DataProvider>
+                  <SettingsProvider>
+                    <NotificationProvider>
+                      <Layout />
+                    </NotificationProvider>
+                  </SettingsProvider>
+                </DataProvider>
+              </SubscriptionEnforcer>
+            </SubscriptionProvider>
+          </ProtectedRoute>
+        }>
+          <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Income */}
+          <Route path="/income" element={<IncomeList />} />
+          <Route path="/income/new" element={<IncomeForm />} />
+          <Route path="/income/edit/:id" element={<IncomeForm />} />
+
+          {/* Expenses */}
+          <Route path="/expenses" element={<ExpenseList />} />
+          <Route path="/expenses/new" element={<ExpenseForm />} />
+          <Route path="/expenses/edit/:id" element={<ExpenseForm />} />
+
+          {/* Invoices */}
+          <Route path="/invoices" element={<InvoiceList />} />
+          <Route path="/invoices/new" element={<InvoiceForm />} />
+          <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
+          <Route path="/invoices/:id/view" element={<InvoiceView />} />
+          <Route path="/invoices/templates" element={<InvoiceTemplatesPage />} />
+          <Route path="/reports/vat-return" element={<VATReturn />} />
+          {/* Recurring */}
+          <Route path="/invoices/recurring" element={<RecurringInvoices />} />
+          <Route path="/invoices/recurring/edit/:id" element={<RecurringInvoiceEdit />} />
+          <Route path="/invoices/recurring/template/:id" element={<RecurringInvoiceTemplateEdit />} />
+
+          {/* Projects */}
+          <Route path="/projects" element={<ProjectsList />} />
+          <Route path="/projects/new" element={<ProjectForm />} />
+          <Route path="/projects/:projectId" element={<ProjectDetail />} />
+          <Route path="/projects/:projectId/edit" element={<ProjectForm />} />
+
+          {/* Notifications */}
+          <Route path="/notifications" element={<NotificationCenter />} />
+
+          {/* Clients */}
+          <Route path="/clients" element={<ClientList />} />
+          <Route path="/clients/new" element={<ClientForm />} />
+          <Route path="/clients/edit/:id" element={<ClientForm />} />
+
+          {/* Credit Notes */}
+          <Route path="/credit-notes" element={<CreditNoteList />} />
+          <Route path="/credit-notes/new/:invoiceId?" element={<CreditNoteForm />} />
+          <Route path="/credit-notes/edit/:id" element={<CreditNoteForm />} />
+          <Route path="/credit-notes/:id" element={<CreditNoteView />} />
+
+          {/* Vendors */}
+          <Route path="/vendors" element={<VendorList />} />
+          <Route path="/vendors/new" element={<VendorForm />} />
+          <Route path="/vendors/:id/edit" element={<VendorForm />} />
+
+          {/* Loans */}
+          <Route path="/loans" element={<LoanList />} />
+          <Route path="/loans/new" element={<LoanForm />} />
+          <Route path="/loans/:id" element={<LoanView />} />
+          <Route path="/loans/:id/edit" element={<LoanForm />} />
+
+          {/* Reports */}
+          <Route path="/reports" element={<ReportsOverview />} />
+          <Route path="/reports/profit-loss" element={
+            <PlanProtectedRoute feature="profit_loss_statements"
+              featureName="Profit & Loss Statements"
+              fallbackPath="/reports">
+              <ProfitLossReport />
+            </PlanProtectedRoute>
+          } />
+          <Route path="/reports/client-profitability" element={
+            <PlanProtectedRoute feature="advanced_reports"
+              featureName="Client Profitability Analysis"
+              fallbackPath="/reports">
+              <ClientProfitability />
+            </PlanProtectedRoute>
+          } />
+          <Route path="/reports/cash-flow" element={
+            <PlanProtectedRoute feature="cash_flow_analysis"
+              featureName="Cash Flow Analysis"
+              fallbackPath="/reports">
+              <CashFlowInsights />
+            </PlanProtectedRoute>
+          } />
+          <Route path="/reports/vat" element={
+            <PlanProtectedRoute feature="advanced_reports"
+              featureName="VAT/Tax Report"
+              fallbackPath="/reports">
+              <VATReport />
+            </PlanProtectedRoute>
+          } />
+          <Route path="/reports/tax" element={
+            <PlanProtectedRoute feature="advanced_tax_reports"
+              featureName="Advanced Tax Reports"
+              fallbackPath="/reports">
+              <TaxReport />
+            </PlanProtectedRoute>
+          } />
+
+          {/* Budget Planning - Plus only */}
+          <Route path="/budget" element={
+            <PlanProtectedRoute feature="budget_tracking">
+              <BudgetPlanning />
+            </PlanProtectedRoute>
+          } />
+
+          {/* Settings */}
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="/settings/profile" replace />} />
+            {/* Personal Settings - Accessible to all */}
+            <Route path="profile" element={<ProfileSettings />} />
+            <Route path="notifications" element={<NotificationPreferences />} />
+            <Route path="security" element={<SecuritySettings />} />
+            <Route path="data-protection" element={<DataProtectionSettings />} />
+            {/* Company Settings - Owner only */}
+            <Route path="team" element={<OwnerOnlyRoute><TeamManagement /></OwnerOnlyRoute>} />
+            <Route path="subscription" element={<OwnerOnlyRoute><SubscriptionPlans /></OwnerOnlyRoute>} />
+            <Route path="payment-accounts" element={<OwnerOnlyRoute><PaymentSettings /></OwnerOnlyRoute>} />
+            <Route path="tax" element={<OwnerOnlyRoute><TaxSettings /></OwnerOnlyRoute>} />
+            <Route path="currency" element={<OwnerOnlyRoute><CurrencySettings /></OwnerOnlyRoute>} />
+            <Route path="import-history" element={<OwnerOnlyRoute><ImportHistorySettings /></OwnerOnlyRoute>} />
+            <Route path="invoice" element={<OwnerOnlyRoute><InvoiceSettings onClose={() => { }} /></OwnerOnlyRoute>} />
+            <Route path="audit" element={<OwnerOnlyRoute><AuditLogs /></OwnerOnlyRoute>} />
+            <Route path="audit-analytics" element={<PlatformAdminRoute><AuditAnalytics /></PlatformAdminRoute>} />
+            <Route path="retention" element={<PlatformAdminRoute><RetentionDashboard /></PlatformAdminRoute>} />
+            <Route path="breach-management" element={<PlatformAdminRoute><BreachDashboard /></PlatformAdminRoute>} />
+            <Route path="ropa" element={<PlatformAdminRoute><RoPAManager /></PlatformAdminRoute>} />
+          </Route>
+
+          {/* Admin Dashboard - Platform Admin Only */}
+          <Route path="/admin/dashboard" element={<PlatformAdminRoute><AdminDashboard /></PlatformAdminRoute>} />
+
+          {/* Admin SEO & Blog Management - SEO Admin or Platform Admin only */}
+          <Route path="/admin/seo-manager" element={<SEOAdminRoute><SEOManagerDashboard /></SEOAdminRoute>} />
+          <Route path="/admin/blog-manager" element={<SEOAdminRoute><BlogManagerDashboard /></SEOAdminRoute>} />
+
+          <Route path="/payment/success" element={<PaymentSuccess />} />
         </Route>
-
-        {/* Admin Dashboard - Platform Admin Only */}
-        <Route path="/admin/dashboard" element={<PlatformAdminRoute><AdminDashboard /></PlatformAdminRoute>} />
-
-        {/* Admin SEO & Blog Management - SEO Admin or Platform Admin only */}
-        <Route path="/admin/seo-manager" element={<SEOAdminRoute><SEOManagerDashboard /></SEOAdminRoute>} />
-        <Route path="/admin/blog-manager" element={<SEOAdminRoute><BlogManagerDashboard /></SEOAdminRoute>} />
-
-        <Route path="/payment/success" element={<PaymentSuccess />} />
-      </Route>
-    </Routes>
+      </Routes>
     </>
   );
 }

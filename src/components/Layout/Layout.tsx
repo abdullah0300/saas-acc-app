@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { AIChatWidget } from '../AI/AIChatWidget';
 import { useAuth } from '../../contexts/AuthContext';
 import { AlertCircle, LogOut } from 'lucide-react';
 
@@ -46,17 +45,14 @@ export const Layout: React.FC = () => {
 
       <div className={`transition-all duration-200 ease-out ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'} ${isImpersonating ? 'pt-14' : ''}`}>
         <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        
+
         <main className="p-4 md:p-6">
           <Outlet />
 
-        {/* Bottom padding for content */}
-<div className="h-20 block sm:hidden" />
+          {/* Bottom padding for content */}
+          <div className="h-20 block sm:hidden" />
         </main>
       </div>
-
-      {/* AI Chat Widget - only available to authenticated users inside SettingsProvider */}
-      <AIChatWidget />
     </div>
   );
 };
