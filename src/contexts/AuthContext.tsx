@@ -39,20 +39,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       try {
         console.log('🔐 AuthContext: Initializing authentication');
-        
-        const rememberMe = localStorage.getItem('smartcfo-remember-me');
-        const tempSession = sessionStorage.getItem('smartcfo-temp-session');
-        
-        console.log('🔐 Remember settings:', { rememberMe, tempSession });
 
         // Get current session WITHOUT triggering a refresh
         const { data: { session }, error } = await supabase.auth.getSession();
-        
-        console.log('🔐 Session check:', { 
-          hasSession: !!session, 
+
+        console.log('🔐 Session check:', {
+          hasSession: !!session,
           provider: session?.user?.app_metadata?.provider,
           email: session?.user?.email,
-          error 
+          error
         });
 
         if (error) {
@@ -128,28 +123,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (session) {
-          // Apply remember-me logic to ALL users (OAuth and email/password)
-          console.log('🔐 Session detected, checking remember preference');
+          // CRITICAL FIX: If Supabase says we have a valid session, TRUST IT
+          // Never auto-logout a user who has a valid session
+          // The remember-me feature works via browser storage persistence, not by actively logging out
+          console.log('🔐 Valid session found, keeping user logged in');
+          console.log('🔐 Session details:', {
+            provider: session.user?.app_metadata?.provider || 'email',
+            email: session.user?.email,
+            userId: session.user?.id
+          });
 
-          // OAuth users are treated the same as email users now
-          const isOAuthSession = session.user?.app_metadata?.provider &&
-                                session.user.app_metadata.provider !== 'email';
-
-          // For OAuth users, assume they want to stay logged in (like "remember me")
-          if (isOAuthSession || rememberMe || tempSession) {
-            console.log('🔐 Remember preference found or OAuth user, maintaining session');
-            if (mounted) {
-              setUser(session.user);
-              setLoading(false);
-            }
-          } else {
-            console.log('🔐 No remember preference, signing out user');
-            await supabase.auth.signOut();
-            if (mounted) {
-              setUser(null);
-              setLoading(false);
-            }
-            return;
+          if (mounted) {
+            setUser(session.user);
+            setLoading(false);
           }
         } else {
           console.log('🔐 No session found');
@@ -176,16 +162,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const currentUser = session?.user ?? null;
         const previousUser = user;
-        
+
         setUser(currentUser);
-        
+
         // Handle auth events
         if (event === 'SIGNED_IN' && currentUser && !previousUser) {
           console.log('✅ User signed in:', currentUser.email);
 
           // Check if this is an OAuth sign-in or regular sign-in
           const isOAuth = currentUser.app_metadata?.provider &&
-                          currentUser.app_metadata.provider !== 'email';
+            currentUser.app_metadata.provider !== 'email';
 
           await auditService.logLogin(currentUser.id, true, {
             method: isOAuth ? 'oauth' : 'password',
@@ -200,7 +186,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await auditService.logLogout(previousUser.id);
           // Clear remember me preference on sign out
           localStorage.removeItem('smartcfo-remember-me');
-          sessionStorage.removeItem('smartcfo-temp-session');
         } else if (event === 'TOKEN_REFRESHED') {
           console.log('🔄 Session token refreshed successfully');
         } else if (event === 'USER_UPDATED') {
@@ -224,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
       });
-      
+
       if (error) {
         // Log failed login attempt
         const { data: profiles } = await supabase
@@ -232,17 +217,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('id')
           .eq('email', email)
           .single();
-        
+
         if (profiles?.id) {
           await auditService.logLogin(profiles.id, false, {
             email,
             error: error.message
           });
         }
-        
+
         throw error;
       }
-      
+
       // Successful login is logged by onAuthStateChange
     } catch (error) {
       throw error;
@@ -252,7 +237,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     // Clear remember me preference
     localStorage.removeItem('smartcfo-remember-me');
-    sessionStorage.removeItem('smartcfo-temp-session');
 
     // Logout is logged by onAuthStateChange
     const { error } = await supabase.auth.signOut();

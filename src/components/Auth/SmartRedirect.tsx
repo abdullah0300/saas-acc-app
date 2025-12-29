@@ -42,29 +42,15 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
         delete (window as any)[checkKey];
 
         // Check if user has completed onboarding setup
-        // Handle case where setup_completed column doesn't exist yet
+        // Single query for both profile and setup_completed status
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('company_name, first_name, last_name')
+          .select('company_name, first_name, last_name, setup_completed')
           .eq('id', user.id)
           .maybeSingle();
 
-        // If profile query fails, try without setup_completed column
-        let setupCompleted = false;
-        if (!profileError && profile) {
-          // Try to get setup_completed separately to handle column not existing
-          try {
-            const { data: setupData } = await supabase
-              .from('profiles')
-              .select('setup_completed')
-              .eq('id', user.id)
-              .maybeSingle();
-            setupCompleted = setupData?.setup_completed || false;
-          } catch (err) {
-            console.warn('setup_completed column not found, treating as false');
-            setupCompleted = false;
-          }
-        }
+        // Determine if setup is completed
+        const setupCompleted = profile?.setup_completed === true;
 
         if (!profile) {
           // Create minimal profile for new users (OAuth or email)
@@ -73,11 +59,11 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
             id: user.id,
             email: user.email,
             first_name: user.user_metadata?.full_name?.split(' ')[0] ||
-                        user.user_metadata?.first_name ||
-                        'User',
+              user.user_metadata?.first_name ||
+              'User',
             last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
-                       user.user_metadata?.last_name ||
-                       '',
+              user.user_metadata?.last_name ||
+              '',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -175,10 +161,12 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
     return <>{fallback}</>;
   }
 
-  // Safety timeout - force redirect to dashboard
+  // Safety timeout - redirect to SETUP as safer default for new users
+  // Better to show setup wizard than let new users access dashboard without proper configuration
   if (timeoutReached && user) {
-    console.log('⏰ SmartRedirect: Timeout reached, forcing redirect to dashboard');
-    return <Navigate to="/dashboard" replace />;
+    console.log('⏰ SmartRedirect: Timeout reached - redirecting to setup as safe default');
+    // If we determined they need setup, go to setup. Otherwise default to dashboard.
+    return <Navigate to={needsSetup ? "/setup" : "/dashboard"} replace />;
   }
 
   // If user needs setup, redirect to setup wizard

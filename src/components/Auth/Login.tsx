@@ -136,38 +136,42 @@ export const Login: React.FC = () => {
   const currentTheme = mobileThemes[currentThemeIndex];
 
   // Replace the entire handleForgotPassword function with:
-const handleForgotPassword = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setResetLoading(true);
-  
-  try {
-    // Use supabaseRecovery instead of supabase for password reset
-    const { error } = await supabaseRecovery.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${process.env.REACT_APP_SITE_URL || window.location.origin}/reset-password`,
-    });
-    
-    if (error) throw error;
-    
-    // Show success message instead of alert
-    setSuccessMessage('Password reset email sent! Check your inbox.');
-    setShowSuccessMessage(true);
-    setShowForgotModal(false);
-    setResetEmail('');
-    
-    // Hide success message after 5 seconds
-    setTimeout(() => setShowSuccessMessage(false), 5000);
-  } catch (error: any) {
-    // Keep alert for errors or create error state
-    alert('Error: ' + error.message);
-  } finally {
-    setResetLoading(false);
-  }
-};
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+
+    try {
+      // Use supabaseRecovery instead of supabase for password reset
+      const { error } = await supabaseRecovery.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${process.env.REACT_APP_SITE_URL || window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      // Show success message instead of alert
+      setSuccessMessage('Password reset email sent! Check your inbox.');
+      setShowSuccessMessage(true);
+      setShowForgotModal(false);
+      setResetEmail('');
+
+      // Hide success message after 5 seconds
+      setTimeout(() => setShowSuccessMessage(false), 5000);
+    } catch (error: any) {
+      // Keep alert for errors or create error state
+      alert('Error: ' + error.message);
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   // Social authentication handlers
   const handleSocialAuth = async (provider: 'google' | 'facebook' | 'linkedin_oidc') => {
     setSocialLoading(provider);
     try {
+      // OAuth users are always "remembered" - set the flag before redirect
+      // This ensures consistent behavior and the user stays logged in
+      localStorage.setItem('smartcfo-remember-me', 'true');
+
       // Ensure HTTPS redirect URL
       let redirectUrl = process.env.REACT_APP_SITE_URL || window.location.origin;
 
@@ -199,32 +203,31 @@ const handleForgotPassword = async (e: React.FormEvent) => {
     }
   };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-    // Store remember me preference
-    if (rememberMe) {
-      // Set a flag in localStorage to indicate user wants to stay logged in
-      localStorage.setItem('smartcfo-remember-me', 'true');
-    } else {
-      // Clear the flag if they don't want to be remembered
-      localStorage.removeItem('smartcfo-remember-me');
-      
-      // Set up session to clear on browser close
-      sessionStorage.setItem('smartcfo-temp-session', 'true');
-    }
+      // Store remember me preference
+      if (rememberMe) {
+        // Set a flag in localStorage to indicate user wants to stay logged in
+        localStorage.setItem('smartcfo-remember-me', 'true');
+      } else {
+        // Clear the flag if they don't want to be remembered
+        // Note: Supabase will still maintain the session until browser/tab is closed
+        // The flag is just for our reference if needed later
+        localStorage.removeItem('smartcfo-remember-me');
+      }
 
-    await signIn(email, password);
-    navigate("/"); // Let SmartRedirect handle routing
+      await signIn(email, password);
+      navigate("/"); // Let SmartRedirect handle routing
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-      };
+  };
 
   // Features for the side panel
   const features = [
@@ -325,10 +328,10 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                 <>
                   <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                     </svg>
                   </div>
                   <span className="text-gray-900 font-medium flex-1 text-left">
@@ -353,7 +356,7 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                 <>
                   <div className="w-5 h-5 bg-[#0A66C2] rounded flex items-center justify-center">
                     <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                     </svg>
                   </div>
                   <span className="text-gray-900 font-medium flex-1 text-left">
@@ -516,10 +519,10 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   <>
                     <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
                       <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                       </svg>
                     </div>
                     <span className="text-gray-700 font-medium text-lg group-hover:text-gray-900 transition-colors">
@@ -569,7 +572,7 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   <>
                     <div className="w-6 h-6 bg-[#0A66C2] rounded flex items-center justify-center">
                       <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                       </svg>
                     </div>
                     <span className="text-gray-700 font-medium text-lg group-hover:text-blue-700 transition-colors">
@@ -925,138 +928,138 @@ const handleForgotPassword = async (e: React.FormEvent) => {
   }
 `}</style>
       {/* Forgot Password Modal */}
-{/* Forgot Password Modal */}
-{showForgotModal && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all animate-modal-slide-up">
-      {/* Header with gradient */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 rounded-t-3xl">
-        <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-white/20 backdrop-blur mb-4">
-            <Mail className="h-8 w-8 text-white" />
-          </div>
-          <h3 className="text-xl font-semibold text-white">Reset Your Password</h3>
-          <p className="text-indigo-100 mt-2 text-sm">
-            We'll send you a link to reset your password
-          </p>
-        </div>
-      </div>
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all animate-modal-slide-up">
+            {/* Header with gradient */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 rounded-t-3xl">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-white/20 backdrop-blur mb-4">
+                  <Mail className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-white">Reset Your Password</h3>
+                <p className="text-indigo-100 mt-2 text-sm">
+                  We'll send you a link to reset your password
+                </p>
+              </div>
+            </div>
 
-      {/* Content */}
-      <div className="p-6">
-        {/* Spam notice */}
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <div className="flex items-start">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div>
-              <p className="text-sm text-amber-800 font-medium">Check your spam folder</p>
-              <p className="text-xs text-amber-700 mt-1">
-                Reset emails sometimes end up in spam. Make sure to check there and mark as "Not Spam" if you find it.
-              </p>
+            {/* Content */}
+            <div className="p-6">
+              {/* Spam notice */}
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-amber-800 font-medium">Check your spam folder</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Reset emails sometimes end up in spam. Make sure to check there and mark as "Not Spam" if you find it.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleForgotPassword}>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
+                      placeholder="Enter your email address"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 ml-1">
+                    Enter the email associated with your account
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotModal(false);
+                      setResetEmail('');
+                    }}
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:shadow-lg transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    {resetLoading ? (
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                        Sending...
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <Mail className="h-5 w-5 mr-2" />
+                        Send Reset Link
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Additional help text */}
+              <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+                <p className="text-xs text-gray-500">
+                  Remember your password? {' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="text-indigo-600 hover:text-indigo-500 font-medium"
+                  >
+                    Back to login
+                  </button>
+                </p>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        <form onSubmit={handleForgotPassword}>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="email"
-                value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
-                placeholder="Enter your email address"
-                required
-                autoFocus
-              />
+      {/* Success Message Toast - Update this too */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 transform transition-all duration-300 ease-in-out animate-slide-in">
+          <div className="bg-white rounded-xl shadow-2xl border border-green-100 p-4 max-w-sm">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-gray-900">Email Sent!</h3>
+                <p className="text-sm text-gray-600 mt-1">{successMessage}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Don't forget to check your spam folder
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSuccessMessage(false)}
+                className="ml-3 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2 ml-1">
-              Enter the email associated with your account
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowForgotModal(false);
-                setResetEmail('');
-              }}
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={resetLoading}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:shadow-lg transform transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              {resetLoading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                  Sending...
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <Mail className="h-5 w-5 mr-2" />
-                  Send Reset Link
-                </div>
-              )}
-            </button>
-          </div>
-        </form>
-
-        {/* Additional help text */}
-        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-500">
-            Remember your password? {' '}
-            <button
-              type="button"
-              onClick={() => setShowForgotModal(false)}
-              className="text-indigo-600 hover:text-indigo-500 font-medium"
-            >
-              Back to login
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Success Message Toast - Update this too */}
-{showSuccessMessage && (
-  <div className="fixed top-4 right-4 z-50 transform transition-all duration-300 ease-in-out animate-slide-in">
-    <div className="bg-white rounded-xl shadow-2xl border border-green-100 p-4 max-w-sm">
-      <div className="flex items-start">
-        <div className="flex-shrink-0">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-            <CheckCircle className="h-6 w-6 text-white" />
           </div>
         </div>
-        <div className="ml-3 flex-1">
-          <h3 className="text-sm font-medium text-gray-900">Email Sent!</h3>
-          <p className="text-sm text-gray-600 mt-1">{successMessage}</p>
-          <p className="text-xs text-gray-500 mt-2">
-            Don't forget to check your spam folder
-          </p>
-        </div>
-        <button
-          onClick={() => setShowSuccessMessage(false)}
-          className="ml-3 text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 };
