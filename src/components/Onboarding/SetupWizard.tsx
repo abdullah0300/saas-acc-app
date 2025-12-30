@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { countries } from '../../data/countries';
-import { 
-  Building, 
-  MapPin, 
-  DollarSign, 
-  ArrowRight, 
+import {
+  Building,
+  MapPin,
+  DollarSign,
+  ArrowRight,
   ArrowLeft,
   Check,
   Loader2,
@@ -236,7 +236,7 @@ export const SetupWizard: React.FC = () => {
         { name: 'Consulting', type: 'income', color: '#10B981' },
         { name: 'Sales', type: 'income', color: '#3B82F6' },
         { name: 'Other Income', type: 'income', color: '#8B5CF6' },
-        
+
         // Expense categories
         { name: 'Office Supplies', type: 'expense', color: '#EF4444' },
         { name: 'Marketing', type: 'expense', color: '#F59E0B' },
@@ -279,6 +279,36 @@ export const SetupWizard: React.FC = () => {
         } else {
           console.log('✅ Default tax rate created successfully');
         }
+      }
+
+      // Step 6: Save AI user context (business type, size, stage)
+      console.log('🤖 Saving AI user context...');
+      const aiContextData = {
+        user_id: user.id,
+        business_type: formData.industry || null,
+        business_stage: formData.businessAge || 'startup',
+        location: formData.state ? `${formData.state}, ${formData.country}` : formData.country,
+        preferences_json: {
+          business_size: formData.businessSize || null,
+          onboarding_completed: true,
+          onboarding_date: new Date().toISOString()
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: aiContextError } = await supabase
+        .from('ai_user_context')
+        .upsert(aiContextData, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        });
+
+      if (aiContextError) {
+        console.warn('⚠️ AI context creation error (non-critical):', aiContextError);
+        // Don't throw - AI context is for enhancement, not critical
+      } else {
+        console.log('✅ AI user context saved successfully');
       }
 
       console.log('🎉 Setup completed successfully! Redirecting to dashboard...');
@@ -351,11 +381,10 @@ export const SetupWizard: React.FC = () => {
                     key={size.value}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, businessSize: size.value }))}
-                    className={`p-3 text-left border rounded-lg transition-colors ${
-                      formData.businessSize === size.value
+                    className={`p-3 text-left border rounded-lg transition-colors ${formData.businessSize === size.value
                         ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                         : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                      }`}
                   >
                     {size.label}
                   </button>
@@ -378,11 +407,10 @@ export const SetupWizard: React.FC = () => {
                     key={age.value}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, businessAge: age.value }))}
-                    className={`p-3 text-left border rounded-lg transition-colors ${
-                      formData.businessAge === age.value
+                    className={`p-3 text-left border rounded-lg transition-colors ${formData.businessAge === age.value
                         ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                         : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                      }`}
                   >
                     {age.label}
                   </button>
@@ -483,16 +511,15 @@ export const SetupWizard: React.FC = () => {
               </span>
               <button
                 type="button"
-                onClick={() => setFormData(prev => ({ 
-                  ...prev, 
-                  interval: prev.interval === 'monthly' ? 'yearly' : 'monthly' 
+                onClick={() => setFormData(prev => ({
+                  ...prev,
+                  interval: prev.interval === 'monthly' ? 'yearly' : 'monthly'
                 }))}
                 className="mx-3 relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData.interval === 'yearly' ? 'translate-x-6' : 'translate-x-1'
-                  }`}
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.interval === 'yearly' ? 'translate-x-6' : 'translate-x-1'
+                    }`}
                 />
               </button>
               <span className={`text-sm ${formData.interval === 'yearly' ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
@@ -507,124 +534,120 @@ export const SetupWizard: React.FC = () => {
             <div className="flex justify-center">
               <div className="w-full max-w-md">
                 {PLANS.map((plan) => {
-                const IconComponent = plan.icon;
-                const price = formData.interval === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
-                const originalPrice = formData.interval === 'yearly' ? plan.originalYearlyPrice : plan.originalMonthlyPrice;
-                const monthlyEquivalent = formData.interval === 'yearly' ? plan.yearlyPrice / 12 : plan.monthlyPrice;
-                const hasDiscount = !!originalPrice;
+                  const IconComponent = plan.icon;
+                  const price = formData.interval === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+                  const originalPrice = formData.interval === 'yearly' ? plan.originalYearlyPrice : plan.originalMonthlyPrice;
+                  const monthlyEquivalent = formData.interval === 'yearly' ? plan.yearlyPrice / 12 : plan.monthlyPrice;
+                  const hasDiscount = !!originalPrice;
 
-                const isSelected = formData.plan === plan.id;
+                  const isSelected = formData.plan === plan.id;
 
-                return (
-                  <div
-                    key={plan.id}
-                    className={`relative p-6 border-2 rounded-xl transition-all cursor-pointer transform ${
-                      isSelected
-                        ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-[1.02] ring-2 ring-indigo-200'
-                        : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
-                    }`}
-                    onClick={() => setFormData(prev => ({ ...prev, plan: plan.id }))}
-                  >
-                    {/* Selection Indicator */}
-                    {isSelected && (
-                      <div className="absolute top-4 right-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
-                          <Check className="h-5 w-5 text-white" />
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`relative p-6 border-2 rounded-xl transition-all cursor-pointer transform ${isSelected
+                          ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-[1.02] ring-2 ring-indigo-200'
+                          : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
+                        }`}
+                      onClick={() => setFormData(prev => ({ ...prev, plan: plan.id }))}
+                    >
+                      {/* Selection Indicator */}
+                      {isSelected && (
+                        <div className="absolute top-4 right-4">
+                          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
+                            <Check className="h-5 w-5 text-white" />
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Click to Select Indicator */}
-                    {!isSelected && (
-                      <div className="absolute top-4 right-4">
-                        <div className="w-8 h-8 border-2 border-gray-300 rounded-full flex items-center justify-center bg-white">
-                          <div className="w-3 h-3 border-2 border-gray-400 rounded-full"></div>
+                      {/* Click to Select Indicator */}
+                      {!isSelected && (
+                        <div className="absolute top-4 right-4">
+                          <div className="w-8 h-8 border-2 border-gray-300 rounded-full flex items-center justify-center bg-white">
+                            <div className="w-3 h-3 border-2 border-gray-400 rounded-full"></div>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {plan.popular && !isSelected && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <span className="bg-indigo-500 text-white text-xs font-medium px-3 py-1 rounded-full">
-                          Most Popular
-                        </span>
-                      </div>
-                    )}
-
-                    {isSelected && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-medium px-3 py-1 rounded-full shadow-md">
-                          Selected
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="text-center mb-4">
-                      <div className="h-8 w-8 mx-auto mb-2 text-indigo-600 flex items-center justify-center">
-                        <IconComponent />
-                      </div>
-                      <h3 className={`text-lg font-semibold ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
-                        {plan.name}
-                      </h3>
-                      <div className="mt-2">
-                        {hasDiscount && (
-                          <div className="text-lg text-gray-400 line-through mb-1">
-                            ${originalPrice}
-                          </div>
-                        )}
-                        <span className={`text-3xl font-bold ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
-                          ${price}
-                        </span>
-                        <span className="text-gray-500">
-                          /{formData.interval === 'yearly' ? 'year' : 'month'}
-                        </span>
-                        {hasDiscount && (
-                          <div className="text-sm text-green-600 font-semibold mt-1">
-                            Special Offer - Limited Time!
-                          </div>
-                        )}
-                        {formData.interval === 'yearly' && !hasDiscount && (
-                          <div className="text-sm text-gray-500">
-                            ${monthlyEquivalent.toFixed(2)}/month billed annually
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <ul className="space-y-2 mb-4">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <Check className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
-                            plan.highlighted?.includes(feature) 
-                              ? isSelected ? 'text-indigo-600' : 'text-indigo-500'
-                              : 'text-green-500'
-                          }`} />
-                          <span className={`text-sm ${
-                            plan.highlighted?.includes(feature) 
-                              ? isSelected ? 'text-indigo-800 font-medium' : 'text-indigo-700 font-medium'
-                              : 'text-gray-600'
-                          }`}>
-                            {feature}
+                      {plan.popular && !isSelected && (
+                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                          <span className="bg-indigo-500 text-white text-xs font-medium px-3 py-1 rounded-full">
+                            Most Popular
                           </span>
-                        </li>
-                      ))}
-                    </ul>
+                        </div>
+                      )}
 
-                    {/* Prominent Trial Badge */}
-                    <div className="text-center mt-6 pt-4 border-t border-gray-200">
-                      <div className={`inline-flex items-center gap-2 ${
-                        isSelected 
-                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600' 
-                          : 'bg-gray-100'
-                      } text-white px-4 py-2.5 rounded-xl shadow-md transition-colors`}>
-                        <Calendar className="h-5 w-5" />
-                        <span className="font-semibold text-sm">60-Day Free Trial</span>
+                      {isSelected && (
+                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-medium px-3 py-1 rounded-full shadow-md">
+                            Selected
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="text-center mb-4">
+                        <div className="h-8 w-8 mx-auto mb-2 text-indigo-600 flex items-center justify-center">
+                          <IconComponent />
+                        </div>
+                        <h3 className={`text-lg font-semibold ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                          {plan.name}
+                        </h3>
+                        <div className="mt-2">
+                          {hasDiscount && (
+                            <div className="text-lg text-gray-400 line-through mb-1">
+                              ${originalPrice}
+                            </div>
+                          )}
+                          <span className={`text-3xl font-bold ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                            ${price}
+                          </span>
+                          <span className="text-gray-500">
+                            /{formData.interval === 'yearly' ? 'year' : 'month'}
+                          </span>
+                          {hasDiscount && (
+                            <div className="text-sm text-green-600 font-semibold mt-1">
+                              Special Offer - Limited Time!
+                            </div>
+                          )}
+                          {formData.interval === 'yearly' && !hasDiscount && (
+                            <div className="text-sm text-gray-500">
+                              ${monthlyEquivalent.toFixed(2)}/month billed annually
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">No credit card required • Cancel anytime</p>
+
+                      <ul className="space-y-2 mb-4">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <Check className={`h-4 w-4 mt-0.5 flex-shrink-0 ${plan.highlighted?.includes(feature)
+                                ? isSelected ? 'text-indigo-600' : 'text-indigo-500'
+                                : 'text-green-500'
+                              }`} />
+                            <span className={`text-sm ${plan.highlighted?.includes(feature)
+                                ? isSelected ? 'text-indigo-800 font-medium' : 'text-indigo-700 font-medium'
+                                : 'text-gray-600'
+                              }`}>
+                              {feature}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Prominent Trial Badge */}
+                      <div className="text-center mt-6 pt-4 border-t border-gray-200">
+                        <div className={`inline-flex items-center gap-2 ${isSelected
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600'
+                            : 'bg-gray-100'
+                          } text-white px-4 py-2.5 rounded-xl shadow-md transition-colors`}>
+                          <Calendar className="h-5 w-5" />
+                          <span className="font-semibold text-sm">60-Day Free Trial</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">No credit card required • Cancel anytime</p>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -647,11 +670,10 @@ export const SetupWizard: React.FC = () => {
                 className={`flex items-center ${index < SETUP_STEPS.length - 1 ? 'flex-1' : ''}`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    index <= currentStep
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${index <= currentStep
                       ? 'bg-indigo-600 text-white'
                       : 'bg-gray-200 text-gray-600'
-                  }`}
+                    }`}
                 >
                   {index < currentStep ? (
                     <Check className="h-4 w-4" />
@@ -661,15 +683,14 @@ export const SetupWizard: React.FC = () => {
                 </div>
                 {index < SETUP_STEPS.length - 1 && (
                   <div
-                    className={`flex-1 h-0.5 mx-4 ${
-                      index < currentStep ? 'bg-indigo-600' : 'bg-gray-200'
-                    }`}
+                    className={`flex-1 h-0.5 mx-4 ${index < currentStep ? 'bg-indigo-600' : 'bg-gray-200'
+                      }`}
                   />
                 )}
               </div>
             ))}
           </div>
-          
+
           <div className="text-center">
             <h1 className="text-lg font-medium text-gray-900">
               {SETUP_STEPS[currentStep].title}
@@ -708,7 +729,7 @@ export const SetupWizard: React.FC = () => {
                 Back
               </button>
             )}
-            
+
             {/* {currentStep < 2 && (
               <button
                 type="button"

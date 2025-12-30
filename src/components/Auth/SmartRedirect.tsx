@@ -55,15 +55,26 @@ export const SmartRedirect: React.FC<SmartRedirectProps> = ({ fallback }) => {
         if (!profile) {
           // Create minimal profile for new users (OAuth or email)
           console.log('📝 Creating minimal profile for new user');
+
+          // Extract name from OAuth metadata
+          const firstName = user.user_metadata?.full_name?.split(' ')[0] ||
+            user.user_metadata?.first_name ||
+            user.user_metadata?.given_name ||
+            'User';
+          const lastName = user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
+            user.user_metadata?.last_name ||
+            user.user_metadata?.family_name ||
+            '';
+          const fullName = user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            `${firstName} ${lastName}`.trim();
+
           const profileData: any = {
             id: user.id,
             email: user.email,
-            first_name: user.user_metadata?.full_name?.split(' ')[0] ||
-              user.user_metadata?.first_name ||
-              'User',
-            last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
-              user.user_metadata?.last_name ||
-              '',
+            first_name: firstName,
+            last_name: lastName,
+            full_name: fullName, // ✅ Now includes full_name!
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };

@@ -202,7 +202,6 @@ export interface UserSettings {
 export interface InvoiceSettings {
   id: string;
   user_id: string;
-  invoice_prefix: string;
   next_number: number;
   due_days: number;
   payment_terms: number;
@@ -214,23 +213,23 @@ export interface InvoiceSettings {
 }
 
 // Notification types
-export type NotificationType = 
+export type NotificationType =
   | 'welcome'
-  | 'invoice_sent' 
-  | 'invoice_viewed' 
+  | 'invoice_sent'
+  | 'invoice_viewed'
   | 'invoice_generated'
-  | 'invoice_paid' 
+  | 'invoice_paid'
   | 'invoice_overdue'
-  | 'payment_received' 
-  | 'expense_added' 
+  | 'payment_received'
+  | 'expense_added'
   | 'budget_exceeded'
-  | 'team_invited' 
-  | 'team_joined' 
+  | 'team_invited'
+  | 'team_joined'
   | 'team_removed'
-  | 'subscription_upgraded' 
-  | 'subscription_downgraded' 
+  | 'subscription_upgraded'
+  | 'subscription_downgraded'
   | 'subscription_expiring'
-  | 'system_update' 
+  | 'system_update'
   | 'feature_announcement';
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -353,7 +352,7 @@ export interface CreditNote {
   items?: CreditNoteItem[];
   created_at: string;
   updated_at: string;
-   tax_metadata?: any;
+  tax_metadata?: any;
 }
 
 export interface CreditNoteItem {

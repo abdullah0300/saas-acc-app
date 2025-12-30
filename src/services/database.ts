@@ -45,7 +45,7 @@ export const getProfile = async (userId: string) => {
     .select('*')
     .eq('id', userId)
     .maybeSingle();
-  
+
   if (error) throw error;
   return data as User;
 };
@@ -57,7 +57,7 @@ export const updateProfile = async (userId: string, updates: Partial<User>) => {
     .eq('id', userId)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -71,7 +71,7 @@ export const getSubscription = async (userId: string) => {
 // Category functions - Team aware
 export const getCategories = async (userId: string, type?: TransactionType) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   let query = supabase
     .from('categories')
     .select('*')
@@ -89,7 +89,7 @@ export const getCategories = async (userId: string, type?: TransactionType) => {
 
 export const createCategory = async (category: Omit<Category, 'id' | 'created_at'>) => {
   const effectiveUserId = await getEffectiveUserId(category.user_id);
-  
+
   const { data, error } = await supabase
     .from('categories')
     .insert([{
@@ -98,7 +98,7 @@ export const createCategory = async (category: Omit<Category, 'id' | 'created_at
     }])
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -110,7 +110,7 @@ export const updateCategory = async (id: string, updates: Partial<Category>) => 
     .eq('id', id)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -120,17 +120,17 @@ export const deleteCategory = async (id: string) => {
     .from('categories')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 };
 
 // Income functions - Team aware
 export const getIncomes = async (userId: string, startDate?: string, endDate?: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   let query = supabase
-  .from('income')
-  .select(`
+    .from('income')
+    .select(`
     *,
     category:categories(*),
     client:clients(*)
@@ -157,7 +157,7 @@ export const getIncomes = async (userId: string, startDate?: string, endDate?: s
   }
 
   const { data, error } = await query;
-  
+
   // Debug logging for date queries
   if (startDate || endDate) {
     console.log('[getIncomes] Query params - startDate:', startDate, 'endDate:', endDate);
@@ -166,7 +166,7 @@ export const getIncomes = async (userId: string, startDate?: string, endDate?: s
       console.log('[getIncomes] Sample dates from results:', data.slice(0, 3).map((inc: any) => ({ id: inc.id, date: inc.date, description: inc.description })));
     }
   }
-  
+
   if (error) throw error;
   return data as Income[];
 };
@@ -175,23 +175,23 @@ export const createIncome = async (income: Omit<Income, 'id' | 'created_at' | 'u
   const effectiveUserId = await getEffectiveUserId(income.user_id);
 
   const { data, error } = await supabase
-  .from('income')
-  .insert([{
-    ...income,
-    user_id: effectiveUserId,
-    category_id: income.category_id || null,
-    client_id: income.client_id || null,
-    reference_number: income.reference_number || null,
-    tax_rate: income.tax_rate ?? null,
-    tax_amount: income.tax_amount ?? null
-  }])
+    .from('income')
+    .insert([{
+      ...income,
+      user_id: effectiveUserId,
+      category_id: income.category_id || null,
+      client_id: income.client_id || null,
+      reference_number: income.reference_number || null,
+      tax_rate: income.tax_rate ?? null,
+      tax_amount: income.tax_amount ?? null
+    }])
     .select(`
       *,
       category:categories(*),
       client:clients(*)
     `) // ✅ Include related data
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -210,17 +210,17 @@ export const updateIncome = async (id: string, updates: Partial<Income>) => {
       .select('country')
       .eq('user_id', incomeData.user_id)
       .single();
-    
+
     if (userSettings?.country === 'GB') {
       throw new Error('Cannot modify this income entry - it has been included in a submitted UK VAT return');
     }
   }
   const updateData: any = { ...updates };
-if ('category_id' in updates) updateData.category_id = updates.category_id || null;
-if ('client_id' in updates) updateData.client_id = updates.client_id || null;
-if ('reference_number' in updates) updateData.reference_number = updates.reference_number || null;
-if ('tax_rate' in updates) updateData.tax_rate = updates.tax_rate ?? null;
-if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount ?? null;
+  if ('category_id' in updates) updateData.category_id = updates.category_id || null;
+  if ('client_id' in updates) updateData.client_id = updates.client_id || null;
+  if ('reference_number' in updates) updateData.reference_number = updates.reference_number || null;
+  if ('tax_rate' in updates) updateData.tax_rate = updates.tax_rate ?? null;
+  if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount ?? null;
 
   const { data, error } = await supabase
     .from('income')
@@ -232,7 +232,7 @@ if ('tax_amount' in updates) updateData.tax_amount = updates.tax_amount ?? null;
       client:clients(*)
     `)
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -290,7 +290,7 @@ export const deleteIncome = async (id: string, userId: string, reason?: string) 
 // Expense functions - Team aware
 export const getExpenses = async (userId: string, startDate?: string, endDate?: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   let query = supabase
     .from('expenses')
     .select(`
@@ -315,7 +315,7 @@ export const getExpenses = async (userId: string, startDate?: string, endDate?: 
 
 export const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>) => {
   const effectiveUserId = await getEffectiveUserId(expense.user_id);
-  
+
   const { data, error } = await supabase
     .from('expenses')
     .insert([{
@@ -336,7 +336,7 @@ export const createExpense = async (expense: Omit<Expense, 'id' | 'created_at' |
       vendor_detail:vendors(*)
     `) // ✅ Include related data
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -355,7 +355,7 @@ export const updateExpense = async (id: string, updates: Partial<Expense>) => {
       .select('country')
       .eq('user_id', expenseData.user_id)
       .single();
-    
+
     if (userSettings?.country === 'GB') {
       throw new Error('Cannot modify this expense - it has been included in a submitted UK VAT return');
     }
@@ -379,7 +379,7 @@ export const updateExpense = async (id: string, updates: Partial<Expense>) => {
       vendor_detail:vendors(*)
     `)
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -439,20 +439,20 @@ export const deleteExpense = async (id: string, userId: string, reason?: string)
 // Client functions - Team aware
 export const getClients = async (userId: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   const { data, error } = await supabase
     .from('clients')
     .select('*')
     .eq('user_id', effectiveUserId)
     .order('name');
-  
+
   if (error) throw error;
   return data as Client[];
 };
 
 export const createClient = async (client: Omit<Client, 'id' | 'created_at'>) => {
   const effectiveUserId = await getEffectiveUserId(client.user_id);
-  
+
   const { data, error } = await supabase
     .from('clients')
     .insert([{
@@ -465,7 +465,7 @@ export const createClient = async (client: Omit<Client, 'id' | 'created_at'>) =>
     }])
     .select('*') // ✅ Explicit select
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -475,14 +475,14 @@ export const updateClient = async (id: string, updates: Partial<Client>) => {
   if ('email' in updates) updateData.email = updates.email || null;
   if ('phone' in updates) updateData.phone = updates.phone || null;
   if ('address' in updates) updateData.address = updates.address || null;
-  
+
   const { data, error } = await supabase
     .from('clients')
     .update(updateData)
     .eq('id', id)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -492,14 +492,14 @@ export const deleteClient = async (id: string) => {
     .from('clients')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 };
 
 // Invoice functions - Team aware
 export const getInvoices = async (userId: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   const { data, error } = await supabase
     .from('invoices')
     .select(`
@@ -509,7 +509,7 @@ export const getInvoices = async (userId: string) => {
     `)
     .eq('user_id', effectiveUserId)
     .order('date', { ascending: false });
-  
+
   if (error) throw error;
   return data as Invoice[];
 };
@@ -518,20 +518,20 @@ export const getInvoices = async (userId: string) => {
 // Vendor functions - Team aware
 export const getVendors = async (userId: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   const { data, error } = await supabase
     .from('vendors')
     .select('*')
     .eq('user_id', effectiveUserId)
     .order('name');
-  
+
   if (error) throw error;
   return data as Vendor[];
 };
 
 export const createVendor = async (vendor: Omit<Vendor, 'id' | 'created_at' | 'updated_at'>) => {
   const effectiveUserId = await getEffectiveUserId(vendor.user_id);
-  
+
   const { data, error } = await supabase
     .from('vendors')
     .insert([{
@@ -545,7 +545,7 @@ export const createVendor = async (vendor: Omit<Vendor, 'id' | 'created_at' | 'u
     }])
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -557,14 +557,14 @@ export const updateVendor = async (id: string, updates: Partial<Vendor>) => {
   if ('address' in updates) updateData.address = updates.address || null;
   if ('tax_id' in updates) updateData.tax_id = updates.tax_id || null;
   if ('notes' in updates) updateData.notes = updates.notes || null;
-  
+
   const { data, error } = await supabase
     .from('vendors')
     .update(updateData)
     .eq('id', id)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -574,7 +574,7 @@ export const deleteVendor = async (id: string) => {
     .from('vendors')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 };
 
@@ -588,40 +588,40 @@ export const getInvoice = async (id: string) => {
     `)
     .eq('id', id)
     .single();
-  
+
   if (error) throw error;
   return data as Invoice;
 };
 
 export const createInvoice = async (
-  userId: string, 
+  userId: string,
   invoice: Partial<Invoice>,
   items: Partial<InvoiceItem>[]
 ): Promise<Invoice> => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   // Check limits first (keep existing code)
   const { data: limitCheck, error: limitError } = await supabase
     .rpc('check_invoice_limit', { p_user_id: effectiveUserId });
-  
+
   if (limitError) throw limitError;
-  
+
   if (!limitCheck.can_create) {
     throw new Error(
-      limitCheck.limit === -1 
+      limitCheck.limit === -1
         ? 'Cannot create invoice: ' + limitCheck.reason
         : `Monthly invoice limit reached (${limitCheck.usage}/${limitCheck.limit})`
     );
   }
-  
+
   // Clean invoice data - remove fields that will be generated/set
   const invoiceData = { ...invoice };
   delete invoiceData.invoice_number; // Will be generated
   delete invoiceData.status; // Will be set to 'draft' in direct insert
-  
+
   // Get next invoice number
   const invoiceNumber = await getNextInvoiceNumber(userId);
-  
+
   // Direct insert (same as InvoiceForm) - avoids RPC function enum issues
   const { data: newInvoice, error: insertError } = await supabase
     .from('invoices')
@@ -639,12 +639,12 @@ export const createInvoice = async (
       items:invoice_items(*)
     `)
     .single();
-  
+
   if (insertError) {
     console.error('Invoice creation error:', insertError);
     throw insertError;
   }
-  
+
   // Insert invoice items if provided
   if (items && items.length > 0) {
     const invoiceItems = items.map(item => ({
@@ -658,17 +658,17 @@ export const createInvoice = async (
       net_amount: item.net_amount || item.amount || 0,
       gross_amount: item.gross_amount || ((item.amount || 0) + (item.tax_amount || 0))
     }));
-    
+
     const { error: itemsError } = await supabase
       .from('invoice_items')
       .insert(invoiceItems);
-    
+
     if (itemsError) {
       // If items fail, try to clean up the invoice
       await supabase.from('invoices').delete().eq('id', newInvoice.id);
       throw itemsError;
     }
-    
+
     // Fetch the complete invoice with items
     const { data: completeInvoice, error: fetchError } = await supabase
       .from('invoices')
@@ -679,45 +679,45 @@ export const createInvoice = async (
       `)
       .eq('id', newInvoice.id)
       .single();
-    
+
     if (fetchError) throw fetchError;
-    
+
     // Check usage warning (keep existing code)
     const currentUsage = limitCheck.usage + 1;
     const usagePercentage = (currentUsage / limitCheck.limit) * 100;
     if (usagePercentage >= 80 && usagePercentage < 100) {
-      window.dispatchEvent(new CustomEvent('invoiceCreated', { 
-        detail: { 
-          usage: currentUsage, 
-          limit: limitCheck.limit 
-        } 
+      window.dispatchEvent(new CustomEvent('invoiceCreated', {
+        detail: {
+          usage: currentUsage,
+          limit: limitCheck.limit
+        }
       }));
     }
-    
+
     return completeInvoice as Invoice;
   }
-  
+
   // Check usage warning (keep existing code)
   const currentUsage = limitCheck.usage + 1;
   const usagePercentage = (currentUsage / limitCheck.limit) * 100;
   if (usagePercentage >= 80 && usagePercentage < 100) {
-    window.dispatchEvent(new CustomEvent('invoiceCreated', { 
-      detail: { 
-        usage: currentUsage, 
-        limit: limitCheck.limit 
-      } 
+    window.dispatchEvent(new CustomEvent('invoiceCreated', {
+      detail: {
+        usage: currentUsage,
+        limit: limitCheck.limit
+      }
     }));
   }
-  
+
   return newInvoice as Invoice;
 };
 
 export const updateInvoice = async (id: string, updates: any, items?: any[]) => {
   // Check if this is ONLY updating credit metadata
-  const isCreditUpdate = Object.keys(updates).every(key => 
+  const isCreditUpdate = Object.keys(updates).every(key =>
     ['has_credit_notes', 'total_credited'].includes(key)
   );
-  
+
   if (!isCreditUpdate) {
     // Only check status for non-credit updates
     const { data: currentInvoice, error: checkError } = await supabase
@@ -725,14 +725,14 @@ export const updateInvoice = async (id: string, updates: any, items?: any[]) => 
       .select('status')
       .eq('id', id)
       .single();
-    
+
     if (checkError) throw checkError;
-    
+
     // Block modifications to canceled invoices
     if (currentInvoice.status === 'canceled') {
       throw new Error('Cannot modify canceled invoices');
     }
-    
+
     // Block non-credit modifications to paid invoices
     if (currentInvoice.status === 'paid') {
       throw new Error('Cannot modify paid invoices except for credit notes');
@@ -745,7 +745,7 @@ export const updateInvoice = async (id: string, updates: any, items?: any[]) => 
     .select('vat_return_id, vat_locked_at, user_id')
     .eq('id', id)
     .single();
-  
+
   if (vatCheck?.vat_return_id) {
     // Get user settings to check if UK
     const { data: userSettings } = await supabase
@@ -753,7 +753,7 @@ export const updateInvoice = async (id: string, updates: any, items?: any[]) => 
       .select('country')
       .eq('user_id', vatCheck.user_id)
       .single();
-    
+
     if (userSettings?.country === 'GB') {
       throw new Error('Cannot modify this invoice - it has been included in a submitted UK VAT return (HMRC compliance)');
     }
@@ -803,7 +803,7 @@ export const deleteInvoice = async (id: string): Promise<{ success: boolean; had
   try {
     // 1. Start a transaction-like approach
     let hadRecurring = false;
-    
+
     // 2. Check if invoice exists and user has permission
     const { data: invoice, error: checkError } = await supabase
       .from('invoices')
@@ -824,78 +824,78 @@ export const deleteInvoice = async (id: string): Promise<{ success: boolean; had
     if (invoice.payment_locked_at) {
       throw new Error('This invoice has payments and cannot be deleted for compliance reasons');
     }
-    
+
     // 4. Check for credit notes
     const { data: creditNotes } = await supabase
       .from('credit_notes')
       .select('id')
       .eq('invoice_id', id)
       .limit(1);
-    
+
     if (creditNotes && creditNotes.length > 0) {
       throw new Error('Cannot delete invoice with credit notes. Delete credit notes first.');
     }
-    
+
     // 5. Check and delete recurring invoice if exists
     const { data: recurringData } = await supabase
       .from('recurring_invoices')
       .select('id')
       .eq('invoice_id', id)
       .single();
-    
+
     if (recurringData) {
       hadRecurring = true;
       const { error: recurringError } = await supabase
         .from('recurring_invoices')
         .delete()
         .eq('invoice_id', id);
-      
+
       if (recurringError) {
         console.error('Failed to delete recurring invoice:', recurringError);
         throw new Error('Failed to delete recurring invoice schedule');
       }
     }
-    
+
     // 6. Delete related records in correct order
-    
+
     // Delete invoice activities
     await supabase
       .from('invoice_activities')
       .delete()
       .eq('invoice_id', id);
-    
+
     // Delete invoice reminders
     await supabase
       .from('invoice_reminders')
       .delete()
       .eq('invoice_id', id);
-    
+
     // Delete email logs
     await supabase
       .from('email_logs')
       .delete()
       .eq('invoice_id', id);
-    
+
     // Delete invoice items
     const { error: itemsError } = await supabase
       .from('invoice_items')
       .delete()
       .eq('invoice_id', id);
-    
+
     if (itemsError) {
       throw new Error('Failed to delete invoice items');
     }
-    
+
     // 7. Finally delete the invoice
     const { error: deleteError } = await supabase
       .from('invoices')
       .delete()
       .eq('id', id);
-    
+
     if (deleteError) {
       throw new Error(`Failed to delete invoice: ${deleteError.message}`);
     }
-    
+
     // 8. Log the deletion for audit trail
     await supabase
       .from('audit_logs')
@@ -905,14 +905,14 @@ export const deleteInvoice = async (id: string): Promise<{ success: boolean; had
         entity_type: 'invoice',
         entity_id: id,
         entity_name: invoice.invoice_number,
-        metadata: { 
+        metadata: {
           deleted_at: new Date().toISOString(),
-          had_recurring: hadRecurring 
+          had_recurring: hadRecurring
         }
       });
-    
+
     return { success: true, hadRecurring };
-    
+
   } catch (error) {
     console.error('Error in deleteInvoice:', error);
     throw error;
@@ -929,22 +929,22 @@ export const getInvoiceByNumber = async (invoiceNumber: string) => {
     `)
     .eq('invoice_number', invoiceNumber)
     .single();
-  
+
   if (error) throw error;
   return data as Invoice;
 };
 
 export const getNextInvoiceNumber = async (userId: string): Promise<string> => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   try {
     // Call the SQL function directly (no edge function needed)
     const { data, error } = await supabase
       .rpc('get_next_invoice_number', { p_user_id: effectiveUserId });
-    
+
     if (error) throw error;
     return data;
-    
+
   } catch (error) {
     console.error('Error getting next invoice number:', error);
     // Fallback to timestamp-based number
@@ -955,46 +955,46 @@ export const getNextInvoiceNumber = async (userId: string): Promise<string> => {
 };
 
 export const checkInvoiceNumberExists = async (
-  userId: string, 
-  invoiceNumber: string, 
+  userId: string,
+  invoiceNumber: string,
   excludeId?: string
 ): Promise<boolean> => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   let query = supabase
     .from('invoices')
     .select('id')
     .eq('user_id', effectiveUserId)
     .eq('invoice_number', invoiceNumber);
-  
+
   if (excludeId) {
     query = query.neq('id', excludeId);
   }
-  
+
   const { data, error } = await query;
-  
+
   if (error) throw error;
-  
+
   return (data && data.length > 0);
 };
 
 // Dashboard statistics - Team aware
 export const getDashboardStats = async (userId: string, startDate: string, endDate: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   const [incomes, expenses, invoices] = await Promise.all([
     getIncomes(effectiveUserId, startDate, endDate),
     getExpenses(effectiveUserId, startDate, endDate),
     getInvoices(effectiveUserId)
   ]);
-  
+
   const totalIncome = incomes.reduce((sum, item) => sum + item.amount, 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
-  const pendingInvoices = invoices.filter(inv => 
+  const pendingInvoices = invoices.filter(inv =>
     inv.status === 'sent' || inv.status === 'overdue'
   );
   const totalPending = pendingInvoices.reduce((sum, inv) => sum + inv.total, 0);
-  
+
   return {
     totalIncome,
     totalExpenses,
@@ -1132,13 +1132,13 @@ export const getUserTeamInfo = async (userId: string) => {
 // Invoice Template functions
 export const getInvoiceTemplates = async (userId: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   const { data, error } = await supabase
     .from('invoice_templates')
     .select('*')
     .eq('user_id', effectiveUserId)
     .order('created_at', { ascending: false });
-  
+
   if (error) throw error;
   return data;
 };
@@ -1149,7 +1149,7 @@ export const createInvoiceTemplate = async (template: {
   template_data: any;
 }) => {
   const effectiveUserId = await getEffectiveUserId(template.user_id);
-  
+
   const { data, error } = await supabase
     .from('invoice_templates')
     .insert([{
@@ -1158,7 +1158,7 @@ export const createInvoiceTemplate = async (template: {
     }])
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -1168,18 +1168,18 @@ export const deleteInvoiceTemplate = async (id: string) => {
     .from('invoice_templates')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 };
 
 
 export const checkCategoryExists = async (
-  userId: string, 
-  name: string, 
+  userId: string,
+  name: string,
   type: 'income' | 'expense'
 ) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   const { data } = await supabase
     .from('categories')
     .select('id')
@@ -1187,14 +1187,14 @@ export const checkCategoryExists = async (
     .eq('name', name)
     .eq('type', type)
     .single();
-    
+
   return !!data;
 };
 
 // Budget functions
 export const getBudgets = async (userId: string) => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   const { data, error } = await supabase
     .from('budgets')
     .select(`
@@ -1203,7 +1203,7 @@ export const getBudgets = async (userId: string) => {
     `)
     .eq('user_id', effectiveUserId)
     .order('created_at', { ascending: false });
-  
+
   if (error) throw error;
   return data || [];
 };
@@ -1216,7 +1216,7 @@ export const createBudget = async (budget: {
   start_date: string;
 }) => {
   const effectiveUserId = await getEffectiveUserId(budget.user_id);
-  
+
   const { data, error } = await supabase
     .from('budgets')
     .insert([{
@@ -1228,7 +1228,7 @@ export const createBudget = async (budget: {
       category:categories(name, type)
     `)
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -1248,7 +1248,7 @@ export const updateBudget = async (id: string, updates: {
       category:categories(name, type)
     `)
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -1258,7 +1258,7 @@ export const deleteBudget = async (id: string) => {
     .from('budgets')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 };
 
@@ -1319,7 +1319,7 @@ export const createCreditNote = async (
   creditNote: Partial<CreditNote>,
   items: Partial<CreditNoteItem>[]
 ): Promise<CreditNote> => {
-  
+
   const cleanItems = items.map(item => ({
     invoice_item_id: item.invoice_item_id || null,
     description: item.description || '',
@@ -1353,7 +1353,16 @@ export const updateCreditNote = async (
   updates: Partial<CreditNote>,
   items?: Partial<CreditNoteItem>[]
 ): Promise<CreditNote> => {
-  // Update credit note
+  // First, get the current credit note to check for invoice_id
+  const { data: currentCreditNote, error: fetchError } = await supabase
+    .from('credit_notes')
+    .select('invoice_id, total, status')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  // Update credit note directly - no invoice_id modification needed
   const { data: creditNoteData, error: creditNoteError } = await supabase
     .from('credit_notes')
     .update(updates)
@@ -1386,6 +1395,41 @@ export const updateCreditNote = async (
     }
   }
 
+  // ✅ Use invoice_credit_tracking table instead of invoices table (avoids HMRC lock)
+  if (currentCreditNote.invoice_id && updates.status === 'applied' && currentCreditNote.status !== 'applied') {
+    const creditAmount = updates.total || currentCreditNote.total;
+
+    // Check if tracking record exists
+    const { data: existingTracking } = await supabase
+      .from('invoice_credit_tracking')
+      .select('id, total_credited, credit_note_count')
+      .eq('invoice_id', currentCreditNote.invoice_id)
+      .single();
+
+    if (existingTracking) {
+      // Update existing tracking record
+      await supabase
+        .from('invoice_credit_tracking')
+        .update({
+          total_credited: (existingTracking.total_credited || 0) + creditAmount,
+          credit_note_count: (existingTracking.credit_note_count || 0) + 1,
+          last_credit_date: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('invoice_id', currentCreditNote.invoice_id);
+    } else {
+      // Create new tracking record
+      await supabase
+        .from('invoice_credit_tracking')
+        .insert({
+          invoice_id: currentCreditNote.invoice_id,
+          total_credited: creditAmount,
+          credit_note_count: 1,
+          last_credit_date: new Date().toISOString()
+        });
+    }
+  }
+
   return creditNoteData;
 };
 
@@ -1403,27 +1447,36 @@ export const deleteCreditNote = async (id: string): Promise<void> => {
     throw new Error('Only draft credit notes can be deleted');
   }
 
-  // Update invoice to reduce credited amount
+  // ✅ Use invoice_credit_tracking table instead of invoices (avoids HMRC lock)
   if (creditNote.invoice_id) {
-    // First get current total_credited
-    const { data: currentInvoice } = await supabase
-      .from('invoices')
-      .select('total_credited')
-      .eq('id', creditNote.invoice_id)
+    // Get current tracking record
+    const { data: tracking } = await supabase
+      .from('invoice_credit_tracking')
+      .select('id, total_credited, credit_note_count')
+      .eq('invoice_id', creditNote.invoice_id)
       .single();
-    
-    const currentCredited = currentInvoice?.total_credited || 0;
-    const newTotalCredited = Math.max(0, currentCredited - creditNote.total);
-    
-    // Use RPC function that bypasses HMRC restrictions for metadata
-    const { error } = await supabase.rpc('update_invoice_credit_metadata', {
-      p_invoice_id: creditNote.invoice_id,
-      p_has_credit_notes: newTotalCredited > 0,
-      p_total_credited: newTotalCredited
-    });
 
-    if (error) {
-      console.warn('Could not update invoice credit metadata:', error);
+    if (tracking) {
+      const newTotalCredited = Math.max(0, (tracking.total_credited || 0) - creditNote.total);
+      const newCount = Math.max(0, (tracking.credit_note_count || 0) - 1);
+
+      if (newCount === 0) {
+        // Delete tracking record if no more credit notes
+        await supabase
+          .from('invoice_credit_tracking')
+          .delete()
+          .eq('invoice_id', creditNote.invoice_id);
+      } else {
+        // Update tracking record
+        await supabase
+          .from('invoice_credit_tracking')
+          .update({
+            total_credited: newTotalCredited,
+            credit_note_count: newCount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('invoice_id', creditNote.invoice_id);
+      }
     }
   }
 
@@ -1470,7 +1523,7 @@ export const applyCreditNote = async (
 
   const baseCurrency = userSettings?.base_currency || 'USD';
 
-  switch(action) {
+  switch (action) {
     case 'refund':
       // Get or create the credit notes category using effectiveUserId
       const categoryId = await getOrCreateCreditNotesCategory(effectiveUserId);
@@ -1498,7 +1551,7 @@ export const applyCreditNote = async (
 
       if (incomeError) throw incomeError;
       break;
-      
+
     case 'credit':
       // Update client balance (if you have this feature)
       await supabase.rpc('update_client_credit_balance', {
@@ -1506,7 +1559,7 @@ export const applyCreditNote = async (
         p_amount: creditNote.total
       });
       break;
-      
+
     case 'apply':
       // Apply to unpaid invoice
       const { data: unpaidInvoice } = await supabase
@@ -1606,7 +1659,7 @@ export const getCreditNotesByInvoice = async (invoiceId: string): Promise<Credit
 
 export const getOrCreateCreditNotesCategory = async (userId: string): Promise<string | null> => {
   const effectiveUserId = await getEffectiveUserId(userId);
-  
+
   // Check if credit notes category exists
   const { data: existing } = await supabase
     .from('categories')
@@ -1615,9 +1668,9 @@ export const getOrCreateCreditNotesCategory = async (userId: string): Promise<st
     .eq('name', 'Credit Notes & Refunds')
     .eq('type', 'income')
     .single();
-  
+
   if (existing) return existing.id;
-  
+
   // Create it if it doesn't exist - WITH description now that column exists
   const { data: newCategory, error } = await supabase
     .from('categories')
@@ -1630,12 +1683,12 @@ export const getOrCreateCreditNotesCategory = async (userId: string): Promise<st
     })
     .select()
     .single();
-  
+
   if (error) {
     console.error('Error creating credit notes category:', error);
     return null;
   }
-  
+
   return newCategory?.id || null;
 };
 
