@@ -73,7 +73,7 @@ export const ProfileSettings: React.FC = () => {
     if (!file || !user) return;
 
     setUploadingLogo(true);
-    
+
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/logo.${fileExt}`;
@@ -91,7 +91,9 @@ export const ProfileSettings: React.FC = () => {
         .from('avatars')
         .getPublicUrl(filePath);
 
-      setFormData({ ...formData, company_logo: data.publicUrl });
+      // Add cache-busting timestamp to force browser to load new image
+      const cacheBustedUrl = `${data.publicUrl}?t=${Date.now()}`;
+      setFormData({ ...formData, company_logo: cacheBustedUrl });
     } catch (err: any) {
       alert('Error uploading logo: ' + err.message);
     } finally {
@@ -110,12 +112,12 @@ export const ProfileSettings: React.FC = () => {
     try {
       // Update full_name based on first_name and last_name
       const fullName = `${formData.first_name} ${formData.last_name}`.trim();
-      
+
       await updateProfile(user.id, {
         ...formData,
         full_name: fullName || formData.full_name
       });
-      
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
@@ -135,13 +137,13 @@ export const ProfileSettings: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile Settings</h2>
-      
+
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
           {error}
         </div>
       )}
-      
+
       {success && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
           Profile updated successfully!
@@ -155,7 +157,7 @@ export const ProfileSettings: React.FC = () => {
             <User className="h-5 w-5 mr-2" />
             Personal Information
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -234,36 +236,61 @@ export const ProfileSettings: React.FC = () => {
               </label>
               <div className="flex items-center space-x-4">
                 {formData.company_logo ? (
-                  <img
-                    src={formData.company_logo}
-                    alt="Company Logo"
-                    className="h-20 w-20 object-contain rounded-lg border border-gray-200"
-                  />
+                  <div className="relative group">
+                    <img
+                      src={formData.company_logo}
+                      alt="Company Logo"
+                      className="h-20 w-20 object-contain rounded-lg border border-gray-200"
+                    />
+                    {userRole === 'owner' && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, company_logo: '' })}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md opacity-0 group-hover:opacity-100"
+                        title="Remove logo"
+                      >
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 ) : (
-                  <div className="h-20 w-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <div className="h-20 w-20 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
                     <Camera className="h-8 w-8 text-gray-400" />
                   </div>
                 )}
                 {userRole === 'owner' && (
-                  <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                      disabled={uploadingLogo}
-                    />
-                    <span className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 inline-flex items-center">
-                      {uploadingLogo ? (
-                        <span className="text-gray-500">Uploading...</span>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Logo
-                        </>
-                      )}
-                    </span>
-                  </label>
+                  <div className="flex flex-col gap-2">
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                        disabled={uploadingLogo}
+                      />
+                      <span className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 inline-flex items-center text-sm">
+                        {uploadingLogo ? (
+                          <span className="text-gray-500">Uploading...</span>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            {formData.company_logo ? 'Replace Logo' : 'Upload Logo'}
+                          </>
+                        )}
+                      </span>
+                    </label>
+                    {formData.company_logo && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, company_logo: '' })}
+                        className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        Remove Logo
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

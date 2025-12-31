@@ -105,7 +105,9 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
         .from('logos')
         .getPublicUrl(fileName);
 
-      setSettings({ ...settings, company_logo: publicUrl });
+      // Add cache-busting timestamp to force browser to load new image
+      const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+      setSettings({ ...settings, company_logo: cacheBustedUrl });
     } catch (err: any) {
       alert('Error uploading logo: ' + err.message);
     } finally {
@@ -218,24 +220,49 @@ export const InvoiceSettings: React.FC<InvoiceSettingsProps> = ({ onClose }) => 
                       Company Logo
                     </label>
                     <div className="flex items-center space-x-4">
-                      {settings.company_logo && (
-                        <img
-                          src={settings.company_logo}
-                          alt="Company logo"
-                          className="h-20 w-20 object-contain border rounded"
-                        />
+                      {settings.company_logo ? (
+                        <div className="relative group">
+                          <img
+                            src={settings.company_logo}
+                            alt="Company logo"
+                            className="h-20 w-20 object-contain border rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setSettings({ ...settings, company_logo: '' })}
+                            className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md opacity-0 group-hover:opacity-100"
+                            title="Remove logo"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="h-20 w-20 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                          <Upload className="h-8 w-8 text-gray-400" />
+                        </div>
                       )}
-                      <label className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer">
-                        <Upload className="h-4 w-4 mr-2" />
-                        {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleLogoUpload}
-                          className="hidden"
-                          disabled={uploadingLogo}
-                        />
-                      </label>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer text-sm">
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadingLogo ? 'Uploading...' : (settings.company_logo ? 'Replace Logo' : 'Upload Logo')}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                            disabled={uploadingLogo}
+                          />
+                        </label>
+                        {settings.company_logo && (
+                          <button
+                            type="button"
+                            onClick={() => setSettings({ ...settings, company_logo: '' })}
+                            className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            Remove Logo
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 

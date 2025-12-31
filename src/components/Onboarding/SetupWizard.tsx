@@ -370,23 +370,30 @@ export const SetupWizard: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Business Size <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { value: 'solo', label: 'Just me (Solo entrepreneur)' },
-                  { value: 'small', label: 'Small team (2-10 people)' },
-                  { value: 'medium', label: 'Growing business (11-50 people)' },
-                  { value: 'large', label: 'Large company (50+ people)' }
+                  { value: 'solo', label: 'Solo', description: 'Just me', icon: '👤' },
+                  { value: 'small', label: 'Small Team', description: '2-10 people', icon: '👥' },
+                  { value: 'medium', label: 'Growing', description: '11-50 people', icon: '🚀' },
+                  { value: 'large', label: 'Enterprise', description: '50+ people', icon: '🏢' }
                 ].map((size) => (
                   <button
                     key={size.value}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, businessSize: size.value }))}
-                    className={`p-3 text-left border rounded-lg transition-colors ${formData.businessSize === size.value
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-300 hover:border-gray-400'
+                    className={`p-5 text-left border-2 rounded-2xl transition-all hover:shadow-lg ${formData.businessSize === size.value
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200 shadow-md'
+                      : 'border-gray-200 hover:border-gray-300'
                       }`}
                   >
-                    {size.label}
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3 ${formData.businessSize === size.value ? 'bg-indigo-500' : 'bg-gray-100'
+                      }`}>
+                      {size.icon}
+                    </div>
+                    <h3 className={`text-lg font-semibold mb-1 ${formData.businessSize === size.value ? 'text-indigo-900' : 'text-gray-900'
+                      }`}>{size.label}</h3>
+                    <p className={`text-sm ${formData.businessSize === size.value ? 'text-indigo-600' : 'text-gray-500'
+                      }`}>{size.description}</p>
                   </button>
                 ))}
               </div>
@@ -396,23 +403,30 @@ export const SetupWizard: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 How long has your business been operating? <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { value: 'startup', label: 'Just starting (0-6 months)' },
-                  { value: 'new', label: 'New business (6 months - 2 years)' },
-                  { value: 'established', label: 'Established (2-5 years)' },
-                  { value: 'mature', label: 'Mature business (5+ years)' }
+                  { value: 'startup', label: 'Startup', description: '0-6 months', icon: '🌱' },
+                  { value: 'new', label: 'New Business', description: '6 months - 2 years', icon: '📈' },
+                  { value: 'established', label: 'Established', description: '2-5 years', icon: '⭐' },
+                  { value: 'mature', label: 'Mature', description: '5+ years', icon: '🏆' }
                 ].map((age) => (
                   <button
                     key={age.value}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, businessAge: age.value }))}
-                    className={`p-3 text-left border rounded-lg transition-colors ${formData.businessAge === age.value
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border-gray-300 hover:border-gray-400'
+                    className={`p-5 text-left border-2 rounded-2xl transition-all hover:shadow-lg ${formData.businessAge === age.value
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200 shadow-md'
+                      : 'border-gray-200 hover:border-gray-300'
                       }`}
                   >
-                    {age.label}
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3 ${formData.businessAge === age.value ? 'bg-indigo-500' : 'bg-gray-100'
+                      }`}>
+                      {age.icon}
+                    </div>
+                    <h3 className={`text-lg font-semibold mb-1 ${formData.businessAge === age.value ? 'text-indigo-900' : 'text-gray-900'
+                      }`}>{age.label}</h3>
+                    <p className={`text-sm ${formData.businessAge === age.value ? 'text-indigo-600' : 'text-gray-500'
+                      }`}>{age.description}</p>
                   </button>
                 ))}
               </div>
@@ -546,8 +560,8 @@ export const SetupWizard: React.FC = () => {
                     <div
                       key={plan.id}
                       className={`relative p-6 border-2 rounded-xl transition-all cursor-pointer transform ${isSelected
-                          ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-[1.02] ring-2 ring-indigo-200'
-                          : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
+                        ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-[1.02] ring-2 ring-indigo-200'
+                        : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
                         }`}
                       onClick={() => setFormData(prev => ({ ...prev, plan: plan.id }))}
                     >
@@ -621,12 +635,12 @@ export const SetupWizard: React.FC = () => {
                         {plan.features.map((feature, index) => (
                           <li key={index} className="flex items-start gap-2">
                             <Check className={`h-4 w-4 mt-0.5 flex-shrink-0 ${plan.highlighted?.includes(feature)
-                                ? isSelected ? 'text-indigo-600' : 'text-indigo-500'
-                                : 'text-green-500'
+                              ? isSelected ? 'text-indigo-600' : 'text-indigo-500'
+                              : 'text-green-500'
                               }`} />
                             <span className={`text-sm ${plan.highlighted?.includes(feature)
-                                ? isSelected ? 'text-indigo-800 font-medium' : 'text-indigo-700 font-medium'
-                                : 'text-gray-600'
+                              ? isSelected ? 'text-indigo-800 font-medium' : 'text-indigo-700 font-medium'
+                              : 'text-gray-600'
                               }`}>
                               {feature}
                             </span>
@@ -637,8 +651,8 @@ export const SetupWizard: React.FC = () => {
                       {/* Prominent Trial Badge */}
                       <div className="text-center mt-6 pt-4 border-t border-gray-200">
                         <div className={`inline-flex items-center gap-2 ${isSelected
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600'
-                            : 'bg-gray-100'
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600'
+                          : 'bg-gray-100'
                           } text-white px-4 py-2.5 rounded-xl shadow-md transition-colors`}>
                           <Calendar className="h-5 w-5" />
                           <span className="font-semibold text-sm">60-Day Free Trial</span>
@@ -671,8 +685,8 @@ export const SetupWizard: React.FC = () => {
               >
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${index <= currentStep
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-200 text-gray-600'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-200 text-gray-600'
                     }`}
                 >
                   {index < currentStep ? (

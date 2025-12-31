@@ -28,25 +28,25 @@ export const ExpenseForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
-  const {  updateExpenseInCache } = useData(); // ADD updateExpenseInCache
-const userCountry = countries.find(c => c.code === userSettings?.country);
-const taxLabel = userCountry?.taxName || 'Tax';
-const [isVatReclaimable, setIsVatReclaimable] = useState(true);
+  const { updateExpenseInCache } = useData(); // ADD updateExpenseInCache
+  const userCountry = countries.find(c => c.code === userSettings?.country);
+  const taxLabel = userCountry?.taxName || 'Tax';
+  const [isVatReclaimable, setIsVatReclaimable] = useState(true);
 
   const [formData, setFormData] = useState({
-  amount: "",
-  description: "",
-  category_id: "",
-  date: new Date().toISOString().split("T")[0],
-  vendor: "",
-  vendor_id: "",
-  project_id: "",
-  receipt_url: "",
-  tax_rate: defaultTaxRate.toString(),
-  tax_amount: "0",
-  currency: baseCurrency,
-  reference_number: "",
-});
+    amount: "",
+    description: "",
+    category_id: "",
+    date: new Date().toISOString().split("T")[0],
+    vendor: "",
+    vendor_id: "",
+    project_id: "",
+    receipt_url: "",
+    tax_rate: defaultTaxRate.toString(),
+    tax_amount: "0",
+    currency: baseCurrency,
+    reference_number: "",
+  });
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -74,24 +74,24 @@ const [isVatReclaimable, setIsVatReclaimable] = useState(true);
   const [originalRate, setOriginalRate] = useState<number | null>(null);
   const [useHistoricalRate, setUseHistoricalRate] = useState(true);
 
-// Add this useEffect after your existing ones
-useEffect(() => {
-  if (isUserSettingsReady && baseCurrency && formData.currency !== baseCurrency) {
-    setFormData(prev => ({
-      ...prev,
-      currency: baseCurrency
-    }));
-  }
-}, [isUserSettingsReady, baseCurrency]);
+  // Add this useEffect after your existing ones
+  useEffect(() => {
+    if (isUserSettingsReady && baseCurrency && formData.currency !== baseCurrency) {
+      setFormData(prev => ({
+        ...prev,
+        currency: baseCurrency
+      }));
+    }
+  }, [isUserSettingsReady, baseCurrency]);
 
   useEffect(() => {
-  loadCategories();
-  loadProjects();
+    loadCategories();
+    loadProjects();
 
-  if (isEdit && id) {
-    loadExpense();
-  }
-}, [id, isEdit]);
+    if (isEdit && id) {
+      loadExpense();
+    }
+  }, [id, isEdit]);
 
   useEffect(() => {
     if (user) {
@@ -100,11 +100,11 @@ useEffect(() => {
   }, [user]);
 
 
-useEffect(() => {
-  if (formData.currency && formData.currency !== baseCurrency) {
-    fetchExchangeRate();
-  }
-}, [formData.currency]);
+  useEffect(() => {
+    if (formData.currency && formData.currency !== baseCurrency) {
+      fetchExchangeRate();
+    }
+  }, [formData.currency]);
 
   // Smart AI Suggestions: Load when description changes (400ms debounce)
   useEffect(() => {
@@ -193,52 +193,52 @@ useEffect(() => {
       const expense = expenses.find((e) => e.id === id);
 
       if (expense) {
-  setFormData({
-    amount: expense.amount.toString(),
-    description: expense.description,
-    category_id: expense.category_id || "",
-    date: expense.date,
-    vendor: expense.vendor || "",
-    vendor_id: expense.vendor_id || "",
-    project_id: (expense as any).project_id || "",
-    receipt_url: expense.receipt_url || "",
-    tax_rate: (expense.tax_rate ?? defaultTaxRate).toString(),
-    tax_amount: (expense.tax_amount || 0).toString(),
-    currency: expense.currency || baseCurrency,
-    reference_number: expense.reference_number || "",
-  });
-  // Store original exchange rate for comparison
-if (expense.exchange_rate && expense.currency !== baseCurrency) {
-  setOriginalRate(expense.exchange_rate);
-}
-}
+        setFormData({
+          amount: expense.amount.toString(),
+          description: expense.description,
+          category_id: expense.category_id || "",
+          date: expense.date,
+          vendor: expense.vendor || "",
+          vendor_id: expense.vendor_id || "",
+          project_id: (expense as any).project_id || "",
+          receipt_url: expense.receipt_url || "",
+          tax_rate: (expense.tax_rate ?? defaultTaxRate).toString(),
+          tax_amount: (expense.tax_amount || 0).toString(),
+          currency: expense.currency || baseCurrency,
+          reference_number: expense.reference_number || "",
+        });
+        // Store original exchange rate for comparison
+        if (expense.exchange_rate && expense.currency !== baseCurrency) {
+          setOriginalRate(expense.exchange_rate);
+        }
+      }
     } catch (err: any) {
       setError(err.message);
     }
   };
 
   const fetchExchangeRate = async () => {
-  if (!formData.currency || formData.currency === baseCurrency) {
-    setShowRateWarning(false);
-    return;
-  }
-  
-  try {
-    const currentRate = exchangeRates[formData.currency] || 1;
-    
-    // Check if we're editing and rates are different
-    if (isEdit && originalRate && Math.abs(currentRate - originalRate) > 0.01) {
-      setShowRateWarning(true);
-      
-      // Don't auto-update if user prefers historical rate
-      if (useHistoricalRate) {
-        return;
-      }
+    if (!formData.currency || formData.currency === baseCurrency) {
+      setShowRateWarning(false);
+      return;
     }
-  } catch (error) {
-    console.error('Failed to check exchange rate:', error);
-  }
-};
+
+    try {
+      const currentRate = exchangeRates[formData.currency] || 1;
+
+      // Check if we're editing and rates are different
+      if (isEdit && originalRate && Math.abs(currentRate - originalRate) > 0.01) {
+        setShowRateWarning(true);
+
+        // Don't auto-update if user prefers historical rate
+        if (useHistoricalRate) {
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check exchange rate:', error);
+    }
+  };
   const handleCreateVendor = async () => {
     if (!user || !newVendorData.name.trim()) return;
 
@@ -406,38 +406,38 @@ if (expense.exchange_rate && expense.currency !== baseCurrency) {
       }
 
       // Calculate base amount if different currency
-const amount = parseFloat(formData.amount);
-const exchangeRate = formData.currency !== baseCurrency
-  ? (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1))
-  : 1;
-const baseAmount = formData.currency !== baseCurrency ? amount / exchangeRate : amount;
+      const amount = parseFloat(formData.amount);
+      const exchangeRate = formData.currency !== baseCurrency
+        ? (useHistoricalRate && originalRate && isEdit ? originalRate : (exchangeRates[formData.currency] || 1))
+        : 1;
+      const baseAmount = formData.currency !== baseCurrency ? amount / exchangeRate : amount;
 
-// Calculate base tax amount for multi-currency
-const taxAmount = parseFloat(formData.tax_amount) || 0;
-const baseTaxAmount = formData.currency !== baseCurrency ? taxAmount / exchangeRate : taxAmount;
+      // Calculate base tax amount for multi-currency
+      const taxAmount = parseFloat(formData.tax_amount) || 0;
+      const baseTaxAmount = formData.currency !== baseCurrency ? taxAmount / exchangeRate : taxAmount;
 
-const taxRateValue = parseFloat(formData.tax_rate);
+      const taxRateValue = parseFloat(formData.tax_rate);
 
-const expenseData = {
-  user_id: user.id,
-  amount: amount,
-  description: formData.description,
-  category_id: formData.category_id || undefined,
-  date: formData.date,
-  vendor: formData.vendor || undefined,
-  vendor_id: formData.vendor_id || undefined,
-  project_id: formData.project_id || undefined,
-  receipt_url: formData.receipt_url || undefined,
-  reference_number: formData.reference_number || undefined,
-  tax_rate: isNaN(taxRateValue) ? undefined : taxRateValue,
-  tax_amount: taxAmount,
-  currency: formData.currency,
-  exchange_rate: exchangeRate,
-  base_amount: baseAmount,
-  is_vat_reclaimable: isVatReclaimable,
-  base_tax_amount: baseTaxAmount,
-  tax_point_date: formData.date
-};
+      const expenseData = {
+        user_id: user.id,
+        amount: amount,
+        description: formData.description,
+        category_id: formData.category_id || undefined,
+        date: formData.date,
+        vendor: formData.vendor || undefined,
+        vendor_id: formData.vendor_id || undefined,
+        project_id: formData.project_id || undefined,
+        receipt_url: formData.receipt_url || undefined,
+        reference_number: formData.reference_number || undefined,
+        tax_rate: isNaN(taxRateValue) ? undefined : taxRateValue,
+        tax_amount: taxAmount,
+        currency: formData.currency,
+        exchange_rate: exchangeRate,
+        base_amount: baseAmount,
+        is_vat_reclaimable: isVatReclaimable,
+        base_tax_amount: baseTaxAmount,
+        tax_point_date: formData.date
+      };
 
       if (isEdit && id) {
         const updatedExpense = await updateExpense(id, expenseData);
@@ -459,19 +459,19 @@ const expenseData = {
       setLoading(false);
     }
   };
-// Add this before your main return
-if (!isUserSettingsReady) {
-  return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-3 text-gray-600">Loading your settings...</p>
+  // Add this before your main return
+  if (!isUserSettingsReady) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-3 text-gray-600">Loading your settings...</p>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
@@ -502,27 +502,27 @@ if (!isUserSettingsReady) {
                 Amount *
               </label>
               <input
-  type="number"
-  step="0.01"
-  required
-  value={formData.amount}
-  onChange={(e) => {
-    const newAmount = e.target.value;
-    const rate = parseFloat(formData.tax_rate) || 0;
-    const netAmount = parseFloat(newAmount) || 0;
-    
-    // Recalculate tax when amount changes
-    const taxAmount = ((netAmount * rate) / 100).toFixed(2);
-    
-    setFormData({ 
-      ...formData, 
-      amount: newAmount,
-      tax_amount: taxAmount
-    });
-  }}
-  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-  placeholder="0.00"
-/>
+                type="number"
+                step="0.01"
+                required
+                value={formData.amount}
+                onChange={(e) => {
+                  const newAmount = e.target.value;
+                  const rate = parseFloat(formData.tax_rate) || 0;
+                  const netAmount = parseFloat(newAmount) || 0;
+
+                  // Recalculate tax when amount changes
+                  const taxAmount = ((netAmount * rate) / 100).toFixed(2);
+
+                  setFormData({
+                    ...formData,
+                    amount: newAmount,
+                    tax_amount: taxAmount
+                  });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+              />
             </div>
 
             <div>
@@ -652,65 +652,65 @@ if (!isUserSettingsReady) {
             </div>
 
             {/* Currency Selection */}
-              <div>
-                <ModernDropdown
-                  label="Currency"
-                  value={formData.currency}
-                  onChange={(value) => setFormData({ ...formData, currency: value })}
-                  options={userSettings?.enabled_currencies?.map(currency => ({
-                    id: currency,
-                    name: `${currency} - ${getCurrencySymbol(currency)}`,
-                  })) || []}
-                  placeholder="Select currency"
-                />
-                {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Rate: 1 {baseCurrency} = {exchangeRates[formData.currency].toFixed(4)} {formData.currency}
-                  </p>
-                )}
+            <div>
+              <ModernDropdown
+                label="Currency"
+                value={formData.currency}
+                onChange={(value) => setFormData({ ...formData, currency: value })}
+                options={userSettings?.enabled_currencies?.map(currency => ({
+                  id: currency,
+                  name: `${currency} - ${getCurrencySymbol(currency)}`,
+                })) || []}
+                placeholder="Select currency"
+              />
+              {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Rate: 1 {baseCurrency} = {exchangeRates[formData.currency].toFixed(4)} {formData.currency}
+                </p>
+              )}
+            </div>
+            {/* Exchange Rate Warning */}
+            {showRateWarning && isEdit && originalRate && (
+              <div className="md:col-span-2 mt-4">
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-yellow-800 mb-2">
+                        Exchange Rate Changed
+                      </h4>
+                      <p className="text-sm text-yellow-700 mb-3">
+                        The exchange rate has changed since this transaction was created:
+                      </p>
+                      <div className="text-sm space-y-1 mb-3">
+                        <div>Original rate: <span className="font-medium">1 {baseCurrency} = {originalRate.toFixed(4)} {formData.currency}</span></div>
+                        <div>Current rate: <span className="font-medium">1 {baseCurrency} = {exchangeRates[formData.currency]?.toFixed(4) || 'N/A'} {formData.currency}</span></div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            checked={useHistoricalRate}
+                            onChange={() => setUseHistoricalRate(true)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm text-yellow-700">Use original rate (historical)</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            checked={!useHistoricalRate}
+                            onChange={() => setUseHistoricalRate(false)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm text-yellow-700">Use current rate</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              {/* Exchange Rate Warning */}
-{showRateWarning && isEdit && originalRate && (
-  <div className="md:col-span-2 mt-4">
-    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-      <div className="flex items-start">
-        <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
-        <div className="flex-1">
-          <h4 className="text-sm font-medium text-yellow-800 mb-2">
-            Exchange Rate Changed
-          </h4>
-          <p className="text-sm text-yellow-700 mb-3">
-            The exchange rate has changed since this transaction was created:
-          </p>
-          <div className="text-sm space-y-1 mb-3">
-            <div>Original rate: <span className="font-medium">1 {baseCurrency} = {originalRate.toFixed(4)} {formData.currency}</span></div>
-            <div>Current rate: <span className="font-medium">1 {baseCurrency} = {exchangeRates[formData.currency]?.toFixed(4) || 'N/A'} {formData.currency}</span></div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                checked={useHistoricalRate}
-                onChange={() => setUseHistoricalRate(true)}
-                className="mr-2"
-              />
-              <span className="text-sm text-yellow-700">Use original rate (historical)</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                checked={!useHistoricalRate}
-                onChange={() => setUseHistoricalRate(false)}
-                className="mr-2"
-              />
-              <span className="text-sm text-yellow-700">Use current rate</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+            )}
 
             {/* Tax Rate - Added this section */}
             <div>
@@ -752,7 +752,7 @@ if (!isUserSettingsReady) {
                   </label>
                 </div>
               )}
-</div>
+            </div>
             <div>
               <ModernDropdown
                 label="Vendor"
@@ -810,10 +810,17 @@ if (!isUserSettingsReady) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Receipt
             </label>
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer">
-                <Upload className="h-4 w-4 mr-2" />
-                {uploadingReceipt ? "Uploading..." : "Upload Receipt"}
+
+            {/* Show upload area if no receipt */}
+            {!formData.receipt_url ? (
+              <label className="flex items-center justify-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer transition-colors">
+                <div className="text-center">
+                  <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-600">
+                    {uploadingReceipt ? "Uploading..." : "Click to upload receipt"}
+                  </span>
+                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, PDF up to 10MB</p>
+                </div>
                 <input
                   type="file"
                   accept="image/*,.pdf"
@@ -822,63 +829,108 @@ if (!isUserSettingsReady) {
                   disabled={uploadingReceipt}
                 />
               </label>
-              {formData.receipt_url && (
-                <a
-                  href={formData.receipt_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  View Receipt
-                </a>
-              )}
-            </div>
-          </div>
-          {/* Total Summary */}
-            {formData.amount && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Net Amount:</span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(parseFloat(formData.amount) || 0, formData.currency)}
-                    </span>
-                  </div>
-                  
-                  {parseFloat(formData.tax_rate) > 0 && (
-                    <>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{taxLabel} ({formData.tax_rate}%):</span>
-                        <span className="text-sm font-medium">
-                          {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
-                        </span>
+            ) : (
+              /* Show receipt preview with remove/replace options */
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* Thumbnail preview for images */}
+                    {formData.receipt_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                      <img
+                        src={formData.receipt_url}
+                        alt="Receipt"
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <span className="text-xs text-gray-500 font-medium">PDF</span>
                       </div>
-                      <div className="border-t pt-2" />
-                    </>
-                  )}
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">Total Amount:</span>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-gray-900">
-                        {formatCurrency(
-                          (parseFloat(formData.amount) || 0) + (parseFloat(formData.tax_amount) || 0), 
-                          formData.currency
-                        )}
-                      </div>
-                      {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
-                        <div className="text-sm text-gray-500">
-                          ≈ {formatCurrency(
-                            (parseFloat(formData.amount) || 0) / exchangeRates[formData.currency], 
-                            baseCurrency
-                          )} (net)
-                        </div>
-                      )}
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Receipt uploaded</p>
+                      <a
+                        href={formData.receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+                      >
+                        View full image →
+                      </a>
                     </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    {/* Replace button */}
+                    <label className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors" title="Replace receipt">
+                      <Upload className="h-4 w-4" />
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={handleReceiptUpload}
+                        className="hidden"
+                        disabled={uploadingReceipt}
+                      />
+                    </label>
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, receipt_url: "" })}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove receipt"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               </div>
             )}
+          </div>
+          {/* Total Summary */}
+          {formData.amount && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Net Amount:</span>
+                  <span className="text-sm font-medium">
+                    {formatCurrency(parseFloat(formData.amount) || 0, formData.currency)}
+                  </span>
+                </div>
+
+                {parseFloat(formData.tax_rate) > 0 && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">{taxLabel} ({formData.tax_rate}%):</span>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(parseFloat(formData.tax_amount) || 0, formData.currency)}
+                      </span>
+                    </div>
+                    <div className="border-t pt-2" />
+                  </>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                  <div className="text-right">
+                    <div className="text-lg font-semibold text-gray-900">
+                      {formatCurrency(
+                        (parseFloat(formData.amount) || 0) + (parseFloat(formData.tax_amount) || 0),
+                        formData.currency
+                      )}
+                    </div>
+                    {formData.currency !== baseCurrency && exchangeRates[formData.currency] && (
+                      <div className="text-sm text-gray-500">
+                        ≈ {formatCurrency(
+                          (parseFloat(formData.amount) || 0) / exchangeRates[formData.currency],
+                          baseCurrency
+                        )} (net)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-4">
             <button

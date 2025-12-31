@@ -2891,10 +2891,8 @@ export const getProjectTimeEntries = async (projectId: string): Promise<TimeEntr
 export const createTimeEntry = async (
   entry: Omit<TimeEntry, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'amount'>
 ): Promise<TimeEntry> => {
-  // Calculate amount if billable
-  const amount = entry.billable && entry.hourly_rate
-    ? entry.hours * entry.hourly_rate
-    : null;
+  // Note: amount is auto-calculated by database DEFAULT expression
+  // based on: CASE WHEN (billable AND hourly_rate IS NOT NULL) THEN (hours * hourly_rate) ELSE NULL END
 
   const { data, error } = await supabase
     .from('project_time_entries')
@@ -2905,14 +2903,15 @@ export const createTimeEntry = async (
       hours: entry.hours,
       description: entry.description || null,
       billable: entry.billable,
-      hourly_rate: entry.hourly_rate || null,
-      amount
+      hourly_rate: entry.hourly_rate || null
+      // amount is NOT included - database calculates it automatically
     }])
     .select()
     .single();
 
   if (error) throw error;
   return data as TimeEntry;
+
 };
 
 /**
@@ -2922,27 +2921,16 @@ export const updateTimeEntry = async (
   entryId: string,
   updates: Partial<TimeEntry>
 ): Promise<TimeEntry> => {
-  // Recalculate amount if hours, rate, or billable status changes
-  const updateData: any = {
-    ...updates,
+  // Note: amount is auto-calculated by database DEFAULT expression
+  // Do NOT include amount in update - just update hours, rate, billable and let DB recalculate
+
+  // Remove amount from updates if present (database handles it)
+  const { amount, ...safeUpdates } = updates;
+
+  const updateData = {
+    ...safeUpdates,
     updated_at: new Date().toISOString()
   };
-
-  if (updates.hours !== undefined || updates.hourly_rate !== undefined || updates.billable !== undefined) {
-    // Fetch current entry to get all values
-    const { data: current } = await supabase
-      .from('project_time_entries')
-      .select('*')
-      .eq('id', entryId)
-      .single();
-
-    if (current) {
-      const hours = updates.hours ?? current.hours;
-      const rate = updates.hourly_rate ?? current.hourly_rate;
-      const billable = updates.billable ?? current.billable;
-      updateData.amount = billable && rate ? hours * rate : null;
-    }
-  }
 
   const { data, error } = await supabase
     .from('project_time_entries')
