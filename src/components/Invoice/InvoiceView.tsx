@@ -92,6 +92,7 @@ export const InvoiceView: React.FC = () => {
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<Invoice['status'] | null>(null);
   const [qrCodeGenerated, setQrCodeGenerated] = useState(false);
+  const [incomeCategoryName, setIncomeCategoryName] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && id) {
@@ -159,6 +160,19 @@ export const InvoiceView: React.FC = () => {
       }
 
       setInvoice(invoiceData);
+
+      // Fetch income category name if exists
+      if (invoiceData.income_category_id) {
+        const { data: categoryData } = await supabase
+          .from('categories')
+          .select('name')
+          .eq('id', invoiceData.income_category_id)
+          .single();
+
+        if (categoryData) {
+          setIncomeCategoryName(categoryData.name);
+        }
+      }
 
       // Load user profile
       const profileData = await getProfile(user.id);
@@ -1068,6 +1082,15 @@ export const InvoiceView: React.FC = () => {
                     </span>
                   </div>
                 )}
+                {incomeCategoryName && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-gray-400" />
+                      Income Category:
+                    </span>
+                    <span className="font-medium text-indigo-600">{incomeCategoryName}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1194,82 +1217,6 @@ export const InvoiceView: React.FC = () => {
             </div>
           )}
 
-          {/* Payment History Section */}
-          {(invoice.status === 'paid' || invoice.status === 'partially_paid') && invoicePayments.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Banknote className="h-4 w-4" />
-                Payment History
-              </h3>
-              <div className="overflow-hidden bg-white rounded-lg shadow-sm ring-1 ring-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Method
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Reference
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                        Notes
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {invoicePayments.map((payment, index) => (
-                      <tr key={payment.id || index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {format(parseISO(payment.payment_date), 'MMM dd, yyyy')}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 text-right font-medium">
-                          {formatCurrency(payment.amount, invoice.currency || baseCurrency)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {payment.payment_method.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {payment.reference_number || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {payment.notes || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Payment Summary */}
-              {paymentBalance && (
-                <div className="mt-4 bg-gray-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Total Paid</span>
-                    <span className="text-sm font-medium text-green-600">
-                      {formatCurrency(paymentBalance.total_paid, invoice.currency || baseCurrency)}
-                    </span>
-                  </div>
-                  {paymentBalance.balance_due > 0 && (
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                      <span className="text-sm font-semibold text-gray-700">Balance Due</span>
-                      <span className="text-sm font-bold text-red-600">
-                        {formatCurrency(paymentBalance.balance_due, invoice.currency || baseCurrency)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Totals Section */}
           <div className="mt-6 flex justify-end">
             <div className="w-full max-w-xs space-y-2">
@@ -1303,6 +1250,108 @@ export const InvoiceView: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Payment History Section - Above Payment Information with light colors */}
+        {(invoice.status === 'paid' || invoice.status === 'partially_paid') && invoicePayments.length > 0 && (
+          <div className="px-8 pb-6 no-print">
+            <div className="bg-gradient-to-br from-slate-50 via-white to-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
+              {/* Section Header */}
+              <div className="px-6 py-4 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200">
+                <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Banknote className="h-4 w-4" style={{ color: primaryColor }} />
+                  Payment History
+                </h3>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  {invoicePayments.length} payment{invoicePayments.length > 1 ? 's' : ''} recorded
+                </p>
+              </div>
+
+              <div className="p-6">
+                <div className="overflow-hidden bg-white rounded-xl ring-1 ring-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Method
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Reference
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Notes
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {invoicePayments.map((payment, index) => (
+                        <tr key={payment.id || index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {format(parseISO(payment.payment_date), 'MMM dd, yyyy')}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900 text-right font-medium">
+                            {formatCurrency(payment.amount, invoice.currency || baseCurrency)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900 text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {payment.payment_method.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {payment.reference_number || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {payment.notes || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Payment Summary */}
+                {paymentBalance && (
+                  <div className="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-600">Invoice Total</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatCurrency(invoice.total, invoice.currency || baseCurrency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-600">Total Paid</span>
+                      <span className="text-sm font-bold text-green-600">
+                        {formatCurrency(paymentBalance.total_paid, invoice.currency || baseCurrency)}
+                      </span>
+                    </div>
+                    {paymentBalance.balance_due > 0 && (
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span className="text-sm font-semibold text-gray-700">Balance Due</span>
+                        <span className="text-sm font-bold text-red-600">
+                          {formatCurrency(paymentBalance.balance_due, invoice.currency || baseCurrency)}
+                        </span>
+                      </div>
+                    )}
+                    {paymentBalance.balance_due <= 0 && (
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span className="text-sm font-semibold text-slate-700">Status</span>
+                        <span className="inline-flex items-center gap-1 text-sm font-bold text-green-600">
+                          <Check className="h-4 w-4" />
+                          Fully Paid
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Payment Information - Always Visible */}
         {(paymentMethods.length > 0 || invoiceSettings?.bank_name || invoiceSettings?.paypal_email) && (
@@ -1494,6 +1543,7 @@ export const InvoiceView: React.FC = () => {
         </div>
       </div>
 
+
       {/* Status Change Confirmation Modal */}
       {showStatusConfirm && pendingStatus && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1516,7 +1566,29 @@ export const InvoiceView: React.FC = () => {
             </div>
 
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              {pendingStatus === 'paid' ? (
+              {pendingStatus === 'paid' && invoice?.status === 'partially_paid' && paymentBalance ? (
+                // Partially paid invoice - block direct "Mark as Paid"
+                <div className="space-y-2">
+                  <p className="text-sm text-amber-700 font-medium">
+                    ⚠️ This invoice has a remaining balance
+                  </p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Invoice Total:</span>
+                    <span className="font-medium">{formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Already Paid:</span>
+                    <span className="text-green-600 font-medium">{formatCurrency(paymentBalance.total_paid, invoice?.currency || baseCurrency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-2 mt-2">
+                    <span className="text-gray-900 font-semibold">Remaining Balance:</span>
+                    <span className="text-amber-600 font-bold">{formatCurrency(paymentBalance.balance_due, invoice?.currency || baseCurrency)}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-3">
+                    Please record the remaining payment to maintain accurate financial records.
+                  </p>
+                </div>
+              ) : pendingStatus === 'paid' ? (
                 <p className="text-sm text-gray-700">
                   This will record <strong>{formatCurrency(invoice?.total || 0, invoice?.currency || baseCurrency)}</strong> as income and mark the invoice as fully paid. This action cannot be easily undone.
                 </p>
@@ -1537,20 +1609,40 @@ export const InvoiceView: React.FC = () => {
               >
                 Cancel
               </button>
-              <button
-                onClick={() => {
-                  handleStatusChange(pendingStatus);
-                  setShowStatusConfirm(false);
-                  setPendingStatus(null);
-                }}
-                className={`px-4 py-2.5 text-white rounded-xl font-medium transition-colors flex items-center gap-2 ${pendingStatus === 'paid'
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-red-600 hover:bg-red-700'
-                  }`}
-              >
-                <Check className="h-4 w-4" />
-                {pendingStatus === 'paid' ? 'Mark as Paid' : 'Cancel Invoice'}
-              </button>
+              {pendingStatus === 'paid' && invoice?.status === 'partially_paid' && paymentBalance && paymentBalance.balance_due > 0 ? (
+                // Show "Record Remaining Payment" button instead of "Mark as Paid"
+                <button
+                  onClick={() => {
+                    setShowStatusConfirm(false);
+                    setPendingStatus(null);
+                    // Pre-fill the remaining amount in the payment modal
+                    setPartialPaymentData(prev => ({
+                      ...prev,
+                      amount: paymentBalance.balance_due.toString()
+                    }));
+                    setShowPartialPayment(true);
+                  }}
+                  className="px-4 py-2.5 text-white rounded-xl font-medium transition-colors flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <Banknote className="h-4 w-4" />
+                  Record Remaining Payment
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    handleStatusChange(pendingStatus);
+                    setShowStatusConfirm(false);
+                    setPendingStatus(null);
+                  }}
+                  className={`px-4 py-2.5 text-white rounded-xl font-medium transition-colors flex items-center gap-2 ${pendingStatus === 'paid'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                >
+                  <Check className="h-4 w-4" />
+                  {pendingStatus === 'paid' ? 'Mark as Paid' : 'Cancel Invoice'}
+                </button>
+              )}
             </div>
           </div>
         </div>

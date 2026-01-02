@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'; 
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DeleteInvoiceWarning } from './DeleteInvoiceWarning';
 import { useData } from '../../contexts/DataContext';
 import { SkeletonTable } from '../Common/Loading';
 import { VATAuditService } from '../../services/vatAuditService';
 import { InvoiceSettings } from './InvoiceSettings';
-import { 
-  Plus, 
-  Search, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Send, 
+import {
+  Plus,
+  Search,
+  Eye,
+  Edit,
+  Trash2,
+  Send,
   Check,
   Filter,
   Settings,
@@ -83,12 +83,12 @@ export const InvoiceList: React.FC = () => {
   const { refreshBusinessData, effectiveUserId } = useData();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Helper function to calculate total tax from items with proper fallback
   const calculateInvoiceTaxTotal = (invoice: Invoice): number => {
     if (invoice.items && invoice.items.length > 0) {
       // Sum up all item-level taxes
-      const itemTaxTotal = invoice.items.reduce((total, item) => 
+      const itemTaxTotal = invoice.items.reduce((total, item) =>
         total + (item.tax_amount || 0), 0
       );
       // Return item tax total if available, otherwise fall back to invoice-level tax
@@ -109,7 +109,7 @@ export const InvoiceList: React.FC = () => {
     // If converting FROM base currency TO foreign currency, multiply by exchange rate
     return baseAmount * exchangeRate;
   };
-  
+
   // State for filters and UI - Initialize from URL params
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>((searchParams.get('status') as InvoiceStatus) || 'all');
@@ -221,7 +221,7 @@ export const InvoiceList: React.FC = () => {
         .from('recurring_invoices')
         .select('*')
         .eq('user_id', effectiveUserId);
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -263,7 +263,7 @@ export const InvoiceList: React.FC = () => {
 
         // Track most recent payment date
         if (!totals[payment.invoice_id].last_payment_date ||
-            payment.payment_date > totals[payment.invoice_id].last_payment_date!) {
+          payment.payment_date > totals[payment.invoice_id].last_payment_date!) {
           totals[payment.invoice_id].last_payment_date = payment.payment_date;
         }
       });
@@ -282,7 +282,7 @@ export const InvoiceList: React.FC = () => {
         clientsMap.set(invoice.client.id, invoice.client);
       }
     });
-    return Array.from(clientsMap.values()).sort((a, b) => 
+    return Array.from(clientsMap.values()).sort((a, b) =>
       (a.name || '').localeCompare(b.name || '')
     );
   }, [invoices]);
@@ -302,7 +302,7 @@ export const InvoiceList: React.FC = () => {
   // Generate public link function with deduplication
   const generatePublicLink = async (invoiceId: string) => {
     if (!user) return '';
-    
+
     try {
       // Check for existing valid token first
       const { data: existingToken } = await supabase
@@ -311,17 +311,17 @@ export const InvoiceList: React.FC = () => {
         .eq('invoice_id', invoiceId)
         .gte('expires_at', new Date().toISOString())
         .maybeSingle();
-      
+
       if (existingToken?.token) {
         const baseUrl = window.location.origin;
         return `${baseUrl}/invoice/public/${invoiceId}?token=${existingToken.token}`;
       }
-      
+
       // Create new token only if no valid token exists
       const token = crypto.randomUUID();
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
-      
+
       const { error } = await supabase
         .from('invoice_access_tokens')
         .insert({
@@ -329,9 +329,9 @@ export const InvoiceList: React.FC = () => {
           invoice_id: invoiceId,
           expires_at: expiresAt.toISOString()
         });
-      
+
       if (error) throw error;
-      
+
       const baseUrl = window.location.origin;
       return `${baseUrl}/invoice/public/${invoiceId}?token=${token}`;
     } catch (err: any) {
@@ -563,13 +563,13 @@ export const InvoiceList: React.FC = () => {
   // Check if any filters are active
   const hasActiveFilters = () => {
     return searchTerm !== '' ||
-           statusFilter !== 'all' ||
-           currencyFilter !== 'all' ||
-           clientFilter !== 'all' ||
-           categoryFilter !== 'all' ||
-           typeFilter !== 'all' ||
-           dateRange !== 'this-month' ||
-           sortBy !== 'date';
+      statusFilter !== 'all' ||
+      currencyFilter !== 'all' ||
+      clientFilter !== 'all' ||
+      categoryFilter !== 'all' ||
+      typeFilter !== 'all' ||
+      dateRange !== 'this-month' ||
+      sortBy !== 'date';
   };
 
   // Reset custom date picker
@@ -610,35 +610,35 @@ export const InvoiceList: React.FC = () => {
   // Bulk delete function with loading state
   const handleBulkDelete = async () => {
     if (selectedItems.length === 0) return;
-    
+
     const selectedInvoiceData = filteredInvoices.filter(
       invoice => selectedItems.includes(invoice.id)
     );
-    
+
     const lockedInvoices = selectedInvoiceData.filter(
       invoice => invoice.status === 'paid' ||
-                 invoice.status === 'canceled' ||
-                 invoice.vat_locked_at ||
-                 invoice.payment_locked_at
+        invoice.status === 'canceled' ||
+        invoice.vat_locked_at ||
+        invoice.payment_locked_at
     );
-    
+
     if (lockedInvoices.length > 0) {
       alert(`Cannot delete ${lockedInvoices.length} locked invoice(s). These are locked for legal compliance.`);
       return;
     }
-    
+
     const confirmed = window.confirm(
       `Are you sure you want to delete ${selectedItems.length} invoice(s)? This action cannot be undone.`
     );
-    
+
     if (!confirmed) return;
-    
+
     setBulkActionLoading(true);
     try {
       await Promise.all(
         selectedItems.map(id => deleteMutation.mutateAsync(id))
       );
-      
+
       clearSelections();
       alert(`Successfully deleted ${selectedItems.length} invoice(s)`);
     } catch (error) {
@@ -655,11 +655,11 @@ export const InvoiceList: React.FC = () => {
       alert('Please select items to export');
       return;
     }
-    
-    const selectedInvoices = filteredInvoices.filter(invoice => 
+
+    const selectedInvoices = filteredInvoices.filter(invoice =>
       selectedItems.includes(invoice.id)
     );
-    
+
     const headers = ['Invoice #', 'Date', 'Due Date', 'Client', 'Amount', 'Currency', 'Exchange Rate', 'Base Amount', 'Status', 'Type', 'Has Credits'];
     const csvData = selectedInvoices.map(invoice => [
       invoice.invoice_number,
@@ -674,18 +674,18 @@ export const InvoiceList: React.FC = () => {
       recurringInvoices.has(invoice.id) ? 'Recurring' : 'One-time',
       invoice.has_credit_notes ? 'Yes' : 'No'
     ]);
-    
+
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `selected-invoices-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
-    
+
     alert(`Exported ${selectedItems.length} invoice(s)`);
   };
 
@@ -762,8 +762,21 @@ export const InvoiceList: React.FC = () => {
 
   const handleStatusChange = async (id: string, newStatus: InvoiceStatus) => {
     try {
+      // Get current invoice to check status
+      const { data: currentInvoice } = await supabase
+        .from('invoices')
+        .select('status')
+        .eq('id', id)
+        .single();
+
+      // Block direct "Mark as Paid" for partially_paid invoices
+      if (newStatus === 'paid' && currentInvoice?.status === 'partially_paid') {
+        alert('This invoice has a remaining balance. Please view the invoice and record the remaining payment first.');
+        return;
+      }
+
       await updateInvoice(id, { status: newStatus });
-      
+
       // Handle automatic income creation when marking as paid
       if (newStatus === 'paid' && user) {
         const { data: invoice } = await supabase
@@ -771,9 +784,9 @@ export const InvoiceList: React.FC = () => {
           .select('*')
           .eq('id', id)
           .single();
-        
+
         if (!invoice) return;
-        
+
         // Check if income already exists
         const { data: existingIncome } = await supabase
           .from('income')
@@ -781,30 +794,30 @@ export const InvoiceList: React.FC = () => {
           .eq('reference_number', invoice.invoice_number)
           .eq('user_id', user.id)
           .maybeSingle();
-        
+
         if (!existingIncome) {
           let totalNetAmount = 0;
           let totalTaxAmount = 0;
           let taxBreakdown: Record<string, any> = {};
-          
+
           // Fetch invoice items for VAT breakdown
           const { data: items } = await supabase
             .from('invoice_items')
             .select('*')
             .eq('invoice_id', invoice.id);
-          
+
           // Check if this is a UK VAT invoice (based on user country, not currency)
-          const isUKVAT = isUKUser && 
-                         items && items.length > 0 &&
-                         items.some(item => (item.tax_rate || 0) > 0);
-         
+          const isUKVAT = isUKUser &&
+            items && items.length > 0 &&
+            items.some(item => (item.tax_rate || 0) > 0);
+
           if (isUKVAT && items && items.length > 0) {
             // Build VAT breakdown from items
             items.forEach(item => {
               const rate = (item.tax_rate || 0).toString();
               const netAmount = item.net_amount || item.amount || 0;
               const taxAmount = item.tax_amount || 0;
-              
+
               if (!taxBreakdown[rate]) {
                 taxBreakdown[rate] = {
                   net_amount: 0,
@@ -812,11 +825,11 @@ export const InvoiceList: React.FC = () => {
                   gross_amount: 0
                 };
               }
-              
+
               taxBreakdown[rate].net_amount += netAmount;
               taxBreakdown[rate].tax_amount += taxAmount;
               taxBreakdown[rate].gross_amount += netAmount + taxAmount;
-              
+
               totalNetAmount += netAmount;
               totalTaxAmount += taxAmount;
             });
@@ -824,7 +837,7 @@ export const InvoiceList: React.FC = () => {
             // Non-VAT invoice
             totalNetAmount = invoice.subtotal;
             totalTaxAmount = invoice.tax_amount || 0;
-            
+
             if (invoice.tax_rate > 0) {
               taxBreakdown[invoice.tax_rate.toString()] = {
                 net_amount: invoice.subtotal,
@@ -833,12 +846,12 @@ export const InvoiceList: React.FC = () => {
               };
             }
           }
-          
+
           // Calculate base amount correctly
           const baseAmount = invoice.currency === baseCurrency
             ? totalNetAmount
             : convertToBaseCurrency(totalNetAmount, invoice.currency || baseCurrency, invoice.exchange_rate || 1);
-          
+
           const { error: incomeError } = await supabase
             .from('income')
             .insert([{
@@ -862,9 +875,9 @@ export const InvoiceList: React.FC = () => {
                 is_uk_vat: isUKVAT
               }
             }]);
-            
+
           if (incomeError) throw incomeError;
-          
+
           // Log VAT link if applicable
           if (isUKVAT && !incomeError) {
             const { data: newIncome } = await supabase
@@ -873,7 +886,7 @@ export const InvoiceList: React.FC = () => {
               .eq('reference_number', invoice.invoice_number)
               .eq('user_id', user.id)
               .single();
-            
+
             if (newIncome) {
               await VATAuditService.logVATLink(
                 user.id,
@@ -881,22 +894,22 @@ export const InvoiceList: React.FC = () => {
                 invoice.id,
                 'income',
                 newIncome.id,
-                { 
-                  invoice_number: invoice.invoice_number, 
-                  amount: totalNetAmount, 
+                {
+                  invoice_number: invoice.invoice_number,
+                  amount: totalNetAmount,
                   vat: totalTaxAmount,
-                  vat_breakdown: taxBreakdown 
+                  vat_breakdown: taxBreakdown
                 }
               );
             }
           }
         }
       }
-      
+
       await queryClient.invalidateQueries({ queryKey: ['invoices'] });
       await queryClient.invalidateQueries({ queryKey: ['income'] });
       await refreshBusinessData();
-      
+
     } catch (error: any) {
       console.error('Error updating invoice status:', error);
       alert('Error updating invoice status: ' + error.message);
@@ -931,20 +944,20 @@ export const InvoiceList: React.FC = () => {
         .eq('user_id', fullInvoiceData.user_id)
         .single();
 
-      const companyName = profileData?.company_name || 
-                         settingsData?.company_name || 
-                         'Your Company';
-      const companyAddress = profileData?.company_address || 
-                            settingsData?.company_address || '';
-      const companyPhone = profileData?.phone || 
-                          settingsData?.company_phone || '';
+      const companyName = profileData?.company_name ||
+        settingsData?.company_name ||
+        'Your Company';
+      const companyAddress = profileData?.company_address ||
+        settingsData?.company_address || '';
+      const companyPhone = profileData?.phone ||
+        settingsData?.company_phone || '';
 
       if (method === 'email') {
         if (!invoice.client?.email) {
           alert('Client email is required to send via email');
           return;
         }
-        
+
         const { error } = await supabase.functions.invoke('send-invoice-email', {
           body: {
             invoiceId: invoice.id,
@@ -952,7 +965,7 @@ export const InvoiceList: React.FC = () => {
             invoiceUrl: `${window.location.origin}/invoices/${invoice.id}/view`
           }
         });
-        
+
         if (error) throw error;
         alert('Invoice sent via email successfully!');
       } else if (method === 'whatsapp') {
@@ -1002,7 +1015,7 @@ export const InvoiceList: React.FC = () => {
               fullLink = `https://${fullLink.replace(/^\/+/, '')}`;
             }
             const clientName = invoice.client?.name || 'there';
-            
+
             // Build message - link must be on its own line for WhatsApp to make it clickable
             // Note: WhatsApp requires links to be on separate lines without formatting to make them clickable
             const message = encodeURIComponent(
@@ -1028,19 +1041,19 @@ export const InvoiceList: React.FC = () => {
           return;
         }
       }
-      
+
       // Update status if sending from draft
       if (invoice.status === 'draft') {
         await handleStatusChange(invoice.id, 'sent');
-        
+
         // Log activity
         if (user?.id) {
           await supabase.from('invoice_activities').insert({
             invoice_id: invoice.id,
             user_id: user.id,
             action: 'sent',
-            details: { 
-              method, 
+            details: {
+              method,
               timestamp: new Date().toISOString(),
               sent_to: method === 'email' ? invoice.client?.email : invoice.client?.phone
             }
@@ -1183,7 +1196,7 @@ export const InvoiceList: React.FC = () => {
         <div className="text-center">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <p className="text-red-600">Error loading invoices</p>
-          <button 
+          <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ['invoices'] })}
             className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
@@ -1207,7 +1220,7 @@ export const InvoiceList: React.FC = () => {
                 {isUKUser && ' • UK VAT compliant'}
               </p>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Link
                 to="/invoices/new"
@@ -1257,11 +1270,10 @@ export const InvoiceList: React.FC = () => {
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white shadow-sm"
                 >
                   <span className="text-gray-700">More</span>
-                  <ChevronDown className={`h-4 w-4 ml-2 text-gray-500 transition-transform ${
-                    showActionsDropdown ? 'rotate-180' : ''
-                  }`} />
+                  <ChevronDown className={`h-4 w-4 ml-2 text-gray-500 transition-transform ${showActionsDropdown ? 'rotate-180' : ''
+                    }`} />
                 </button>
-                
+
                 {showActionsDropdown && (
                   <>
                     <div
@@ -1344,8 +1356,8 @@ export const InvoiceList: React.FC = () => {
             >
               <ChevronLeft className="h-5 w-5 text-gray-600" />
             </button>
-            
-            <div 
+
+            <div
               id="stats-container"
               className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -1362,7 +1374,7 @@ export const InvoiceList: React.FC = () => {
                   Avg: {formatCurrency(stats.averageInvoiceValue, baseCurrency)}
                 </p>
               </div>
-              
+
               <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
@@ -1377,7 +1389,7 @@ export const InvoiceList: React.FC = () => {
                   {stats.totalAmount > 0 ? Math.round((stats.paidAmount / stats.totalAmount) * 100) : 0}% collected
                 </p>
               </div>
-              
+
               <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
@@ -1390,7 +1402,7 @@ export const InvoiceList: React.FC = () => {
                 <p className="text-amber-100 text-sm">Pending</p>
                 <p className="text-amber-200 text-xs mt-1">Awaiting payment</p>
               </div>
-              
+
               <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-white/20 backdrop-blur rounded-xl">
@@ -1403,7 +1415,7 @@ export const InvoiceList: React.FC = () => {
                 <p className="text-red-100 text-sm">Overdue</p>
                 <p className="text-red-200 text-xs mt-1">Requires attention</p>
               </div>
-              
+
               {/* Draft Invoices Card */}
               <div className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
                 <div className="flex items-center justify-between mb-4">
@@ -1419,7 +1431,7 @@ export const InvoiceList: React.FC = () => {
                   {stats.draftCount} invoice{stats.draftCount !== 1 ? 's' : ''}
                 </p>
               </div>
-              
+
               {/* Credit Notes Card - Only show if there are credits */}
               {stats.totalCredited > 0 && (
                 <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white flex-shrink-0 snap-start" style={{ minWidth: '300px' }}>
@@ -1438,7 +1450,7 @@ export const InvoiceList: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <button
               onClick={() => handleStatsScroll('right')}
               className="hidden lg:block absolute right-0 z-10 p-2 bg-white rounded-full shadow-lg hover:shadow-xl transition-all"
@@ -1664,7 +1676,7 @@ export const InvoiceList: React.FC = () => {
               )}
             </div>
           )}
-          
+
           {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7 gap-4 mt-4 pt-4 border-t">
               {/* Date Range Filter */}
@@ -1769,7 +1781,7 @@ export const InvoiceList: React.FC = () => {
                   <option value="canceled">Canceled</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
                 <select
@@ -1785,7 +1797,7 @@ export const InvoiceList: React.FC = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                 <select
@@ -1801,7 +1813,7 @@ export const InvoiceList: React.FC = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
                 <select
@@ -1817,7 +1829,7 @@ export const InvoiceList: React.FC = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
                 <select
@@ -1830,7 +1842,7 @@ export const InvoiceList: React.FC = () => {
                   <option value="recurring">Recurring</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
                 <select
@@ -1867,11 +1879,10 @@ export const InvoiceList: React.FC = () => {
                 <button
                   onClick={handleBulkDelete}
                   disabled={bulkActionLoading}
-                  className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    bulkActionLoading
+                  className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${bulkActionLoading
                       ? 'border-gray-300 text-gray-400 bg-gray-50 cursor-not-allowed'
                       : 'border-red-300 text-red-700 bg-white hover:bg-red-50 focus:ring-red-500'
-                  }`}
+                    }`}
                 >
                   {bulkActionLoading ? (
                     <>
@@ -1944,7 +1955,7 @@ export const InvoiceList: React.FC = () => {
                     const recurringInfo = isRecurring ? recurringInvoices.get(invoice.id) : null;
                     const daysUntilDue = getDaysUntilDue(invoice.due_date);
                     const totalTax = calculateInvoiceTaxTotal(invoice);
-                    
+
                     return (
                       <tr
                         key={invoice.id}
@@ -2021,7 +2032,7 @@ export const InvoiceList: React.FC = () => {
                                   <span className="ml-1 text-gray-400">
                                     (@{invoice.exchange_rate})
                                   </span>
-                                )}   
+                                )}
                               </div>
                             )}
                             {totalTax > 0 && (
@@ -2031,11 +2042,11 @@ export const InvoiceList: React.FC = () => {
                               </div>
                             )}
                             {invoice.has_credit_notes && (
-  <div className="flex items-center text-xs text-purple-600 mt-0.5">
-    <ArrowDownLeft className="h-3 w-3 mr-1" />
-    {formatCurrency(invoice.total_credited || 0, invoice.currency || baseCurrency)} credited
-  </div>
-)}
+                              <div className="flex items-center text-xs text-purple-600 mt-0.5">
+                                <ArrowDownLeft className="h-3 w-3 mr-1" />
+                                {formatCurrency(invoice.total_credited || 0, invoice.currency || baseCurrency)} credited
+                              </div>
+                            )}
                             {/* Payment Status Display */}
                             {paymentTotals[invoice.id] && (
                               <div className="mt-0.5">
@@ -2103,14 +2114,14 @@ export const InvoiceList: React.FC = () => {
                                 <Edit className="h-4 w-4" />
                               </Link>
                             ) : (
-                              <span 
-                                className="p-2 text-gray-400 cursor-not-allowed" 
+                              <span
+                                className="p-2 text-gray-400 cursor-not-allowed"
                                 title="Locked for compliance"
                               >
                                 <Edit className="h-4 w-4" />
                               </span>
                             )}
-                            
+
                             {/* Action Menu */}
                             <div className="relative action-menu-container">
                               <button
@@ -2122,7 +2133,7 @@ export const InvoiceList: React.FC = () => {
                               >
                                 <MoreVertical className="h-4 w-4" />
                               </button>
-                              
+
                               {showActionMenu === invoice.id && (
                                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-50 py-1 transform -translate-x-2">
                                   {invoice.client?.email && (
@@ -2159,7 +2170,7 @@ export const InvoiceList: React.FC = () => {
                                     <Copy className="h-4 w-4 mr-3 text-gray-500" />
                                     Copy Link
                                   </button>
-                                  
+
                                   {invoice.has_credit_notes && (
                                     <>
                                       <hr className="my-1" />
@@ -2175,9 +2186,9 @@ export const InvoiceList: React.FC = () => {
                                       </button>
                                     </>
                                   )}
-                                  
+
                                   <hr className="my-1" />
-                                  
+
                                   {invoice.status === 'draft' && (
                                     <button
                                       onClick={() => {
@@ -2202,20 +2213,19 @@ export const InvoiceList: React.FC = () => {
                                       Mark as Paid
                                     </button>
                                   )}
-                                  
+
                                   <hr className="my-1" />
-                                  
+
                                   <button
                                     onClick={() => {
                                       handleDelete(invoice.id);
                                       setShowActionMenu(null);
                                     }}
                                     disabled={invoice.status === 'paid' || invoice.status === 'canceled' || !!invoice.vat_locked_at || !!invoice.payment_locked_at || deleteMutation.isPending}
-                                    className={`w-full px-4 py-2 text-left text-sm flex items-center ${
-                                      invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at || invoice.payment_locked_at || deleteMutation.isPending
+                                    className={`w-full px-4 py-2 text-left text-sm flex items-center ${invoice.status === 'paid' || invoice.status === 'canceled' || invoice.vat_locked_at || invoice.payment_locked_at || deleteMutation.isPending
                                         ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
                                         : 'text-red-600 hover:bg-red-50'
-                                    }`}
+                                      }`}
                                   >
                                     {deleteMutation.isPending ? (
                                       <>
@@ -2265,7 +2275,7 @@ export const InvoiceList: React.FC = () => {
             </table>
           </div>
         </div>
-        
+
         {/* Pagination */}
         {filteredInvoices.length > itemsPerPage && (
           <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6 rounded-lg">
@@ -2317,7 +2327,7 @@ export const InvoiceList: React.FC = () => {
                       <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
                     </svg>
                   </button>
-                  
+
                   {/* Page Numbers */}
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNumber: number;
@@ -2330,7 +2340,7 @@ export const InvoiceList: React.FC = () => {
                     } else {
                       pageNumber = currentPage - 2 + i;
                     }
-                    
+
                     return (
                       <button
                         key={pageNumber}
@@ -2338,17 +2348,16 @@ export const InvoiceList: React.FC = () => {
                           setCurrentPage(pageNumber);
                           clearSelections();
                         }}
-                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                          currentPage === pageNumber
+                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${currentPage === pageNumber
                             ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
                             : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                        }`}
+                          }`}
                       >
                         {pageNumber}
                       </button>
                     );
                   })}
-                  
+
                   <button
                     onClick={() => {
                       setCurrentPage(Math.min(totalPages, currentPage + 1));
@@ -2369,7 +2378,7 @@ export const InvoiceList: React.FC = () => {
         )}
 
       </div>
-      
+
       {/* Delete Warning Dialog */}
       <DeleteInvoiceWarning
         isOpen={showDeleteWarning}
@@ -2387,7 +2396,7 @@ export const InvoiceList: React.FC = () => {
           setInvoiceToDelete(null);
         }}
       />
-      
+
       {/* Settings Modal */}
       {showSettings && (
         <InvoiceSettings onClose={() => setShowSettings(false)} />
